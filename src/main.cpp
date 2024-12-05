@@ -1,5 +1,6 @@
 #include "raylib.h"
 #include <array>
+#include "sketch.h"
 
 struct line2
 {
