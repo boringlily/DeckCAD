@@ -11,6 +11,8 @@ struct SketchPoint
 {
     position x;
     position y;
+
+    SketchPoint(point2d &point):x{point.x},y{point.y}{};
 };
 
 struct SketchLine
@@ -107,15 +109,20 @@ private:
 class Sketch
 {
 public:
+
+    Sketch(Plane sketch_plane):sketch_plane{sketch_plane}{};
+
     bool addLineFromPoints(point2d start, point2d end);
     bool addLine(point2d start, distance length, degree angle = 0);
 
     bool addArcFrom3Points(point2d start, point2d center, point2d end); // Doesn't guarantee arc is following the path correctly.
-    bool addArcFrom2Points(point2d start, point2d center, degree arc_angle);
-    bool addArcCenterRadius(point2d center, distance radius, degree arc_angle);
-    bool addCircle(point2d center, distance diameter);
+    // bool addArcFrom2Points(point2d start, point2d center, degree arc_angle);
+    // bool addArcCenterRadius(point2d center, distance radius, degree arc_angle);
+    // bool addCircle(point2d center, distance diameter);
 
-    bool deleteElement(GeometryID item_to_delete);
+    // bool deleteElement(GeometryID item_to_delete);
+
+    void render();
 
 private:
     SketchPointList points;
@@ -123,4 +130,6 @@ private:
     SketchArcList arcs;
 
     ConstraintSolver solver{points,lines,arcs};
+
+    Plane sketch_plane;
 };

@@ -91,6 +91,11 @@ int main(void)
     SetTargetFPS(120); // Set our game to run at 60 frames-per-second
     //--------------------------------------------------------------------------------------
 
+    Sketch my_drawing(DefaultPrimitives::plane_xy);
+
+    my_drawing.addLine({0,0}, 10, 45);
+    my_drawing.addLine({0,0}, 25);
+
     // Main game loop
     while (!WindowShouldClose()) // Detect window close button or ESC key
     {
@@ -109,24 +114,9 @@ int main(void)
         ClearBackground(RAYWHITE);
 
         BeginMode3D(camera);
-        
-        // Draw Points
-        for(auto &p : points)
-        {
-            DrawSphere(p, 0.02, RED);
-        }   
 
-        // Draw Lines
-        for (unsigned i{0}; i < lines.size(); i++)
-        {
-            line2 &l = lines[i];
-            if (l.isValid())
-            {
-                DrawLine3D(points[l.a-1], points[l.b-1], BLACK);
-            }
-        }
-
-        // DrawGrid(10, 1.0f);
+            my_drawing.render(); 
+            DrawGrid(10, 1.0f);
         EndMode3D();
 
         EndDrawing();
