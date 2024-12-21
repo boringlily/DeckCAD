@@ -15,22 +15,42 @@ struct SketchPoint
     SketchPoint(point2d &point):x{point.x},y{point.y}{};
 };
 
-struct SketchLine
+enum class PointName : uint8_t
 {
-    PointIndex start;
-    PointIndex end;
+    A = 0,
+    B,
+    C,
+    D,
+    E,
+    F,
+    G,
+
+// Alias
+    Start = A,
+    End = B, 
+    Center = C,
+    Midpoint = C,
 };
 
-struct SketchArc
+class SketchElement
 {
-    PointIndex start;
-    PointIndex end;
-    PointIndex center;
-};
+    public:
+    enum Type
+    {
+        LINE,
+        ARC
+    };
 
-using SketchPointList = std::vector<SketchPoint>;
-using SketchLineList = std::vector<SketchLine>;
-using SketchArcList = std::vector<SketchArc>;
+    SketchPoint & get_point(PointName point);
+private:
+
+    const Type geometryType;
+
+    private:
+    Vector2 A, B, Center;
+    distance size;
+    degree angle;
+};
 
 enum element_type
 {
