@@ -1,5 +1,6 @@
 #pragma once
 #include <vector>
+#include "raylib.h"
 #include "geometry_math.h"
 
 // Type specificity for sketch element indexing.
@@ -12,7 +13,7 @@ struct SketchPoint
     position x;
     position y;
 
-    SketchPoint(point2d &point):x{point.x},y{point.y}{};
+    SketchPoint(Vector2 &point):x{point.x},y{point.y}{};
 };
 
 enum class PointName : uint8_t
@@ -20,10 +21,10 @@ enum class PointName : uint8_t
     A = 0,
     B,
     C,
-    D,
-    E,
-    F,
-    G,
+    // D,
+    // E,
+    // F,
+    // G,
 
 // Alias
     Start = A,
@@ -37,17 +38,28 @@ class SketchElement
     public:
     enum Type
     {
-        LINE,
-        ARC
+        Line,
+        Circle,
+        Arc
     };
 
+    // Make a Line
+    SketchElement(Vector2 start, Vector2 end):geometryType{Type::LINE}{};
+    
+    // Arc
+    SketchElement(Vector2 ArcStart, Vector2 ArcCenter, Vector2 ArcEnd):geometryType{Type::LINE}{};
+    
+    // Cirle 
+    SketchElement(Vector2 circle_center, distance radius):geometryType{Type::LINE}{};
+
     SketchPoint & get_point(PointName point);
-private:
+
+    protected:
 
     const Type geometryType;
 
     private:
-    Vector2 A, B, Center;
+    std::array<Vector2&, 3> points;
     distance size;
     degree angle;
 };
@@ -97,32 +109,6 @@ enum class DimensionConstraints : uint8_t
     ArcAngle
 };
 
-class ConstraintSolver
-{
-public:
-    ConstraintSolver(
-        SketchPointList &sketch_points,
-        SketchLineList &sketch_lines,
-        SketchArcList &sketch_arcs) : sketch_points{sketch_points}, sketch_lines{sketch_lines}, sketch_arcs{sketch_arcs} {};
-
-    using Selection = std::array<GeometryID, 2>;
-
-    bool addDimension(DimensionConstraints type, distance expression, Selection select);
-    bool addConstraint(GeometricConstraints type, Selection select);
-
-private:
-    struct constraint
-    {
-        PointIndex P1,P2;
-        LineIndex L1,L2;
-        ArcIndex A1,A2;
-    };
-
-    SketchPointList &sketch_points;
-    SketchLineList &sketch_lines;
-    SketchArcList &sketch_arcs;
-};
-
 // A Sketch represents a 2D drawing made up of lines and arcs which are
 // parametrically related via Geometric and Dimensional constraints.
 // All sketches exist on a cartesian XY-plane and use a 3DPlane to position the Sketch in 3D space.
@@ -130,24 +116,22 @@ class Sketch
 {
 public:
 
-    Sketch(Plane sketch_plane):sketch_plane{sketch_plane}{};
+    Sketch(){};
 
-    bool addLineFromPoints(point2d start, point2d end);
-    bool addLine(point2d start, distance length, degree angle = 0);
+    bool addLineFromPoints(Vector2 start, Vector2 end);
+    bool addLine(Vector2 start, distance length, degree angle = 0);
 
-    bool addArcFrom3Points(point2d start, point2d center, point2d end); // Doesn't guarantee arc is following the path correctly.
-    // bool addArcFrom2Points(point2d start, point2d center, degree arc_angle);
-    // bool addArcCenterRadius(point2d center, distance radius, degree arc_angle);
-    // bool addCircle(point2d center, distance diameter);
+    bool addArcFrom3Points(Vector2 start, Vector2 center, Vector2 end); // Doesn't guarantee arc is following the path correctly.
+    // bool addArcFrom2Points(Vector2 start, Vector2 center, degree arc_angle);
+    // bool addArcCenterRadius(Vector2 center, distance radius, degree arc_angle);
+    // bool addCircle(Vector2 center, distance diameter);
 
     // bool deleteElement(GeometryID item_to_delete);
 
     void render();
 
 private:
-    SketchPointList points;
-    SketchLineList lines;
-    SketchArcList arcs;
+    SketchPointList ;
 
     ConstraintSolver solver{points,lines,arcs};
 
