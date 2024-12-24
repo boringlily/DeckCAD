@@ -1,7 +1,8 @@
 #include "raylib.h"
 #include <array>
 #include <vector>
-// #include "sketch.h"
+#define RAYGUI_IMPLEMENTATION
+#include "raygui.h"
 
 int main(void)
 {
