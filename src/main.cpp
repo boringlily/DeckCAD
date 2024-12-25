@@ -8,7 +8,11 @@
 #include <string>
 #include <sstream>
 #include <format>
+#include "math.h"
 
+
+constexpr float Pi{3.14};
+constexpr degree radians_to_deg{180/Pi};
 
 struct Line
 {
@@ -29,17 +33,24 @@ public:
     void draw_with_stats()
     {
         CalcLength();
+        CalcAngle();
         draw(false);
-        auto lengthStr = std::format("{:.2f} mm", length);
-        DrawText(lengthStr.c_str(), A.x, A.y + 10, 10, SKYBLUE);
+        auto lengthStr = std::format("{:.2f}mm {:.2f}deg", length, angle);
+        DrawText(lengthStr.c_str(), B.x, B.y - 20, 10, BLACK);
     }
 
     void CalcLength()
     {
         length = CustomMath::point_distance(A.x,A.y,B.x,B.y);
     }
-    
-    float length = 0;
+
+    void CalcAngle()
+    {
+        angle = abs(atan((B.y - A.y)/(B.x - A.x)))*radians_to_deg;
+    }
+
+    distance length{0};
+    degree angle{0};
 };
 
 int main(void)
@@ -75,9 +86,10 @@ int main(void)
     Line l2 = {{l1.B.x + 20, l1.B.y} , {500, 380}};
     Line l3 = {{l2.B.x + 20, l2.B.y}, {700, 200}};
 
+    Line follower = {{300, 300}, {0,0}};
     while (!WindowShouldClose())    // Detect window close button
     {
-        // mouse_pos = GetMousePosition();
+        mouse_pos = GetMousePosition();
         // bool mouse_on_canvas = CheckCollisionPointRec(mouse_pos, canvas);
 
         // if (GuiButton({0, 0, 100, 40}, "Line")) { current_tool = Tool::twoPointLine;}
@@ -96,14 +108,17 @@ int main(void)
 
         // }
 
+        follower.B = mouse_pos;
 
         BeginDrawing();
         
             ClearBackground(RAYWHITE);
-            l1.draw_with_stats();
-            l2.draw_with_stats();
-            l3.draw();
-        
+            // l1.draw_with_stats();
+            // l2.draw_with_stats();
+            // l3.draw_with_stats();
+
+            follower.draw_with_stats();
+
 
         //     if(draw_line)
         //     {

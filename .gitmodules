@@ -1,3 +1,6 @@
 [submodule "components/raygui"]
 	path = components/raygui
 	url = https://github.com/raysan5/raygui.git
+[submodule "components/raylib"]
+	path = components/raylib
+	url = https://github.com/raysan5/raylib.git
