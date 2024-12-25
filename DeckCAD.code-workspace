@@ -7,7 +7,11 @@
 	"settings": {
 		"files.associations": {
 			"array": "cpp",
-			"vector": "cpp"
+			"vector": "cpp",
+			"stdexcept": "cpp",
+			"string": "cpp",
+			"format": "cpp",
+			"thread": "cpp"
 		}
 	}
 }
