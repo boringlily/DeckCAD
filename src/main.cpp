@@ -1,18 +1,30 @@
 #include "raylib.h"
 #define RAYGUI_IMPLEMENTATION
 #include "raygui.h"
+#include "raymath.h"
+#include "rlgl.h"
 
 #include <array>
 #include <vector>
-#include "geometry_math.h"
 #include <string>
 #include <sstream>
 #include <format>
-#include "math.h"
 
+#include "geometry_math.h"
 
-constexpr float Pi{3.14};
-constexpr degree radians_to_deg{180/Pi};
+static Font system_font;
+float canvas_scale{1.0F};
+float grid_spacing_mm = 5;
+constexpr distance GRID_SPACING_MIN{0.001};
+constexpr distance GRID_SPACING_MAX{1000};
+
+namespace UI
+{
+    void DrawLineDimensions()
+    {
+
+    }
+};
 
 struct Line
 {
@@ -25,28 +37,57 @@ public:
         Color point2 = simple_colors? GRAY : ORANGE;
         Color line =  simple_colors? BLACK : GREEN;
 
-        DrawCircleV(A, 2, point1);
-        DrawCircleV(B, 4, point2);
-        DrawLineEx(A, B, 2, line);
+        DrawCircleV(A, 2 * canvas_scale, point1);
+        DrawCircleV(B, 3 * canvas_scale, point2);
+        DrawLineEx(A, B, 2 * canvas_scale, line);
     }
-
     void draw_with_stats()
     {
+        
         CalcLength();
         CalcAngle();
+
+        // DrawText(std::format("{:.2f}mm {:.2f}deg", length, angle, B.x, B.y).c_str(), B.x, B.y - 20, 10, BLACK);
+        // DrawText(std::format("{:.2f}mm", length).c_str(), B.x, B.y - 20, 10, BLACK);
+
+        // Line Dimension Marker
+        auto PointMarker = [](Vector2 v, degree theta)
+        {
+        //    Vector2 v1 = v + Vector2{1, 1};
+        //    Vector2 v2 = {20, 0};
+        //    v2 = Vector2Rotate(v2, 180 + theta);
+        // theta += 90;
+            
+            Vector2 v2 = {20 * cos(theta), 10 * sin(theta)};
+            
+            // DrawText(std::format("{:.2f}deg", theta, v2.x, v2.y).c_str(), v.x, v.y - 20, 10, MAROON);
+            DrawLineEx(v, (v2 + v), 2 * canvas_scale, LIGHTGRAY);
+        };
+
+        PointMarker(A, angle);
+
+        // Draw Angle ARC
+        // DrawCircleSectorLines(A, length/2, 0, -(angle * CustomMath::radians_to_deg), 10, DARKGRAY);
+        float ID = length/2;
+        DrawRing(A,ID, ID + (2 * canvas_scale),0,-angle, 20, MAROON);
+        // DrawText(std::format("{:.2f}deg", angle).c_str(), A.x + length/10, A.y - 20, 10, MAROON);
+        
         draw(false);
-        auto lengthStr = std::format("{:.2f}mm {:.2f}deg", length, angle);
-        DrawText(lengthStr.c_str(), B.x, B.y - 20, 10, BLACK);
     }
 
     void CalcLength()
     {
-        length = CustomMath::point_distance(A.x,A.y,B.x,B.y);
+        length = Vector2Distance(A,B);
     }
 
     void CalcAngle()
     {
-        angle = abs(atan((B.y - A.y)/(B.x - A.x)))*radians_to_deg;
+        // angle = Vector2LineAngle(A, B);
+        angle = Vector2LineAngle(A, B) * CustomMath::radians_to_deg;
+        if(angle < 0)
+        {
+            angle += 360;
+        }
     }
 
     distance length{0};
@@ -67,6 +108,9 @@ int main(void)
 
     SetTargetFPS(60);               // Set our game to run at 60 frames-per-second
     SetExitKey(0); //Disable Exit Key
+
+    system_font = GetFontDefault();
+
     //---------------------------------------------------------------------------------------
 
     bool draw_line{false};
@@ -87,9 +131,49 @@ int main(void)
     Line l3 = {{l2.B.x + 20, l2.B.y}, {700, 200}};
 
     Line follower = {{300, 300}, {0,0}};
+
+   Camera2D camera = { 0 };
+    camera.zoom = 1.0f;
+
+    int zoomMode = 0;   // 0-Mouse Wheel, 1-Mouse Move
+
+    // Main game loop
     while (!WindowShouldClose())    // Detect window close button
     {
+        // Translate based on mouse right click
+        if (IsMouseButtonDown(MOUSE_BUTTON_LEFT))
+        {
+            Vector2 delta = GetMouseDelta();
+            delta = Vector2Scale(delta, -1.0f/camera.zoom);
+            camera.target = Vector2Add(camera.target, delta);
+        }
+        
+        // Zoom based on mouse wheel
+        float wheel = GetMouseWheelMove();
+        if (wheel != 0)
+        {
+            // Get the world point that is under the mouse
+            Vector2 mouseWorldPos = GetScreenToWorld2D(GetMousePosition(), camera);
+
+            // Set the offset to where the mouse is
+            camera.offset = GetMousePosition();
+
+            // Set the target to match, so that the camera maps the world space point 
+            // under the cursor to the screen space point under the cursor at any zoom
+            camera.target = mouseWorldPos;
+
+            // Zoom increment
+            // float scaleFactor = 1.0f + (0.25f*fabsf(wheel));
+            float scaleFactor = 1.0f + (0.25f*fabsf(wheel));
+            if (wheel < 0) scaleFactor = 1.0f/scaleFactor;
+            camera.zoom = Clamp(camera.zoom*scaleFactor, 0.125f, 64.0f);
+            canvas_scale = 1/camera.zoom;
+        }
+
+        // canvas_scale = int(camera.zoom);
+        Vector2 mouse_world_pos = GetScreenToWorld2D(GetMousePosition(), camera);
         mouse_pos = GetMousePosition();
+
         // bool mouse_on_canvas = CheckCollisionPointRec(mouse_pos, canvas);
 
         // if (GuiButton({0, 0, 100, 40}, "Line")) { current_tool = Tool::twoPointLine;}
@@ -108,62 +192,37 @@ int main(void)
 
         // }
 
-        follower.B = mouse_pos;
-
-        BeginDrawing();
         
+        follower.B = mouse_world_pos;
+
+        //----------------------------------------------------------------------------------
+        
+        //----------------------------------------------------------------------------------
+
+        // Draw
+        //----------------------------------------------------------------------------------
+        BeginDrawing();
             ClearBackground(RAYWHITE);
-            // l1.draw_with_stats();
-            // l2.draw_with_stats();
-            // l3.draw_with_stats();
+            BeginMode2D(camera);
+                // Draw the 3d grid, rotated 90 degrees and centered around 0,0 
+                // just so we have something in the XY plane
+                rlPushMatrix();
+                    rlTranslatef(0, 25*50, 0);
+                    rlRotatef(90, 1, 0, 0);
+                    DrawGrid(100, 50);
+                rlPopMatrix();
+                
+                follower.draw_with_stats();
+            EndMode2D();
+    
+            // Draw mouse reference
+            Vector2 mousePos = GetWorldToScreen2D(GetMousePosition(), camera);
+            // DrawCircleV(mousePos, 2, LIME);
+            // DrawCircleV(GetMousePosition(), 4, DARKGRAY);
+            // DrawTextEx(GetFontDefault(), TextFormat("[%i, %i]", GetMouseX(), GetMouseY()), 
+            //     Vector2Add(GetMousePosition(), (Vector2){ -44, -24 }), 20, 2, BLACK);
 
-            follower.draw_with_stats();
-
-
-        //     if(draw_line)
-        //     {
-        //         uint32_t size = points.size(); 
-        //         for(uint32_t i{0}; i < size; i+=2)
-        //         {
-        //             DrawCircleV(points[i], 2, RED);
-        //             DrawCircleV(points[i], 2, RED);
-                    
-        //             if(i>0)
-        //             {
-        //                 DrawLineV(points[i-1], points[i], GREEN);
-        //             }
-        //         }  
-        //     }
-
-        //     for(auto &polygon : polygons) 
-        //     {
-        //         uint32_t size = polygon.size(); 
-        //         for(uint32_t i{0}; i < size; i++)
-        //         {
-        //             DrawCircleV(polygon[i], 4, BLACK);
-
-        //             if(i>0)
-        //             {
-        //                 DrawLineV(polygon[i-1], polygon[i], GRAY);
-        //             }
-        //             else
-        //             {
-        //                 DrawLineV(polygon[i], polygon[size-1], GRAY);
-        //             }
-        //         }  
-        //     }       
-
-        //     if(draw_line)
-        //     {
-        //         DrawText("Draw Mode, press ESC to finish", 10, GetScreenHeight() - 20, 20, DARKGRAY);
-        //     }
-        //     else
-        //     {
-        //         DrawText("Press Mouse 1 to draw point", 10, GetScreenHeight() - 20, 20, DARKGRAY);
-        //     }
-
-
-
+            DrawText(TextFormat("ZOOM: %0.2f, Scale: %0.2f", camera.zoom, canvas_scale), 20, 20, 20, DARKGRAY);
         EndDrawing();
         //----------------------------------------------------------------------------------
     }
