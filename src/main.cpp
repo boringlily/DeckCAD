@@ -42,7 +42,7 @@ public:
 
         DrawCircleV(A, 2 * canvas_scale, point1);
         DrawCircleV(B, 2 * canvas_scale, point2);
-        DrawLineEx(A, B, 2 * canvas_scale, line);
+        DrawLine3D(A, B, 2 * canvas_scale, line);
     }
 
     void draw_with_stats()
@@ -119,115 +119,131 @@ int main(void)
 
     InitWindow(screenWidth, screenHeight, "Testing UI");
 
-    Color ballColor = DARKBLUE;
-
-    SetTargetFPS(60);               // Set our game to run at 60 frames-per-second
-    SetExitKey(0); //Disable Exit Key
+    SetTargetFPS(60);              // Set our game to run at 60 frames-per-second
+    SetExitKey(KEY_F1);
 
     system_font = GetFontDefault();
 
     //---------------------------------------------------------------------------------------
-    bool draw_line{false};
-    uint32_t current_polygon{0};
     Vector2 mouse_pos = {};
-    Rectangle canvas = {0, 40, float(GetScreenWidth()), float(GetScreenHeight())};
-
-    enum class Tool : unsigned
-    {
-        none,
-        twoPointLine,
-    };
-
-    Tool current_tool{Tool::none};
-
+  
     Line l1 = {{50, 100}, {300, 100}};
     Line l2 = {{l1.B.x + 20, l1.B.y} , {500, 380}};
     Line l3 = {{l2.B.x + 20, l2.B.y}, {700, 200}};
 
-    Line follower = {{0,0}, {0,0}};
+    Line follower = {get_canvas_center(), {0,0}};
 
     Camera2D camera_2d{};
     camera_2d.target = get_canvas_center();
     camera_2d.zoom = 1.0f;
     
-    Camera3D camera_3d {};
+    // Camera3D camera_3d {};
+    // Camera3D camera_3d = { { 0.0f, 10.0f, 10.0f }, { 0.0f, 0.0f, 0.0f }, { 0.0f, 1.0f, 0.0f }, 90.0, CAMERA_PERSPECTIVE};
+    // camera_3d.target = {0,0,0};
+    // camera_3d.position = {0, 0, 10};
+    Camera3D camera_3d = { 0 };
+    camera_3d.position = (Vector3){ 10.0f, 10.0f, 10.0f }; // camera_3d position
+    camera_3d.target = (Vector3){ 0.0f, 0.0f, 0.0f };      // camera_3d looking at point
+    camera_3d.up = (Vector3){ 0.0f, 1.0f, 0.0f };          // camera_3d up vector (rotation towards target)
+    camera_3d.fovy = 45.0f;                                // camera_3d field-of-view Y
+    camera_3d.projection = CAMERA_PERSPECTIVE;  
 
-    camera_3d.target = {0,0,0};
-    camera_3d.position = {0, 0, 10};
+    RenderTexture canvas_texture = LoadRenderTexture(screenWidth, screenHeight);
+    Rectangle canvas_position = {0, 0, (float)canvas_texture.texture.width, (float)-canvas_texture.texture.height};
 
-    Rectangle canvas_position = {0, 100, (float)GetScreenWidth(), (float)GetScreenHeight() - canvas_position.y};
-    RenderTexture canvas_texture = LoadRenderTexture(canvas_position.width, canvas_position.height);
+    DisableCursor();
     
-    int zoomMode = 0;   // 0-Mouse Wheel, 1-Mouse Move
+    while (!WindowShouldClose())
+    {   
+        UpdateCamera(&camera_3d, CAMERA_FREE);
+        // if (GuiButton({0, 0, 100, 40}, camera_mode_3d?"Go 2D":"Go 3D")) { camera_mode_3d= !camera_mode_3d;}
 
-    bool camera_mode_3d = false;
-    // Main game loop
-    while (!WindowShouldClose())    // Detect window close button
-    {
-        if (GuiButton({0, 0, 100, 40}, camera_mode_3d?"Go 2D":"Go 3D")) { camera_mode_3d= !camera_mode_3d;}
-        
-        DrawText(TextFormat("Zoom: %0.2f, Scale: %0.2f, Target(%0.2f, %0.2f), Offset(%0.2f, %0.2f)", camera_2d.zoom, canvas_scale, camera_2d.target.x, camera_2d.target.y, camera_2d.offset.x, camera_2d.offset.y), 10, screenHeight - 20, 10, DARKGRAY);
+        // DrawText(TextFormat("Zoom: %0.2f, Scale: %0.2f, Target(%0.2f, %0.2f), Offset(%0.2f, %0.2f)", camera_2d.zoom, canvas_scale, camera_2d.target.x, camera_2d.target.y, camera_2d.offset.x, camera_2d.offset.y), 10, screenHeight - 20, 10, DARKGRAY);
+        // if(IsKeyDown(KEY_LEFT_SHIFT))
+        // {
+        //     DisableCursor();
+        // }
+        // else
+        // {
+        //     EnableCursor();
+        // }
 
-        if (IsMouseButtonDown(MOUSE_BUTTON_MIDDLE))
-        {
-            Vector2 delta = GetMouseDelta();
-            delta = Vector2Scale(delta, -1.0f/camera_2d.zoom);
-            camera_2d.target = Vector2Add(camera_2d.target, delta);
-        }
+        // if (IsMouseButtonDown(MOUSE_BUTTON_MIDDLE))
+        // {
+        //     Vector2 delta = GetMouseDelta();
+        //     delta = Vector2Scale(delta, -1.0f/camera_2d.zoom);
+        //     camera_2d.target = Vector2Add(camera_2d.target, delta);
+        // }
         
         // Zoom based on mouse wheel
-        float wheel = GetMouseWheelMove();
-        if (wheel != 0 && IsKeyDown(KEY_LEFT_SHIFT))
-        {
-            // Get the world point that is under the mouse
-            Vector2 mouseWorldPos = GetScreenToWorld2D(GetMousePosition(), camera_2d);
-            camera_2d.offset = GetMousePosition();
-            camera_2d.target = mouseWorldPos;
+        // float wheel = GetMouseWheelMove();
+        // if (wheel != 0 && IsKeyDown(KEY_LEFT_SHIFT))
+        // {
+        //     if(camera_mode_3d)
+        //     {
+                
+                
+        //     }
+        //     else
+        //     {
+        //         // Get the world point that is under the mouse
+        //         Vector2 mouseWorldPos = GetScreenToWorld2D(GetMousePosition(), camera_2d);
+        //         camera_2d.offset = GetMousePosition();
+        //         camera_2d.target = mouseWorldPos;
 
-            float scaleFactor = 1.0f + (0.25f*fabsf(wheel));
-            if (wheel < 0) scaleFactor = 1.0f/scaleFactor;
-            camera_2d.zoom = Clamp(camera_2d.zoom*scaleFactor, 0.125f, 64.0f);
-            canvas_scale = 1/camera_2d.zoom;
-        }
+        //         float scaleFactor = 1.0f + (0.25f*fabsf(wheel));
+        //         if (wheel < 0) scaleFactor = 1.0f/scaleFactor;
+        //         camera_2d.zoom = Clamp(camera_2d.zoom*scaleFactor, 0.125f, 64.0f);
+        //         canvas_scale = 1/camera_2d.zoom;
+        //     }
+        // }
 
         // canvas_scale = int(camera_2d.zoom);
-        Vector2 mouse_world_pos = GetScreenToWorld2D(GetMousePosition(), camera_2d);
+        Vector3 mouse_world_pos = GetScreenToWorldRay(GetMousePosition(), camera_3d).position;
         mouse_pos = GetMousePosition();
 
         
-        follower.B = mouse_world_pos;
+        follower.B = Vector2({mouse_world_pos.x, mouse_world_pos.y});
+
+        BeginTextureMode(canvas_texture);
+            ClearBackground(RAYWHITE);
+
+                // BeginMode3D(camera_3d);
+                //     // rlPushMatrix();
+                //     //     rlTranslatef(0, 25*50, 0);
+                //     //     rlRotatef(90, 1, 0, 0);
+                //     // rlPopMatrix();
+                    
+                //     DrawGrid(100, 50);
+                    
+                    follower.draw_with_stats();
+                // EndMode3D();
+
+                BeginMode3D(camera_3d);
+
+                DrawCube({0,0,0}, 2.0f, 2.0f, 2.0f, RED);
+                DrawCubeWires({0,0,0}, 2.0f, 2.0f, 2.0f, MAROON);
+
+                DrawGrid(10, 1.0f);
+
+            EndMode3D();
+
+            follower.draw_with_stats();
+
+            DrawRectangle( 10, 10, 320, 93, Fade(SKYBLUE, 0.5f));
+            DrawRectangleLines( 10, 10, 320, 93, BLUE);
+
+            DrawText("Free camera default controls:", 20, 20, 10, BLACK);
+            DrawText("- Mouse Wheel to Zoom in-out", 40, 40, 10, DARKGRAY);
+            DrawText("- Mouse Wheel Pressed to Pan", 40, 60, 10, DARKGRAY);
+            DrawText("- Z to zoom to (0, 0, 0)", 40, 80, 10, DARKGRAY);
+
+        EndTextureMode();
+
 
        BeginDrawing();
-            ClearBackground(RAYWHITE);
-            if(camera_mode_3d)
-            {
-                BeginMode3D(camera_3d);
-                    rlPushMatrix();
-                        rlTranslatef(0, 25*50, 0);
-                        rlRotatef(90, 1, 0, 0);
-                        DrawGrid(100, 50);
-                    rlPopMatrix();
-                    
-                    follower.draw_with_stats();
-                EndMode3D();
-            }
-            else
-            {
-                BeginMode2D(camera_2d);
-                    // Draw the 3d grid, rotated 90 degrees and centered around 0,0 
-                    // just so we have something in the XY plane
-                    rlPushMatrix();
-                        rlTranslatef(0, 25*50, 0);
-                        rlRotatef(90, 1, 0, 0);
-                        DrawGrid(100, 50);
-                    rlPopMatrix();
-                    
-                    follower.draw_with_stats();
-                EndMode2D();
-            }
-   
-            Vector2 mousePos = GetWorldToScreen2D(GetMousePosition(), camera_2d);
-
+        ClearBackground(SKYBLUE);
+            DrawTextureRec(canvas_texture.texture, canvas_position, {0,0}, WHITE);
         EndDrawing();
     }
 
