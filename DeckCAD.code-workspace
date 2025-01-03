@@ -67,7 +67,10 @@
 			"unordered_map": "cpp",
 			"variant": "cpp",
 			"algorithm": "cpp",
-			"__config": "cpp"
+			"__config": "cpp",
+			"iterator": "cpp",
+			"*.tcc": "cpp",
+			"*.m": "cpp"
 		}
 	},
 	"extensions": {

@@ -1,3 +1,5 @@
+#include "assert.h"
+
 #include "raylib.h"
 #define RAYGUI_IMPLEMENTATION
 // #define RCAMERA_IMPLEMENTATION
@@ -19,6 +21,92 @@ float canvas_scale{1.0F};
 float grid_spacing_mm = 5;
 constexpr distance GRID_SPACING_MIN{0.001};
 constexpr distance GRID_SPACING_MAX{1000};
+
+namespace UI
+{
+    enum class Plane
+    {
+        XY,
+        XZ,
+        YZ
+    };
+
+    void DrawPlane(Plane plane, Vector3 centerPos, Vector2 size, Color color)
+    {
+        rlPushMatrix();
+            rlTranslatef(centerPos.x, centerPos.y, centerPos.z);
+
+            switch(plane)
+            {
+                case Plane::XY:
+                    rlRotatef(90, 1, 0, 0);
+                break;
+                case Plane::XZ:
+                    // Do nothing, already the home position
+                break;
+                case Plane::YZ:
+                    rlRotatef(90, 0, 0, -1);
+                break;
+                default:
+                
+                // If this condition is hit, crash.
+                assert(false);
+            }
+            rlScalef(size.x, 1.0f, size.y);
+            rlBegin(RL_QUADS);
+                rlColor4ub(color.r, color.g, color.b, color.a);
+                rlNormal3f(0.0f, 1.0f, 0.0f);
+
+                rlVertex3f(-0.5f, 0.0f, -0.5f);
+                rlVertex3f(-0.5f, 0.0f, 0.5f);
+                rlVertex3f(0.5f, 0.0f, 0.5f);
+                rlVertex3f(0.5f, 0.0f, -0.5f);
+            rlEnd();
+        rlPopMatrix();
+    };
+
+    void DrawGrid(Plane plane,int slices, float spacing)
+    {
+        int halfSlices = slices/2;
+        rlPushMatrix();
+            switch(plane)
+            {
+                case Plane::XY:
+                    rlRotatef(90, 1, 0, 0);
+                break;
+                case Plane::XZ:
+                    // Do nothing, already the home position
+                break;
+                case Plane::YZ:
+                    rlRotatef(90, 0, 0, -1);
+                break;
+                default:
+                
+                // If this condition is hit, crash.
+                assert(false);
+            }
+            rlBegin(RL_LINES);
+                for (int i = -halfSlices; i <= halfSlices; i++)
+                {
+                    if (i == 0)
+                    {
+                        rlColor3f(0.5f, 0.5f, 0.5f);
+                    }
+                    else
+                    {
+                        rlColor3f(0.75f, 0.75f, 0.75f);
+                    }
+
+                    rlVertex3f((float)i*spacing, 0.0f, (float)-halfSlices*spacing);
+                    rlVertex3f((float)i*spacing, 0.0f, (float)halfSlices*spacing);
+
+                    rlVertex3f((float)-halfSlices*spacing, 0.0f, (float)i*spacing);
+                    rlVertex3f((float)halfSlices*spacing, 0.0f, (float)i*spacing);
+                }
+            rlEnd();
+        rlPopMatrix();
+    }
+}
 
 struct Line
 {
@@ -147,17 +235,36 @@ int main(void)
     {   
         // UpdateCamera(&camera_3d, CAMERA_THIRD_PERSON);
 
-        CameraMoveToTarget(&camera_3d, -GetMouseWheelMove());
-
-
+        // CameraMoveToTarget(&camera_3d, -GetMouseWheelMove());
+        
         Vector3 mouse_world_pos = GetScreenToWorldRay(GetMousePosition(), camera_3d).position;
         mouse_pos = GetMousePosition();
+        Vector2 mouse_delta{};
+        bool mouse_on_canvas = false; //Make Canvas Collision Check Work.
+
+        if(IsKeyDown(KEY_LEFT_CONTROL) && mouse_on_canvas)
+        {   
+            float zoom = 0;
+            Vector3 move_to;
+            if(IsMouseButtonDown(MOUSE_BUTTON_LEFT))
+            {
+                // DrawLineV({canvas_position.width/2, canvas_position.height/2 + canvas_position.y}, mouse_pos, BLUE);
+                mouse_delta = GetMouseDelta();
+            }
+            else
+            {
+                zoom = -GetMouseWheelMove();
+            }
+
+            UpdateCameraPro(&camera_3d, {}, {}, zoom); 
+        }
+
+
 
         BeginTextureMode(canvas_texture);
             ClearBackground(RAYWHITE);
             
                 // DrawText(std::format("Target({}), Position({})", camera_3d.target.y, camera_3d.target.x, camera_3d.target.z, camera_3d.position).c_str(), 10, screenHeight - 20, 10, DARKGRAY);
-                DrawText(TextFormat("UP(%0.2f, %0.2f, %0.2f), Position(%0.2f, %0.2f, %0.2f)", camera_3d.up.y, camera_3d.up.x, camera_3d.up.z, camera_3d.position.y, camera_3d.position.x, camera_3d.position.z), 10, canvas_texture.texture.height - 20, 10, DARKGRAY);
 
                 // BeginMode3D(camera_3d);
                 //     // rlPushMatrix();
@@ -173,20 +280,28 @@ int main(void)
 
                     DrawCube({0,0,0}, 2.0f, 2.0f, 2.0f, RED);
                     DrawCubeWires({0,0,0}, 2.0f, 2.0f, 2.0f, MAROON);
-
                     // rlPushMatrix();
-                    // rlTranslatef(0, 25*50, 0);
-                    // rlRotatef(90, 0, 1, 0);
+                    //     rlTranslatef(0, 25*50, 0);
+                    //     rlRotatef(90, 0, 1, 0);
                     // rlPopMatrix();
-                    // DrawGrid(10, 1.0f);
+
+                    UI::DrawPlane(UI::Plane::YZ, {0,0,0}, {20, 20}, LIGHTGRAY);
+                    UI::DrawGrid(UI::Plane::XY, 10, 1.0f);
+                    
+                    // DrawPlane({0,0,0}, {20, 20}, GREEN);
+                    DrawGrid(10, 1.0f);
 
             EndMode3D();
-
+            DrawText(TextFormat("UP(%0.2f, %0.2f, %0.2f), Position(%0.2f, %0.2f, %0.2f)", camera_3d.up.y, camera_3d.up.x, camera_3d.up.z, camera_3d.position.y, camera_3d.position.x, camera_3d.position.z), 10, canvas_texture.texture.height - 20, 10, DARKGRAY);
         EndTextureMode();
 
 
        BeginDrawing();
-        ClearBackground(SKYBLUE);
+        ClearBackground(WHITE);
+            if(mouse_on_canvas)
+            {
+                DrawText("Mouse on Canvas",0,0,10,RED);
+            }
             DrawTextureRec(canvas_texture.texture, canvas_position, {0, toolbar_ui.height}, WHITE);
         EndDrawing();
     }
