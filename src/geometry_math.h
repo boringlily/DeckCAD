@@ -23,13 +23,18 @@ namespace CustomMath
 
     enum GridSector2D
     {
-        /*
-                |
-      2(-x,+y)  |   1(+x,+y)
-       _ _ _ _ _|_ _ _ _ _ _
-                |
-      3(-x,-y)  |  4(+x,-y)
-                |
+        /** 
+         @note Raylib screen space coordinates are X -Y, where Y is flipped (positive is down instead of up).
+
+                  (-y)
+                   |
+         3(-x,-y)  |  4(+x,-y)
+                   |
+    (-x)<- - - - - |- - - - - ->(+x)
+                   |
+         2(-x,+y)  |   1(+x,+y)
+                   |
+                  (+y)
         */
 
         POSx_POSy = 1,  
@@ -58,7 +63,14 @@ namespace CustomMath
         }
         else
         {
-
+            if(positive_y)
+            {
+                sector = NEGx_POSy;
+            }
+            else
+            {
+                sector = NEGx_NEGy;
+            }
         }
         
         return sector;
