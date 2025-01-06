@@ -23,6 +23,16 @@ float grid_spacing_mm = 5;
 constexpr distance GRID_SPACING_MIN{0.001};
 constexpr distance GRID_SPACING_MAX{1000};
 
+
+typedef struct Plane3D
+{
+Vector3 center;
+float angle_x;
+float angle_y;
+Vector2 size{20, 20};
+};
+
+
 namespace UI
 {
     enum class OriginPlane
@@ -32,7 +42,7 @@ namespace UI
         YZ
     };
 
-    void DrawPlane(OriginPlane plane, Vector3 centerPos, Vector2 size, Color color)
+    void DrawOriginPlane(OriginPlane plane, Vector3 centerPos, Vector2 size, Color color)
     {
         rlPushMatrix();
             rlTranslatef(centerPos.x, centerPos.y, centerPos.z);
@@ -65,6 +75,27 @@ namespace UI
             rlEnd();
         rlPopMatrix();
     };
+
+    void DrawPlane(Plane3D plane)
+    {
+        rlPushMatrix();
+            rlTranslatef(plane.center.x, plane.center.y, plane.center.z);
+            rlRotatef(plane.angle_x, 1, 0, 0);
+            rlRotatef(plane.angle_y, 0, 0, -1);
+
+            rlScalef(plane.size.x, 1.0f, plane.size.y);
+            rlBegin(RL_QUADS);
+                rlColor4ub(255, 203, 0, 20);
+                rlNormal3f(0.0f, 1.0f, 0.0f);
+
+                rlVertex3f(-0.5f, 0.0f, -0.5f);
+                rlVertex3f(-0.5f, 0.0f, 0.5f);
+                rlVertex3f(0.5f, 0.0f, 0.5f);
+                rlVertex3f(0.5f, 0.0f, -0.5f);
+            rlEnd();
+        rlPopMatrix();
+
+    }
     
     void DrawGrid(OriginPlane plane,int slices, float spacing)
     {
@@ -109,77 +140,6 @@ namespace UI
     }
 }
 
-struct Line
-{
-public:
-    Vector3 A,B;
-
-    void draw(bool simple_colors = true)
-    {
-        Color point1 = simple_colors? LIGHTGRAY : PINK;
-        Color point2 = simple_colors? GRAY : ORANGE;
-        Color line =  simple_colors? BLACK : GREEN;
-
-        // DrawCircleV(A, 2 * canvas_scale, point1);
-        // DrawCircleV(B, 2 * canvas_scale, point2);
-        DrawLine3D(A, B, line);
-    }
-
-    void draw_with_stats()
-    {
-        
-        CalcLength();
-        CalcAngle();
-
-        // DrawText(std::format("{:.2f}mm {:.2f}deg", length, angle, B.x, B.y).c_str(), B.x, B.y - 20, 10, BLACK);
-        // DrawText(std::format("{:.2f}mm", length).c_str(), B.x, B.y - 20, 10, BLACK);
-
-        // Line Dimension Marker
-        // auto PointMarker = [](Vector2 v, degree theta)
-        // {
-        // //    Vector2 v1 = v + Vector2{1, 1};
-        // //    Vector2 v2 = {20, 0};
-        // //    v2 = Vector2Rotate(v2, 180 + theta);
-        // // theta += 90;
-            
-        //     Vector2 v2 = {20 * cos(theta), 10 * sin(theta)};
-            
-        //     // DrawText(std::format("{:.2f}deg", theta, v2.x, v2.y).c_str(), v.x, v.y - 20, 10, MAROON);
-        //     DrawLineEx(v, (v2 + v), 2 * canvas_scale, LIGHTGRAY);
-        // };
-
-        // PointMarker(A, angle);
-
-        // Draw Angle ARC
-        // float ID = length/2;
-        // float half_angle = angle * .48; 
-        
-
-        // DrawRing(A,ID, ID + (2 * canvas_scale), 0, half_angle, 20, MAROON);
-        // DrawRing(A,ID, ID + (2 * canvas_scale),-half_angle,-angle, 20, DARKBLUE);
-        // DrawTxt(std::format("{:.2f}deg", angle).c_str(), A.x + length/10, A.y - 20, 10, MAROON);
-        
-        draw(false);
-    }
-
-    void CalcLength()
-    {
-        // length = Vector3Distance(A,B);
-    }
-
-    void CalcAngle()
-    {
-        // angle = Vector3Angle((B-A), {0,10,0}) * CustomMath::radians_to_deg;
-        // if(angle < 0)
-        // {
-        //     angle += 360;
-        // }
-    }
-
-    distance length{0};
-    degree angle{0};
-};
-
 Vector2 get_canvas_center()
 {
     float x = float(GetScreenWidth()) * 0.5;
@@ -188,13 +148,224 @@ Vector2 get_canvas_center()
     return {-x, -y};
 }
 
+void update_canvas_camera(Camera3D &camera) 
+{
+    static Vector2 canvas_offset;
+
+    Vector2 mouse_delta{GetMouseDelta()};
+
+    bool orbit = IsMouseButtonDown(MOUSE_BUTTON_LEFT) && IsMouseButtonDown(MOUSE_BUTTON_RIGHT);
+    bool pan = IsMouseButtonDown(MOUSE_BUTTON_MIDDLE);
+    
+    static constexpr float CAMERA_MOUSE_ORBIT_SENSITIVITY{0.01F};
+    static constexpr float CAMERA_MOUSE_PAN_SENSITIVITY{0.00120F};
+
+    if(orbit)
+    {   
+        CameraYaw(&camera, -mouse_delta.x*CAMERA_MOUSE_ORBIT_SENSITIVITY, true);
+        CameraPitch(&camera, -mouse_delta.y*CAMERA_MOUSE_ORBIT_SENSITIVITY, true, true, false);
+    }
+    else if(pan)
+    {
+        static bool moveInWorldPlane{false}; 
+        if(IsKeyPressed(KEY_SPACE)) moveInWorldPlane = !moveInWorldPlane;
+        
+        float distance = Vector3Distance(camera.position, {0,0,0});
+        float cameraMoveSpeed = CAMERA_MOUSE_PAN_SENSITIVITY * distance;
+
+        DrawText(TextFormat("speed %f", cameraMoveSpeed),10,10,10,BLACK ); 
+        float move_up = cameraMoveSpeed * mouse_delta.y; 
+        float move_right = cameraMoveSpeed * mouse_delta.x; 
+    
+        if(mouse_delta.y != 0) 
+        CameraMoveUp(&camera, move_up);
+        // {
+        //     Vector3 up = GetCameraUp(&camera);
+
+        //     // Scale by distance
+        //     up = Vector3Scale(up, distance);
+
+        //     // Move position and target
+        //     camera.position = Vector3Add(camera.position, up);
+        //     // camera.target = Vector3Add(camera.target, up);
+
+        // }
+        if(mouse_delta.x != 0) CameraMoveRight(&camera, -move_right, moveInWorldPlane);
+    }
+    else
+    {
+        if(camera.projection == CAMERA_ORTHOGRAPHIC)
+        {
+            camera.fovy += -GetMouseWheelMove();
+        }
+        else
+        {
+            CameraMoveToTarget(&camera, -GetMouseWheelMove());
+        }
+    }
+}
+
+void update_canvas_camera_pro(Camera3D &camera) 
+{
+    Vector3 rotation{};
+    Vector3 translation{};
+
+    
+
+
+    // Calculate rotation around origin
+        // Rotate around origin
+    // Offset Camera position
+
+
+
+    Vector2 mouse_delta{GetMouseDelta()};
+
+    bool orbit = IsMouseButtonDown(MOUSE_BUTTON_LEFT) && IsMouseButtonDown(MOUSE_BUTTON_RIGHT);
+    bool pan = IsMouseButtonDown(MOUSE_BUTTON_MIDDLE);
+    
+    static constexpr float CAMERA_MOUSE_ORBIT_SENSITIVITY{0.01F};
+    static constexpr float CAMERA_MOUSE_PAN_SENSITIVITY{0.015F};
+
+    if(orbit)
+    {
+        float angle_yaw{-mouse_delta.x*CAMERA_MOUSE_ORBIT_SENSITIVITY};
+        bool rotateAroundTarget{false};
+
+        // yaw
+        {
+            // Rotation axis
+            Vector3 up = GetCameraUp(&camera);
+
+            // View vector
+            Vector3 targetPosition = Vector3Subtract(camera.target, camera.position);
+
+            // Rotate view vector around up axis
+            targetPosition = Vector3RotateByAxisAngle(targetPosition, up, angle_yaw);
+
+            if (rotateAroundTarget)
+            {
+                // Move position relative to target
+                camera.position = Vector3Subtract(camera.target, targetPosition);
+            }
+            else // rotate around camera.position
+            {
+                // Move target relative to position
+                camera.target = Vector3Add(camera.position, targetPosition);
+            }
+        }
+
+        float angle_pitch{-mouse_delta.y*CAMERA_MOUSE_ORBIT_SENSITIVITY};
+        bool lockView{false};    
+        bool rotateUp{false};    
+
+        // Pitch
+        {
+            // Up direction
+            Vector3 up = GetCameraUp(&camera);
+
+            // View vector
+            Vector3 targetPosition = Vector3Subtract(camera.target, camera.position);
+
+            if (lockView)
+            {
+                // In these camera modes we clamp the Pitch angle
+                // to allow only viewing straight up or down.
+
+                // Clamp view up
+                float maxAngleUp = Vector3Angle(up, targetPosition);
+                maxAngleUp -= 0.001f; // avoid numerical errors
+                if (angle_pitch > maxAngleUp) angle_pitch = maxAngleUp;
+
+                // Clamp view down
+                float maxAngleDown = Vector3Angle(Vector3Negate(up), targetPosition);
+                maxAngleDown *= -1.0f; // downwards angle is negative
+                maxAngleDown += 0.001f; // avoid numerical errors
+                if (angle_pitch < maxAngleDown) angle_pitch = maxAngleDown;
+            }
+
+            // Rotation axis
+            Vector3 right = GetCameraRight(&camera);
+
+            // Rotate view vector around right axis
+            targetPosition = Vector3RotateByAxisAngle(targetPosition, right, angle_pitch);
+
+            if (rotateAroundTarget)
+            {
+                // Move position relative to target
+                camera.position = Vector3Subtract(camera.target, targetPosition);
+            }
+            else // rotate around camera.position
+            {
+                // Move target relative to position
+                camera.target = Vector3Add(camera.position, targetPosition);
+            }
+
+            if (rotateUp)
+            {
+                // Rotate up direction around right axis
+                camera.up = Vector3RotateByAxisAngle(camera.up, right, angle_pitch);
+            }
+        }
+        // Vector3 cam_target = camera.target;
+        // camera.target = {0,0,0};
+
+        // CameraYaw(&camera, -mouse_delta.x*CAMERA_MOUSE_ORBIT_SENSITIVITY, true);
+        // CameraPitch(&camera, -mouse_delta.y*CAMERA_MOUSE_ORBIT_SENSITIVITY, true, true, false);
+        
+        // camera.target = cam_target;
+        
+        // rotation.x = -mouse_delta.x*CAMERA_MOUSE_ORBIT_SENSITIVITY;
+        // rotation.y = -mouse_delta.y*CAMERA_MOUSE_ORBIT_SENSITIVITY;
+    }
+    else if(pan)
+    {
+        // static bool moveInWorldPlane{false}; 
+        // if(IsKeyPressed(KEY_SPACE)) moveInWorldPlane = !moveInWorldPlane;
+        
+        // auto distance = Vector3DistanceSqr(camera.position, camera.target);
+        // float cameraMoveSpeed = CAMERA_MOUSE_PAN_SENSITIVITY * distance * GetFrameTime();
+        // DrawText(TextFormat("speed %f", cameraMoveSpeed),10,10,10,BLACK ); 
+        // float move_up = cameraMoveSpeed * mouse_delta.y; 
+        // float move_right = cameraMoveSpeed * mouse_delta.x; 
+    
+        // if(mouse_delta.y != 0) 
+        // CameraMoveUp(&camera, move_up);
+        // // {
+        // //     Vector3 up = GetCameraUp(&camera);
+
+        // //     // Scale by distance
+        // //     up = Vector3Scale(up, distance);
+
+        // //     // Move position and target
+        // //     camera.position = Vector3Add(camera.position, up);
+        // //     // camera.target = Vector3Add(camera.target, up);
+
+        // // }
+        // if(mouse_delta.x != 0) CameraMoveRight(&camera, -move_right, moveInWorldPlane);
+    }
+    // else
+    // {
+    //     if(camera.projection == CAMERA_ORTHOGRAPHIC)
+    //     {
+    //         camera.fovy += -GetMouseWheelMove();
+    //     }
+    //     else
+    //     {
+    //         CameraMoveToTarget(&camera, -GetMouseWheelMove());
+    //     }
+    // }
+    
+    float zoom = camera.projection == CAMERA_PERSPECTIVE ? -GetMouseWheelMove(): 0;
+
+    UpdateCameraPro(&camera, translation, rotation, zoom);
+};
+
 int main(void)
 {
-    std::vector<Line> line;
-    
     //--------------------------------------------------------------------------------------
-    const int screenWidth = 800;
-    const int screenHeight = 450;
+    const int screenWidth = 1200;
+    const int screenHeight = 800;
 
     InitWindow(screenWidth, screenHeight, "Testing UI");
 
@@ -205,74 +376,43 @@ int main(void)
 
     //---------------------------------------------------------------------------------------
     Vector2 mouse_pos = {};
-  
-    Line l1 = {{50, 100}, {300, 100}};
-    Line l2 = {{l1.B.x + 20, l1.B.y} , {500, 380}};
-    Line l3 = {{l2.B.x + 20, l2.B.y}, {700, 200}};
-
-    // Line follower = {get_canvas_center(), {0,0}};
     
-    // Camera3D camera_3d {};
-    // Camera3D camera_3d = { { 0.0f, 10.0f, 10.0f }, { 0.0f, 0.0f, 0.0f }, { 0.0f, 1.0f, 0.0f }, 90.0, CAMERA_PERSPECTIVE};
-    // camera_3d.target = {0,0,0};
-    // camera_3d.position = {0, 0, 10};
     Camera3D camera_3d = { 0 };
     camera_3d.up = {.5,0,0};
     camera_3d.position = (Vector3){ 10.0f, 10.0f, 10.0f }; // camera_3d position
     camera_3d.target = (Vector3){ 0.0f, 0.0f, 0.0f };      // camera_3d looking at point
     camera_3d.up = (Vector3){ 0.0f, 1.0f, 0.0f };          // camera_3d up vector (rotation towards target)
     camera_3d.fovy = 45.0f;                                // camera_3d field-of-view Y
-    camera_3d.projection = CAMERA_PERSPECTIVE;  
+    camera_3d.projection = CAMERA_PERSPECTIVE; 
 
-    Rectangle toolbar_ui  = {0, 0, screenWidth, 50}; 
-    RenderTexture canvas_texture = LoadRenderTexture(screenWidth, screenHeight-toolbar_ui.height);
-    Rectangle canvas_position = {0, 0, (float)canvas_texture.texture.width, (float)-canvas_texture.texture.height};
+    Model example_model = LoadModel("../src/stand_dock_model.obj");
+
+
 
     UI::OriginPlane grid_plane{UI::OriginPlane::XZ};
+    
+    bool use_custom{false};
     while (!WindowShouldClose())
     { 
         Vector3 mouse_world_pos = GetScreenToWorldRay(GetMousePosition(), camera_3d).position;
         mouse_pos = GetMousePosition();
-        Vector2 mouse_delta{};
         
-        if(IsKeyDown(KeyConfig::view_mode))
-        {
-            static constexpr float CAMERA_MOUSE_ORBIT_SENSITIVITY{0.003F};
-            static constexpr float CAMERA_MOUSE_PAN_SENSITIVITY{0.10F};
-            mouse_delta = GetMouseDelta();
 
-            float zoom = 0;
-            Vector3 move_to;
-           
-                bool pan_mode{IsMouseButtonDown(MOUSE_BUTTON_RIGHT)};
-                if(!pan_mode)
-                {
-                    CameraYaw(&camera_3d, -mouse_delta.x*CAMERA_MOUSE_ORBIT_SENSITIVITY, true);
-                    CameraPitch(&camera_3d, -mouse_delta.y*CAMERA_MOUSE_ORBIT_SENSITIVITY, true, true, false);
-                }
-                else
-                {
-                    bool moveInWorldPlane{true}; 
-                    float cameraMoveSpeed = 5.0 * GetFrameTime();
-                    float distance = Vector2Distance(mouse_delta, {0,0});
-                    float move_up = CAMERA_MOUSE_PAN_SENSITIVITY*-(mouse_delta.y); 
-                    float move_right = CAMERA_MOUSE_PAN_SENSITIVITY*mouse_delta.x; 
-                
-                    if(mouse_delta.y != 0) CameraMoveUp(&camera_3d, move_up);
-                    if(mouse_delta.x != 0) CameraMoveRight(&camera_3d, move_right, moveInWorldPlane);
-                }
-            
-            zoom = -GetMouseWheelMove();
-            CameraMoveToTarget(&camera_3d, -GetMouseWheelMove());
-        }
-        else if(IsKeyReleased(KeyConfig::view_mode))
+        if(IsKeyPressed(KEY_ONE))
         {
+         use_custom = !use_custom;   
+        };
+        if(use_custom)
+        {
+            update_canvas_camera_pro(camera_3d);
+        }
+        else
+        {
+            update_canvas_camera(camera_3d);
 
         }
-
-
-
-       BeginDrawing();
+       
+        BeginDrawing();
         ClearBackground(WHITE);
 
         if(GuiButton(Rectangle{screenWidth-110, 10 ,100,40 }, "#185#Home"))
@@ -301,16 +441,19 @@ int main(void)
         
         BeginMode3D(camera_3d);
 
-            DrawCube({0,0,0}, 2.0f, 2.0f, 2.0f, RED);
-            DrawCubeWires({0,0,0}, 2.0f, 2.0f, 2.0f, MAROON);
-            // UI::DrawPlane(UI::OriginPlane::XZ, {0,0,0}, {20, 20}, Color{255, 161, 0, 50});
-            UI::DrawGrid(grid_plane, 10, 1.0f);
+            DrawModel(example_model, {0, 0, 0}, 1.0f, GRAY);    
+            DrawModelWires(example_model, {0, 0, 0}, 1.0f, BLUE);
+            DrawSphere({0,0,0}, .5, LIME); 
+            DrawSphere(camera_3d.target, 1, GREEN); 
             
+            // UI::DrawPlane(UI::OriginPlane::XZ, {0,0,0}, {20, 20}, Color{255, 161, 0, 50});
+            
+            UI::DrawGrid(grid_plane, 10, 1.0f);
         EndMode3D();
         
+        DrawText(TextFormat("%s Nav", use_custom?"Custom":"Default"), 10, screenHeight - 40, 10, DARKGRAY);
         DrawText(TextFormat("Target(%0.2f, %0.2f, %0.2f), Position(%0.2f, %0.2f, %0.2f)", camera_3d.target.x, camera_3d.target.y, camera_3d.target.z, camera_3d.position.x, camera_3d.position.y, camera_3d.position.z), 10, screenHeight - 20, 10, DARKGRAY);
 
-        
         EndDrawing();
     }
 
