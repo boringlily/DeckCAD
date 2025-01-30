@@ -177,19 +177,7 @@ void update_canvas_camera(Camera3D &camera)
         float move_up = cameraMoveSpeed * mouse_delta.y; 
         float move_right = cameraMoveSpeed * mouse_delta.x; 
     
-        if(mouse_delta.y != 0) 
-        CameraMoveUp(&camera, move_up);
-        // {
-        //     Vector3 up = GetCameraUp(&camera);
-
-        //     // Scale by distance
-        //     up = Vector3Scale(up, distance);
-
-        //     // Move position and target
-        //     camera.position = Vector3Add(camera.position, up);
-        //     // camera.target = Vector3Add(camera.target, up);
-
-        // }
+        if(mouse_delta.y != 0) CameraMoveUp(&camera, move_up);
         if(mouse_delta.x != 0) CameraMoveRight(&camera, -move_right, moveInWorldPlane);
     }
     else
@@ -210,152 +198,43 @@ void update_canvas_camera_pro(Camera3D &camera)
     Vector3 rotation{};
     Vector3 translation{};
 
-    
-
-
-    // Calculate rotation around origin
-        // Rotate around origin
-    // Offset Camera position
-
-
-
     Vector2 mouse_delta{GetMouseDelta()};
 
     bool orbit = IsMouseButtonDown(MOUSE_BUTTON_LEFT) && IsMouseButtonDown(MOUSE_BUTTON_RIGHT);
     bool pan = IsMouseButtonDown(MOUSE_BUTTON_MIDDLE);
     
     static constexpr float CAMERA_MOUSE_ORBIT_SENSITIVITY{0.01F};
-    static constexpr float CAMERA_MOUSE_PAN_SENSITIVITY{0.015F};
+    static constexpr float CAMERA_MOUSE_PAN_SENSITIVITY{0.0012F};
 
     if(orbit)
-    {
+    {   
         float angle_yaw{-mouse_delta.x*CAMERA_MOUSE_ORBIT_SENSITIVITY};
-        bool rotateAroundTarget{false};
-
-        // yaw
-        {
-            // Rotation axis
-            Vector3 up = GetCameraUp(&camera);
-
-            // View vector
-            Vector3 targetPosition = Vector3Subtract(camera.target, camera.position);
-
-            // Rotate view vector around up axis
-            targetPosition = Vector3RotateByAxisAngle(targetPosition, up, angle_yaw);
-
-            if (rotateAroundTarget)
-            {
-                // Move position relative to target
-                camera.position = Vector3Subtract(camera.target, targetPosition);
-            }
-            else // rotate around camera.position
-            {
-                // Move target relative to position
-                camera.target = Vector3Add(camera.position, targetPosition);
-            }
-        }
-
         float angle_pitch{-mouse_delta.y*CAMERA_MOUSE_ORBIT_SENSITIVITY};
-        bool lockView{false};    
-        bool rotateUp{false};    
-
-        // Pitch
-        {
-            // Up direction
-            Vector3 up = GetCameraUp(&camera);
-
-            // View vector
-            Vector3 targetPosition = Vector3Subtract(camera.target, camera.position);
-
-            if (lockView)
-            {
-                // In these camera modes we clamp the Pitch angle
-                // to allow only viewing straight up or down.
-
-                // Clamp view up
-                float maxAngleUp = Vector3Angle(up, targetPosition);
-                maxAngleUp -= 0.001f; // avoid numerical errors
-                if (angle_pitch > maxAngleUp) angle_pitch = maxAngleUp;
-
-                // Clamp view down
-                float maxAngleDown = Vector3Angle(Vector3Negate(up), targetPosition);
-                maxAngleDown *= -1.0f; // downwards angle is negative
-                maxAngleDown += 0.001f; // avoid numerical errors
-                if (angle_pitch < maxAngleDown) angle_pitch = maxAngleDown;
-            }
-
-            // Rotation axis
-            Vector3 right = GetCameraRight(&camera);
-
-            // Rotate view vector around right axis
-            targetPosition = Vector3RotateByAxisAngle(targetPosition, right, angle_pitch);
-
-            if (rotateAroundTarget)
-            {
-                // Move position relative to target
-                camera.position = Vector3Subtract(camera.target, targetPosition);
-            }
-            else // rotate around camera.position
-            {
-                // Move target relative to position
-                camera.target = Vector3Add(camera.position, targetPosition);
-            }
-
-            if (rotateUp)
-            {
-                // Rotate up direction around right axis
-                camera.up = Vector3RotateByAxisAngle(camera.up, right, angle_pitch);
-            }
-        }
-        // Vector3 cam_target = camera.target;
-        // camera.target = {0,0,0};
-
-        // CameraYaw(&camera, -mouse_delta.x*CAMERA_MOUSE_ORBIT_SENSITIVITY, true);
-        // CameraPitch(&camera, -mouse_delta.y*CAMERA_MOUSE_ORBIT_SENSITIVITY, true, true, false);
         
-        // camera.target = cam_target;
-        
-        // rotation.x = -mouse_delta.x*CAMERA_MOUSE_ORBIT_SENSITIVITY;
-        // rotation.y = -mouse_delta.y*CAMERA_MOUSE_ORBIT_SENSITIVITY;
+        float r = 0;
+        Quaternion yaw{sin(r/2) , sin(r/2) , sin(r/2), cos(r/2)};
+        // rotate.w = cos(r/2);  rotate.x = ;   rotate.y = sin(r/2) b;  rotate.z = sin(r/2);
+
+        camera.position = Vector3RotateByAxisAngle(camera.position, {0,1,0}, angle_yaw); 
+        camera.target = Vector3RotateByAxisAngle(camera.target, {0,1,0}, angle_yaw); 
+        camera.position = Vector3RotateByAxisAngle(camera.position, {1,0,0}, -angle_pitch); 
+        camera.target = Vector3RotateByAxisAngle(camera.target, {1,0,0}, -angle_pitch); 
     }
     else if(pan)
     {
-        // static bool moveInWorldPlane{false}; 
-        // if(IsKeyPressed(KEY_SPACE)) moveInWorldPlane = !moveInWorldPlane;
+        static bool moveInWorldPlane{true}; 
+        if(IsKeyPressed(KEY_SPACE)) moveInWorldPlane = !moveInWorldPlane;
         
-        // auto distance = Vector3DistanceSqr(camera.position, camera.target);
-        // float cameraMoveSpeed = CAMERA_MOUSE_PAN_SENSITIVITY * distance * GetFrameTime();
-        // DrawText(TextFormat("speed %f", cameraMoveSpeed),10,10,10,BLACK ); 
-        // float move_up = cameraMoveSpeed * mouse_delta.y; 
-        // float move_right = cameraMoveSpeed * mouse_delta.x; 
+        float distance = Vector3Distance(camera.position, {0,0,0});
+        float cameraMoveSpeed = CAMERA_MOUSE_PAN_SENSITIVITY * distance;
+
+        DrawText(TextFormat("speed %f", cameraMoveSpeed),10,10,10,BLACK ); 
+        float move_up = cameraMoveSpeed * mouse_delta.y; 
+        float move_right = cameraMoveSpeed * mouse_delta.x; 
     
-        // if(mouse_delta.y != 0) 
-        // CameraMoveUp(&camera, move_up);
-        // // {
-        // //     Vector3 up = GetCameraUp(&camera);
-
-        // //     // Scale by distance
-        // //     up = Vector3Scale(up, distance);
-
-        // //     // Move position and target
-        // //     camera.position = Vector3Add(camera.position, up);
-        // //     // camera.target = Vector3Add(camera.target, up);
-
-        // // }
-        // if(mouse_delta.x != 0) CameraMoveRight(&camera, -move_right, moveInWorldPlane);
+        if(mouse_delta.y != 0) CameraMoveUp(&camera, move_up);
+        if(mouse_delta.x != 0) CameraMoveRight(&camera, -move_right, moveInWorldPlane);
     }
-    // else
-    // {
-    //     if(camera.projection == CAMERA_ORTHOGRAPHIC)
-    //     {
-    //         camera.fovy += -GetMouseWheelMove();
-    //     }
-    //     else
-    //     {
-    //         CameraMoveToTarget(&camera, -GetMouseWheelMove());
-    //     }
-    // }
-    
     float zoom = camera.projection == CAMERA_PERSPECTIVE ? -GetMouseWheelMove(): 0;
 
     UpdateCameraPro(&camera, translation, rotation, zoom);
@@ -391,7 +270,7 @@ int main(void)
 
     UI::OriginPlane grid_plane{UI::OriginPlane::XZ};
     
-    bool use_custom{false};
+    bool use_custom{true};
     while (!WindowShouldClose())
     { 
         Vector3 mouse_world_pos = GetScreenToWorldRay(GetMousePosition(), camera_3d).position;
