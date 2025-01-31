@@ -148,52 +148,7 @@ Vector2 get_canvas_center()
     return {-x, -y};
 }
 
-void update_canvas_camera(Camera3D &camera) 
-{
-    static Vector2 canvas_offset;
-
-    Vector2 mouse_delta{GetMouseDelta()};
-
-    bool orbit = IsMouseButtonDown(MOUSE_BUTTON_LEFT) && IsMouseButtonDown(MOUSE_BUTTON_RIGHT);
-    bool pan = IsMouseButtonDown(MOUSE_BUTTON_MIDDLE);
-    
-    static constexpr float CAMERA_MOUSE_ORBIT_SENSITIVITY{0.01F};
-    static constexpr float CAMERA_MOUSE_PAN_SENSITIVITY{0.00120F};
-
-    if(orbit)
-    {   
-        CameraYaw(&camera, -mouse_delta.x*CAMERA_MOUSE_ORBIT_SENSITIVITY, true);
-        CameraPitch(&camera, -mouse_delta.y*CAMERA_MOUSE_ORBIT_SENSITIVITY, true, true, false);
-    }
-    else if(pan)
-    {
-        static bool moveInWorldPlane{false}; 
-        if(IsKeyPressed(KEY_SPACE)) moveInWorldPlane = !moveInWorldPlane;
-        
-        float distance = Vector3Distance(camera.position, {0,0,0});
-        float cameraMoveSpeed = CAMERA_MOUSE_PAN_SENSITIVITY * distance;
-
-        DrawText(TextFormat("speed %f", cameraMoveSpeed),10,10,10,BLACK ); 
-        float move_up = cameraMoveSpeed * mouse_delta.y; 
-        float move_right = cameraMoveSpeed * mouse_delta.x; 
-    
-        if(mouse_delta.y != 0) CameraMoveUp(&camera, move_up);
-        if(mouse_delta.x != 0) CameraMoveRight(&camera, -move_right, moveInWorldPlane);
-    }
-    else
-    {
-        if(camera.projection == CAMERA_ORTHOGRAPHIC)
-        {
-            camera.fovy += -GetMouseWheelMove();
-        }
-        else
-        {
-            CameraMoveToTarget(&camera, -GetMouseWheelMove());
-        }
-    }
-}
-
-void update_canvas_camera_pro(Camera3D &camera) 
+void updateCanvasCamera(Camera3D &camera) 
 {
     Vector3 rotation{};
     Vector3 translation{};
@@ -203,24 +158,16 @@ void update_canvas_camera_pro(Camera3D &camera)
     bool orbit = IsMouseButtonDown(MOUSE_BUTTON_LEFT) && IsMouseButtonDown(MOUSE_BUTTON_RIGHT);
     bool pan = IsMouseButtonDown(MOUSE_BUTTON_MIDDLE);
     
-    static constexpr float CAMERA_MOUSE_ORBIT_SENSITIVITY{0.01F};
+    static constexpr float CAMERA_MOUSE_ORBIT_SENSITIVITY{0.2F};
     static constexpr float CAMERA_MOUSE_PAN_SENSITIVITY{0.0012F};
 
     if(orbit)
     {   
-        static float yaw = 0.0f;
-        static float pitch = 0.0f;
-        float sensitivity = 0.2f;
-        float distance;
-
-        Vector3 offset = Vector3Subtract(camera.position, camera.target);
-        distance = Vector3Length(offset);
-        
         Vector2 mouseDelta = GetMouseDelta();
 
         // Update rotation angles
-        yaw = -mouseDelta.x * sensitivity * GetFrameTime();
-        pitch = -mouseDelta.y * sensitivity * GetFrameTime();
+        float yaw = -mouseDelta.x * CAMERA_MOUSE_ORBIT_SENSITIVITY * GetFrameTime();
+        float pitch = -mouseDelta.y * CAMERA_MOUSE_ORBIT_SENSITIVITY * GetFrameTime();
 
         // Horizontal rotation (yaw)
         camera.position = Vector3RotateByAxisAngle(
@@ -284,13 +231,13 @@ int main(void)
     //---------------------------------------------------------------------------------------
     Vector2 mouse_pos = {};
     
-    Camera3D camera_3d = { 0 };
-    camera_3d.up = {.5,0,0};
-    camera_3d.position = (Vector3){ 10.0f, 10.0f, 10.0f }; // camera_3d position
-    camera_3d.target = (Vector3){ 0.0f, 0.0f, 0.0f };      // camera_3d looking at point
-    camera_3d.up = (Vector3){ 0.0f, 1.0f, 0.0f };          // camera_3d up vector (rotation towards target)
-    camera_3d.fovy = 45.0f;                                // camera_3d field-of-view Y
-    camera_3d.projection = CAMERA_PERSPECTIVE; 
+    Camera3D camera = { 0 };
+    camera.up = {.5,0,0};
+    camera.position = (Vector3){ 10.0f, 10.0f, 10.0f }; // camera position
+    camera.target = (Vector3){ 0.0f, 0.0f, 0.0f };      // camera looking at point
+    camera.up = (Vector3){ 0.0f, 1.0f, 0.0f };          // camera up vector (rotation towards target)
+    camera.fovy = 45.0f;                                // camera field-of-view Y
+    camera.projection = CAMERA_PERSPECTIVE; 
 
     Model example_model = LoadModel("../src/stand_dock_model.obj");
 
@@ -298,68 +245,57 @@ int main(void)
 
     UI::OriginPlane grid_plane{UI::OriginPlane::XZ};
     
-    bool use_custom{true};
     while (!WindowShouldClose())
     { 
-        Vector3 mouse_world_pos = GetScreenToWorldRay(GetMousePosition(), camera_3d).position;
-        mouse_pos = GetMousePosition();
+        Vector3 mouse_world_pos = GetScreenToWorldRay(GetMousePosition(), camera).position;
         
+        mouse_pos = GetMousePosition();
 
-        if(IsKeyPressed(KEY_ONE))
-        {
-         use_custom = !use_custom;   
-        };
-        if(use_custom)
-        {
-            update_canvas_camera_pro(camera_3d);
-        }
-        else
-        {
-            update_canvas_camera(camera_3d);
-
-        }
-       
+        updateCanvasCamera(camera);
+        
         BeginDrawing();
         ClearBackground(WHITE);
 
         if(GuiButton(Rectangle{screenWidth-110, 10 ,100,40 }, "#185#Home"))
         {
-            camera_3d.position = (Vector3){ 10.0f, 10.0f, 10.0f };
+            camera.position = (Vector3){ 10.0f, 10.0f, 10.0f };
         };
         if(GuiButton(Rectangle{screenWidth-110, 10+40 ,100,40 }, "Reset"))
         {
-            camera_3d.target = Vector3(0.0, 0.0, 0.0);
+            camera.target = Vector3(0.0, 0.0, 0.0);
         }; 
         if(GuiButton(Rectangle{screenWidth-110, 10 + 40*2 ,100, 40 }, "XY"))
         {
-            camera_3d.position = Vector3(0.0, 0.0, 10.0F);
+            camera.position = Vector3(0.0, 0.0, 10.0F);
             grid_plane = UI::OriginPlane::XY;
         };
         if(GuiButton(Rectangle{screenWidth-110, 10 + 40*3 ,100, 40 }, "XZ"))
         {
-            camera_3d.position = Vector3(0.0F, 10.0F, 0.0);
+            // Vector3 right = Vector3Normalize(Vector3CrossProduct(camera.up, {0,-10.0F,0}));
+            camera.position = {0.0,10,0.01};
             grid_plane = UI::OriginPlane::XZ;
         };
         if(GuiButton(Rectangle{screenWidth-110, 10 + 40*4 ,100, 40 }, "YZ"))
         {
-            camera_3d.position = Vector3(10.0F, 0.0, 0.0);
+            camera.position = Vector3(10.0F, 0.0, 0.0);
             grid_plane = UI::OriginPlane::YZ;
         };
         
-        BeginMode3D(camera_3d);
+        BeginMode3D(camera);
 
             DrawModel(example_model, {0, 0, 0}, 1.0f, GRAY);    
             DrawModelWires(example_model, {0, 0, 0}, 1.0f, BLUE);
             DrawSphere({0,0,0}, .5, LIME); 
-            DrawSphere(camera_3d.target, 1, GREEN); 
+            DrawSphere(camera.target, 1, GREEN); 
             
             // UI::DrawPlane(UI::OriginPlane::XZ, {0,0,0}, {20, 20}, Color{255, 161, 0, 50});
             
             UI::DrawGrid(grid_plane, 10, 1.0f);
         EndMode3D();
         
-        DrawText(TextFormat("%s Nav", use_custom?"Custom":"Default"), 10, screenHeight - 40, 10, DARKGRAY);
-        DrawText(TextFormat("Target(%0.2f, %0.2f, %0.2f), Position(%0.2f, %0.2f, %0.2f)", camera_3d.target.x, camera_3d.target.y, camera_3d.target.z, camera_3d.position.x, camera_3d.position.y, camera_3d.position.z), 10, screenHeight - 20, 10, DARKGRAY);
+        DrawText(TextFormat("Target(%0.2f, %0.2f, %0.2f)",  camera.target.x, camera.target.y, camera.target.z), 10, screenHeight - 60, 10, DARKGRAY);
+        DrawText(TextFormat("Position(%0.2f, %0.2f, %0.2f)", camera.position.x, camera.position.y, camera.position.z), 10, screenHeight - 40, 10, DARKGRAY);
+        DrawText(TextFormat("Up(%0.2f, %0.2f, %0.2f)",  camera.up.x, camera.up.y, camera.up.z), 10, screenHeight - 20, 10, DARKGRAY);
 
         EndDrawing();
     }
