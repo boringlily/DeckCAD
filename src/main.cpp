@@ -172,13 +172,19 @@ void updateCanvasCamera(Camera3D &camera)
         // Horizontal rotation (yaw)
         camera.position = Vector3RotateByAxisAngle(
             camera.position,
-            (Vector3){0, 1, 0}, 
+            Vector3{0, 1, 0}, 
             yaw);
 
         camera.target = Vector3RotateByAxisAngle(
             camera.target,
-            (Vector3){0, 1, 0}, 
+            Vector3{0, 1, 0}, 
             yaw);
+    
+        camera.up = Vector3Normalize(Vector3RotateByAxisAngle(
+            camera.up,
+            Vector3{0, 1, 0}, 
+            yaw
+            ));
 
         // Vertical rotation (pitch)
         Vector3 right = Vector3Normalize(Vector3CrossProduct(camera.up, Vector3Subtract(camera.position, camera.target)));
@@ -194,6 +200,13 @@ void updateCanvasCamera(Camera3D &camera)
             right, 
             pitch
         );
+
+        camera.up = Vector3Normalize(Vector3RotateByAxisAngle(
+            camera.up,
+            right, 
+            pitch
+        ));
+
     }
     else if(pan)
     {
