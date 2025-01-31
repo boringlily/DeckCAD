@@ -208,17 +208,45 @@ void update_canvas_camera_pro(Camera3D &camera)
 
     if(orbit)
     {   
-        float angle_yaw{-mouse_delta.x*CAMERA_MOUSE_ORBIT_SENSITIVITY};
-        float angle_pitch{-mouse_delta.y*CAMERA_MOUSE_ORBIT_SENSITIVITY};
-        
-        float r = 0;
-        Quaternion yaw{sin(r/2) , sin(r/2) , sin(r/2), cos(r/2)};
-        // rotate.w = cos(r/2);  rotate.x = ;   rotate.y = sin(r/2) b;  rotate.z = sin(r/2);
+        static float yaw = 0.0f;
+        static float pitch = 0.0f;
+        float sensitivity = 0.2f;
+        float distance;
 
-        camera.position = Vector3RotateByAxisAngle(camera.position, {0,1,0}, angle_yaw); 
-        camera.target = Vector3RotateByAxisAngle(camera.target, {0,1,0}, angle_yaw); 
-        camera.position = Vector3RotateByAxisAngle(camera.position, {1,0,0}, -angle_pitch); 
-        camera.target = Vector3RotateByAxisAngle(camera.target, {1,0,0}, -angle_pitch); 
+        Vector3 offset = Vector3Subtract(camera.position, camera.target);
+        distance = Vector3Length(offset);
+        
+        Vector2 mouseDelta = GetMouseDelta();
+
+        // Update rotation angles
+        yaw = -mouseDelta.x * sensitivity * GetFrameTime();
+        pitch = -mouseDelta.y * sensitivity * GetFrameTime();
+
+        // Horizontal rotation (yaw)
+        camera.position = Vector3RotateByAxisAngle(
+            camera.position,
+            (Vector3){0, 1, 0}, 
+            yaw);
+
+        camera.target = Vector3RotateByAxisAngle(
+            camera.target,
+            (Vector3){0, 1, 0}, 
+            yaw);
+
+        // Vertical rotation (pitch)
+        Vector3 right = Vector3Normalize(Vector3CrossProduct(camera.up, Vector3Subtract(camera.position, camera.target)));
+
+        camera.position = Vector3RotateByAxisAngle(
+            camera.position,
+            right, 
+            pitch
+        );
+
+        camera.target = Vector3RotateByAxisAngle(
+            camera.target,
+            right, 
+            pitch
+        );
     }
     else if(pan)
     {
