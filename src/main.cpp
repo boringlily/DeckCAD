@@ -2,8 +2,6 @@
 
 #include "raylib.h"
 #define RAYGUI_IMPLEMENTATION
-// #define RCAMERA_IMPLEMENTATION
-#include "raygui.h"
 #include "raymath.h"
 #include "rlgl.h"
 #include "rcamera.h"
@@ -24,7 +22,7 @@ constexpr distance GRID_SPACING_MIN{0.001};
 constexpr distance GRID_SPACING_MAX{1000};
 
 
-typedef struct Plane3D
+struct Plane3D
 {
 Vector3 center;
 float angle_x;
@@ -266,7 +264,8 @@ int main(void)
         BeginMode3D(camera);
 
             DrawModel(example_model, {0, 0, 0}, 1.0f, GRAY);
-            DrawModelWires(example_model, {0, 0, 0}, 1.0f, BLUE);
+            // DrawModelWires(example_model, {0, 0, 0}, 1.0f, BLUE);
+            // DrawCube({0,0,0}, 10,10,10, BLUE);
             DrawSphere({0,0,0}, .5, LIME); 
             DrawSphere(camera.target, 1, GREEN); 
             
@@ -279,34 +278,34 @@ int main(void)
         DrawText(TextFormat("Position(%0.2f, %0.2f, %0.2f)", camera.position.x, camera.position.y, camera.position.z), 10, screenHeight - 40, 10, DARKGRAY);
         DrawText(TextFormat("Up(%0.2f, %0.2f, %0.2f)",  camera.up.x, camera.up.y, camera.up.z), 10, screenHeight - 20, 10, DARKGRAY);
         
-        if(GuiButton(Rectangle{screenWidth-110, 10 ,100,40 }, "#185#Home"))
-        {
-            camera.position = (Vector3){ 10.0f, 10.0f, 10.0f };
-        };
-        if(GuiButton(Rectangle{screenWidth-110, 10+40 ,100,40 }, "Reset"))
-        {
-            camera.up = {0,1,0};
-            camera.target = Vector3(0.0, 0.0, 0.0);
-        }; 
-        if(GuiButton(Rectangle{screenWidth-110, 10 + 40*2 ,100, 40 }, "XY"))
-        {
-            camera.up = {0, 1, 0};
-            camera.position = Vector3(0.0, 0.0, 10.0F);
-            grid_plane = UI::OriginPlane::XY;
-        };
-        if(GuiButton(Rectangle{screenWidth-110, 10 + 40*3 ,100, 40 }, "XZ"))
-        {
-            // Vector3 right = Vector3Normalize(Vector3CrossProduct(camera.up, {0,0,1}));
-            camera.up = {0, 0, -1};
-            camera.position = {0.0,10,0.0};
-            grid_plane = UI::OriginPlane::XZ;
-        };
-        if(GuiButton(Rectangle{screenWidth-110, 10 + 40*4 ,100, 40 }, "YZ"))
-        {
-            camera.up = {0, 1, 0};
-            camera.position = Vector3(10.0F, 0.0, 0.0);
-            grid_plane = UI::OriginPlane::YZ;
-        };
+        // if(GuiButton(Rectangle{screenWidth-110, 10 ,100,40 }, "#185#Home"))
+        // {
+        //     camera.position = (Vector3){ 10.0f, 10.0f, 10.0f };
+        // };
+        // if(GuiButton(Rectangle{screenWidth-110, 10+40 ,100,40 }, "Reset"))
+        // {
+        //     camera.up = {0,1,0};
+        //     camera.target = Vector3(0.0, 0.0, 0.0);
+        // }; 
+        // if(GuiButton(Rectangle{screenWidth-110, 10 + 40*2 ,100, 40 }, "XY"))
+        // {
+        //     camera.up = {0, 1, 0};
+        //     camera.position = Vector3(0.0, 0.0, 10.0F);
+        //     grid_plane = UI::OriginPlane::XY;
+        // };
+        // if(GuiButton(Rectangle{screenWidth-110, 10 + 40*3 ,100, 40 }, "XZ"))
+        // {
+        //     // Vector3 right = Vector3Normalize(Vector3CrossProduct(camera.up, {0,0,1}));
+        //     camera.up = {0, 0, -1};
+        //     camera.position = {0.0,10,0.0};
+        //     grid_plane = UI::OriginPlane::XZ;
+        // };
+        // if(GuiButton(Rectangle{screenWidth-110, 10 + 40*4 ,100, 40 }, "YZ"))
+        // {
+        //     camera.up = {0, 1, 0};
+        //     camera.position = Vector3(10.0F, 0.0, 0.0);
+        //     grid_plane = UI::OriginPlane::YZ;
+        // };
         EndDrawing();
     }
 
