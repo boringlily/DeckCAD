@@ -73,7 +73,8 @@
 			"*.m": "cpp",
 			"clay_renderer_raylib.c": "cpp",
 			"clay-video-demo.c": "cpp",
-			"xlocale": "cpp"
+			"xlocale": "cpp",
+			"xiosbase": "cpp"
 		}
 	},
 	"extensions": {

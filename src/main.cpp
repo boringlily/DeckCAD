@@ -13,16 +13,32 @@ Clay_Dimensions get_screen_size() {
 }
 
 Clay_Sizing layoutExpand = {
-    .width = CLAY_SIZING_GROW(0),
-    .height = CLAY_SIZING_GROW(0)
+    .width = CLAY_SIZING_GROW(),
+    .height = CLAY_SIZING_GROW()
 };
+
+Clay_Sizing layoutExpandMinWidth(float min, float max = 0)
+{
+    return {
+        .width = CLAY_SIZING_GROW(min, max),
+        .height = CLAY_SIZING_GROW()
+    };
+};
+
+constexpr int WindowMinWidth = 1024;
+constexpr int WindowMinHeight = 800;
 
 int main(void) {
   Clay_Raylib_Initialize(
-      1024, 768, "DeckCAD 2D Sketcher",
-      FLAG_WINDOW_RESIZABLE | FLAG_WINDOW_HIGHDPI | FLAG_MSAA_4X_HINT |
-          FLAG_VSYNC_HINT); // Extra parameters to this function are new since
+      WindowMinWidth, WindowMinHeight, "DeckCAD",
+        FLAG_WINDOW_RESIZABLE
+        // | FLAG_WINDOW_HIGHDPI // This flag seems to break the entire layout processing
+        | FLAG_MSAA_4X_HINT
+        | FLAG_VSYNC_HINT
+        ); // Extra parameters to this function are new since
                             // the video was published
+
+    SetWindowMinSize(WindowMinWidth, WindowMinHeight);
 
   uint64_t clayRequiredMemory = Clay_MinMemorySize();
 
@@ -55,17 +71,81 @@ int main(void) {
         true, (Clay_Vector2){scrollDelta.x, scrollDelta.y}, GetFrameTime());
 
     Clay_BeginLayout();
+    const Clay_Color COLOR_LIGHT = (Clay_Color) {224, 215, 210, 255};
+    const Clay_Color COLOR_RED = (Clay_Color) {200, 100, 100, 255};
+    const Clay_Color COLOR_GREEN = (Clay_Color) {100, 200, 100, 255};
+    const Clay_Color COLOR_BLUE = (Clay_Color) {100, 100, 200, 255};
 
     CLAY(
         {
-        .id = CLAY_ID("Main Container"),
+        .id = CLAY_ID("OuterContainer"),
         .layout = {
             .sizing = layoutExpand,
-            .padding = CLAY_PADDING_ALL(16),
-            .childGap = 16,
-            .layoutDirection = CLAY_TOP_TO_BOTTOM
+            .layoutDirection = CLAY_TOP_TO_BOTTOM 
         },
-        .backgroundColor = {43, 41, 51, 255}});
+        .backgroundColor = {43, 41, 51, 255}
+    })
+    {
+
+
+        /// Workbench components
+        CLAY({
+        .id = CLAY_ID("Workbench"),
+        .layout = {
+            .sizing = layoutExpand,
+            .layoutDirection = CLAY_TOP_TO_BOTTOM,
+        },
+        .backgroundColor = { 255, 255, 255, 255}
+        })
+        {
+            CLAY({
+            .id = CLAY_ID("WorkbenchInner"),
+            .layout = {
+                .sizing = layoutExpand, 
+                .layoutDirection = CLAY_LEFT_TO_RIGHT
+            },
+            .backgroundColor = {0,0,0,255}
+            })
+            {
+                CLAY({
+                .id = CLAY_ID("WorkbenchExplorer"),
+                .layout = {
+                    .sizing = layoutExpandMinWidth(300, 500), 
+                },
+                .backgroundColor = COLOR_RED 
+                });
+                
+                CLAY({
+                .id = CLAY_ID("WorkbenchCanvas"),
+                .layout = {
+                    .sizing = layoutExpandMinWidth(500), 
+                },
+                .backgroundColor = COLOR_GREEN
+                });
+                
+                CLAY({
+                .id = CLAY_ID("WorkbenchToolbox"),
+                .layout = {
+                    .sizing = layoutExpandMinWidth(200, 400), 
+                },
+                .backgroundColor = COLOR_BLUE 
+                });
+
+            };
+            
+            CLAY({
+            .id = CLAY_ID("WorkbenchFooter"),
+            .layout = {
+                .sizing = {
+                    .width = CLAY_SIZING_GROW(),
+                    .height = CLAY_SIZING_FIXED(100)
+                },
+                .layoutDirection = CLAY_LEFT_TO_RIGHT,
+            },
+            .backgroundColor = COLOR_LIGHT 
+            });
+        };
+    };
 
     Clay_RenderCommandArray renderCommands = Clay_EndLayout();
 
