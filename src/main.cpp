@@ -32,7 +32,8 @@ int main(void) {
   Clay_Raylib_Initialize(
       WindowMinWidth, WindowMinHeight, "DeckCAD",
         FLAG_WINDOW_RESIZABLE
-        // | FLAG_WINDOW_HIGHDPI // This flag seems to break the entire layout processing
+        // | FLAG_WINDOW_HIGHDPI // when FLAG_WINDOW_HIGHDPI is set the clay layout engine stops working with any Windows display scaling other than 100%.
+        // this seems like something worth investigating.  
         | FLAG_MSAA_4X_HINT
         | FLAG_VSYNC_HINT
         ); // Extra parameters to this function are new since
