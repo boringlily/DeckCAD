@@ -1,11 +1,12 @@
 cmake_minimum_required(VERSION 3.15)
 project(DeckCAD)
 
-set(CMAKE_C_STANDARD 11) # Requires C11 standard
-set(CMAKE_CXX_STANDARD 23) # Requires C++20 standard
+# Require C11 and Cpp23
+set(CMAKE_C_STANDARD 11) 
+set(CMAKE_CXX_STANDARD 23)
 
 set(RAYLIB_DIR submodules/raylib/src)
-set(CLAY_DIR submodules/raylib/src)
+set(CLAY_DIR submodules/clay)
 
 add_executable(${PROJECT_NAME} src/main.cpp)
 
