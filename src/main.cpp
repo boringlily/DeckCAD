@@ -36,8 +36,7 @@ int main(void) {
         // this seems like something worth investigating.  
         | FLAG_MSAA_4X_HINT
         | FLAG_VSYNC_HINT
-        ); // Extra parameters to this function are new since
-                            // the video was published
+        );
 
     SetWindowMinSize(WindowMinWidth, WindowMinHeight);
 
@@ -48,8 +47,8 @@ int main(void) {
 
   Clay_Initialize(
       clayMemory, get_screen_size(),
-      (Clay_ErrorHandler){HandleClayErrors}); // This final argument is new
-                                              // since the video was published
+      (Clay_ErrorHandler){HandleClayErrors});
+
   const uint32_t FONT_ID_BODY_16 = 0;
   
   Font fonts[1];

@@ -245,8 +245,6 @@ int draw_canvas(void)
 
     Model example_model = LoadModel("../src/stand_dock_model.obj");
 
-
-
     UI::OriginPlane grid_plane{UI::OriginPlane::XZ};
     
     while (!WindowShouldClose())
