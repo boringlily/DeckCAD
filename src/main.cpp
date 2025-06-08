@@ -1,32 +1,12 @@
 #define CLAY_IMPLEMENTATION
+#include "ui_components.h"
 #include "clay.h"
-#include "renderers/raylib/clay_renderer_raylib.c"
-
+#include "workbench.cpp"
+#include "renderers/raylib/clay_raylib_experimental.c"
 
 void HandleClayErrors(Clay_ErrorData errorData) {
   printf("%s", errorData.errorText.chars);
 }
-
-Clay_Dimensions get_screen_size() {
-  return Clay_Dimensions{.width = static_cast<float>(GetScreenWidth()),
-                         .height = static_cast<float>(GetScreenHeight())};
-}
-
-Clay_Sizing layoutExpand = {
-    .width = CLAY_SIZING_GROW(),
-    .height = CLAY_SIZING_GROW()
-};
-
-Clay_Sizing layoutExpandMinWidth(float min, float max = 0)
-{
-    return {
-        .width = CLAY_SIZING_GROW(min, max),
-        .height = CLAY_SIZING_GROW()
-    };
-};
-
-constexpr int WindowMinWidth = 1024;
-constexpr int WindowMinHeight = 800;
 
 int main(void) {
   Clay_Raylib_Initialize(
@@ -58,7 +38,11 @@ int main(void) {
 
   Clay_SetMeasureTextFunction(Raylib_MeasureText, fonts);
 
-  while (!WindowShouldClose()) {
+
+ Workbench workbench = {};
+
+ while (!WindowShouldClose()) 
+ {
     // Run once per frame
     Clay_SetLayoutDimensions(get_screen_size());
 
@@ -71,11 +55,6 @@ int main(void) {
         true, (Clay_Vector2){scrollDelta.x, scrollDelta.y}, GetFrameTime());
 
     Clay_BeginLayout();
-    const Clay_Color COLOR_LIGHT = (Clay_Color) {224, 215, 210, 255};
-    const Clay_Color COLOR_RED = (Clay_Color) {200, 100, 100, 255};
-    const Clay_Color COLOR_GREEN = (Clay_Color) {100, 200, 100, 255};
-    const Clay_Color COLOR_BLUE = (Clay_Color) {100, 100, 200, 255};
-
     CLAY(
         {
         .id = CLAY_ID("OuterContainer"),
@@ -86,74 +65,16 @@ int main(void) {
         .backgroundColor = {43, 41, 51, 255}
     })
     {
-
-
-        /// Workbench components
-        CLAY({
-        .id = CLAY_ID("Workbench"),
-        .layout = {
-            .sizing = layoutExpand,
-            .layoutDirection = CLAY_TOP_TO_BOTTOM,
-        },
-        .backgroundColor = { 255, 255, 255, 255}
-        })
-        {
-            CLAY({
-            .id = CLAY_ID("WorkbenchInner"),
-            .layout = {
-                .sizing = layoutExpand, 
-                .layoutDirection = CLAY_LEFT_TO_RIGHT
-            },
-            .backgroundColor = {0,0,0,255}
-            })
-            {
-                CLAY({
-                .id = CLAY_ID("WorkbenchExplorer"),
-                .layout = {
-                    .sizing = layoutExpandMinWidth(300, 500), 
-                },
-                .backgroundColor = COLOR_RED 
-                });
-                
-                CLAY({
-                .id = CLAY_ID("WorkbenchCanvas"),
-                .layout = {
-                    .sizing = layoutExpandMinWidth(500), 
-                },
-                .backgroundColor = COLOR_GREEN
-                });
-                
-                CLAY({
-                .id = CLAY_ID("WorkbenchToolbox"),
-                .layout = {
-                    .sizing = layoutExpandMinWidth(200, 400), 
-                },
-                .backgroundColor = COLOR_BLUE 
-                });
-
-            };
-            
-            CLAY({
-            .id = CLAY_ID("WorkbenchFooter"),
-            .layout = {
-                .sizing = {
-                    .width = CLAY_SIZING_GROW(),
-                    .height = CLAY_SIZING_FIXED(100)
-                },
-                .layoutDirection = CLAY_LEFT_TO_RIGHT,
-            },
-            .backgroundColor = COLOR_LIGHT 
-            });
-        };
+        workbench.draw();
     };
 
     Clay_RenderCommandArray renderCommands = Clay_EndLayout();
 
     BeginDrawing();
-    ClearBackground(BLACK);
-    Clay_Raylib_Render(renderCommands, fonts);
+        ClearBackground(BLACK);
+        Clay_Raylib_Render_Experimental(renderCommands, fonts);
     EndDrawing();
   }
-  // This function is new since the video was published
+  
   Clay_Raylib_Close();
 }
