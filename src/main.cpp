@@ -38,6 +38,7 @@ int main(void) {
 
   Clay_SetMeasureTextFunction(Raylib_MeasureText, fonts);
 
+  SetCustomRenderHook(CustomRenderCommand);
 
  Workbench workbench = {};
 
