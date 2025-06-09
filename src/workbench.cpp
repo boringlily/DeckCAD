@@ -1,5 +1,6 @@
 #include "canvas.cpp"
 #include "ui_components.h"
+#include "experimental.h"
 
 class Workbench {
 public:

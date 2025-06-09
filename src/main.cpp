@@ -2,10 +2,34 @@
 #include "ui_components.h"
 #include "clay.h"
 #include "workbench.cpp"
-#include "renderers/raylib/clay_raylib_experimental.c"
+#include "renderers/raylib/clay_renderer_raylib.c"
+#include "experimental.h"
 
 void HandleClayErrors(Clay_ErrorData errorData) {
   printf("%s", errorData.errorText.chars);
+}
+
+
+static inline void MyCustomRenderCommand(Clay_RenderCommand *renderCommand)
+{
+    Clay_BoundingBox boundingBox = {roundf(renderCommand->boundingBox.x), roundf(renderCommand->boundingBox.y), roundf(renderCommand->boundingBox.width), roundf(renderCommand->boundingBox.height)};
+    // active_workbench.canvas.Render(boundingBox);
+    
+    CustomClayElement *customElement = reinterpret_cast<CustomClayElement*>(renderCommand->renderData.custom.customData);
+    if (customElement == NULL) 
+    {
+        return;
+    }
+    // printf("type: %d \n", customElement->type);
+    switch(customElement->type) 
+    {
+        case WORKBENCH_CANVAS:
+            reinterpret_cast<Canvas*>(customElement->dataAddress)->Render(boundingBox);
+            break;
+        default:
+            printf("invalid custom render command\n");
+            break;
+    }
 }
 
 int main(void) {
@@ -38,9 +62,9 @@ int main(void) {
 
   Clay_SetMeasureTextFunction(Raylib_MeasureText, fonts);
 
-  SetCustomRenderHook(CustomRenderCommand);
+  Clay_SetCustomRenderCommandFunction(MyCustomRenderCommand);
 
- Workbench workbench = {};
+  Workbench active_workbench{};
 
  while (!WindowShouldClose()) 
  {
@@ -66,7 +90,7 @@ int main(void) {
         .backgroundColor = {43, 41, 51, 255}
     })
     {
-        workbench.draw();
+        active_workbench.draw();
     };
 
     Clay_RenderCommandArray renderCommands = Clay_EndLayout();

@@ -1,7 +1,7 @@
 #include "assert.h"
 
-#include "raymath.h"
 #include "rlgl.h"
+#include "raymath.h"
 #include "rcamera.h"
 
 #include <array>
@@ -13,7 +13,7 @@
 #include "keyconfig.h"
 #include "geometry_math.h"
 
-#include "renderers/raylib/experimental.h"
+// #include "experimental.h"
 
 static Font system_font;
 float canvas_scale{1.0F};
@@ -145,9 +145,6 @@ Vector2 get_canvas_center()
     return {-x, -y};
 }
 
-
-
-
 class CanvasCamera 
 {
     public:
@@ -160,10 +157,10 @@ class CanvasCamera
     void Reset()
     {
         raylibCamera.up = {.5,0,0};
-        raylibCamera.position = (Vector3){ 10.0f, 10.0f, 10.0f }; // camera position
+        raylibCamera.position = (Vector3){ 15.0f, 15.0f, 15.0f }; // camera position
         raylibCamera.target = (Vector3){ 0.0f, 0.0f, 0.0f };      // camera looking at point
         raylibCamera.up = (Vector3){ 0.0f, 1.0f, 0.0f };          // camera up vector (rotation towards target)
-        raylibCamera.fovy = 45.0f;                                // camera field-of-view Y
+        raylibCamera.fovy = 90;                                // camera field-of-view Y
         raylibCamera.projection = CAMERA_PERSPECTIVE; 
     }
 
@@ -241,7 +238,6 @@ class CanvasCamera
         CameraMoveToTarget(&raylibCamera, zoom);
     };
 
-
     auto GetScreenPosition()
     {
         return GetScreenToWorldRay(GetMousePosition(), raylibCamera).position;
@@ -261,54 +257,50 @@ class Canvas
     
     Canvas()
     {
+        example_model = LoadModel("../src/stand_dock_model.obj");
+        grid_plane = UI::OriginPlane::XZ;
     };
 
     CanvasCamera canvasCamera{};
-    Model example_model = LoadModel("../src/stand_dock_model.obj");
-    UI::OriginPlane grid_plane{UI::OriginPlane::XZ};
+    Model example_model;
+    //  = LoadModel("../src/stand_dock_model.obj");
+    UI::OriginPlane grid_plane;
     RenderTexture renderTexture{};
-
-
-    // Clay_CustomRenderData RenderData()
-    // {
-        
-    // }
 
 
     void Render(Clay_BoundingBox element)
     {
-        // static Clay_BoundingBox last_element;
-        // bool changed = last_element.height != element.height || last_element.width  
 
         if(HasScreenSizeChanged())
         {
-            renderTexture = LoadRenderTexture(GetScreenWidth(), GetScreenHeight()); 
+            renderTexture = LoadRenderTexture(element.width, element.height); 
         }
         
-        // element = canvas_bounding_box;
         Vector3 mouse_world_pos = canvasCamera.GetScreenPosition();
     
-        Rectangle canvasRec = {element.x, element.y, element.width, element.height};
-        // printf("%0.2f,%0.2f,%0.2f,%0.2f \n",element.x, element.y, element.width, element.height );
-        // UpdateTextureRec(renderTexture.texture, canvasRec);  
-        
+        Rectangle canvasRec = {.x = 0,.y=0, .width=element.width,.height = -element.height};
 
         canvasCamera.ProcessPanTilt();
         BeginTextureMode(renderTexture);
-            ClearBackground(SKYBLUE);
+            ClearBackground(WHITE);
             BeginMode3D(canvasCamera.raylibCamera);
-                DrawModel(example_model, {0, 0, 0}, 1.0f, GRAY);
-                // DrawModelWires(example_model, {0, 0, 0}, 1.0f, BLUE);
+
+            auto modelColor = (Color){140,140,140,255}; 
+            auto wireframeColor = (Color){140,140,140,100}; 
+
+                DrawModel(example_model, {0, 0, 0}, 1.0f, modelColor);
+                DrawModelWires(example_model, {0, 0, 0}, 1.0f, wireframeColor);
+
                 // DrawCube({0,0,0}, 10,10,10, BLUE);
-                DrawSphere({0,0,0}, .5, LIME); 
-                DrawSphere(canvasCamera.raylibCamera.target, 1, GREEN); 
+                // DrawSphere({0,0,0}, .5, LIME); 
+                // DrawSphere(canvasCamera.raylibCamera.target, 1, GREEN); 
                 
-                // UI::DrawPlane(UI::OriginPlane::XZ, {0,0,0}, {20, 20}, Color{255, 161, 0, 50});
-                UI::DrawGrid(grid_plane, 10, 1.0f);
+                UI::DrawOriginPlane(UI::OriginPlane::XZ, {0,0,0}, {20, 20}, Color{100, 100, 10, 100});
+                UI::DrawGrid(this->grid_plane, 10, 1.0f);
             EndMode3D();
         EndTextureMode();
         
-        DrawTextureRec(renderTexture.texture, canvasRec, (Vector2){element.x, element.y} , WHITE);
+        DrawTextureRec(renderTexture.texture, canvasRec, (Vector2){element.x, -element.y} , WHITE);
     }
     
 };
