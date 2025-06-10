@@ -3,33 +3,16 @@
 #include "clay.h"
 #include "workbench.cpp"
 #include "renderers/raylib/clay_renderer_raylib.c"
-#include "experimental.h"
+#include "scene.h"
 
 void HandleClayErrors(Clay_ErrorData errorData) {
   printf("%s", errorData.errorText.chars);
 }
 
-
 static inline void MyCustomRenderCommand(Clay_RenderCommand *renderCommand)
 {
     Clay_BoundingBox boundingBox = {roundf(renderCommand->boundingBox.x), roundf(renderCommand->boundingBox.y), roundf(renderCommand->boundingBox.width), roundf(renderCommand->boundingBox.height)};
-    // active_workbench.canvas.Render(boundingBox);
-    
-    CustomClayElement *customElement = reinterpret_cast<CustomClayElement*>(renderCommand->renderData.custom.customData);
-    if (customElement == NULL) 
-    {
-        return;
-    }
-    // printf("type: %d \n", customElement->type);
-    switch(customElement->type) 
-    {
-        case WORKBENCH_CANVAS:
-            reinterpret_cast<Canvas*>(customElement->dataAddress)->Render(boundingBox);
-            break;
-        default:
-            printf("invalid custom render command\n");
-            break;
-    }
+    RenderCanvas(boundingBox);
 }
 
 int main(void) {
@@ -64,7 +47,8 @@ int main(void) {
 
   Clay_SetCustomRenderCommandFunction(MyCustomRenderCommand);
 
-  Workbench active_workbench{};
+  Scene active_scene{};
+  CanvasInit();
 
  while (!WindowShouldClose()) 
  {
@@ -80,6 +64,7 @@ int main(void) {
         true, (Clay_Vector2){scrollDelta.x, scrollDelta.y}, GetFrameTime());
 
     Clay_BeginLayout();
+
     CLAY(
         {
         .id = CLAY_ID("OuterContainer"),
@@ -90,7 +75,7 @@ int main(void) {
         .backgroundColor = {43, 41, 51, 255}
     })
     {
-        active_workbench.draw();
+        DrawWorkbench(active_scene);
     };
 
     Clay_RenderCommandArray renderCommands = Clay_EndLayout();

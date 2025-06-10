@@ -87,7 +87,9 @@
 			"xlocmes": "c",
 			"xlocmon": "c",
 			"xlocnum": "c",
-			"xloctime": "c"
+			"xloctime": "c",
+			"xutility": "cpp",
+			"system_error": "cpp"
 		}
 	},
 	"extensions": {
