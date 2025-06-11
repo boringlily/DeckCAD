@@ -101,7 +101,6 @@ class SceneCamera
 };
 
 
-
 class Scene
 {
     public:
