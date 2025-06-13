@@ -24,11 +24,11 @@ void RenderCanvas(Scene &scene)
 
     DrawModel(example_model, {0, 0, 0}, 1.0f, modelColor);
     DrawModelWires(example_model, {0, 0, 0}, 1.0f, wireframeColor);
-    UI::DrawOriginPlane(UI::OriginPlane::XZ, {0,0,0}, {20, 20}, Color{100, 100, 10, 100});
-    UI::DrawGrid(UI::OriginPlane::XZ, 10, 1.0f);
+    UI::DrawOriginPlane(UI::OriginPlane::XZ, {0,0,0}, {10, 10}, Color{20, 20, 100, 100});
+    UI::DrawGrid(UI::OriginPlane::XZ, 100, 1.0f);
 }
 
-inline void CanvasRenderHandler(Clay_RenderCommand * renderCommand)
+void CanvasRenderHandler(Clay_RenderCommand * renderCommand)
 {
     static RenderTexture canvas_texture = LoadRenderTexture(GetScreenWidth(), GetScreenHeight());
     static Clay_BoundingBox canvas_size{};

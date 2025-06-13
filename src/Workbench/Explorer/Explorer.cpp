@@ -5,7 +5,7 @@ void DrawExplorer(Scene &scene)
     CLAY({.id = CLAY_ID("WorkbenchExplorer"),
             .layout =
                 {
-                    .sizing = layoutExpandMinWidth(300, 500),
+                    .sizing = layoutExpandMinWidth(100, 350),
                 },
             .backgroundColor = COLOR_RED});
 }
