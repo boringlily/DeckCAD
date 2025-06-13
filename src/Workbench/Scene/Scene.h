@@ -1,4 +1,6 @@
 #pragma once
+#include "rcamera.h"
+#include "raymath.h"
 class SceneCamera
 {
     public: 
@@ -100,12 +102,14 @@ class SceneCamera
     Camera3D raylibCamera;
 };
 
-
 class Scene
 {
     public:
 
-    Scene(){};
+    Scene()
+    {
+
+    };
 
     SceneCamera camera{};
 

@@ -1,3 +1,4 @@
+#include "clay.h"
 #include "assert.h"
 
 #include "raylib.h"
@@ -11,80 +12,53 @@
 #include <sstream>
 #include <format>
 
-#include "scene.h"
-#include "canvasorigin.cpp"
+#include "Scene.h"
+#include "CanvasHelpers.cpp"
+#include "RenderHandler.h"
 
+void RenderCanvas(Scene &scene)
+{ 
+    static Model example_model = LoadModel("../src/stand_dock_model.obj");
+    auto modelColor = (Color){140,140,140,255}; 
+    auto wireframeColor = (Color){140,140,140,100};
 
-Vector2 get_canvas_center()
-{
-    float x = float(GetScreenWidth()) * 0.5;
-    float y = float(GetScreenHeight()) * 0.5;
-
-    return {-x, -y};
+    DrawModel(example_model, {0, 0, 0}, 1.0f, modelColor);
+    DrawModelWires(example_model, {0, 0, 0}, 1.0f, wireframeColor);
+    UI::DrawOriginPlane(UI::OriginPlane::XZ, {0,0,0}, {20, 20}, Color{100, 100, 10, 100});
+    UI::DrawGrid(UI::OriginPlane::XZ, 10, 1.0f);
 }
 
-static RenderTexture canvas_texture;
-static Clay_BoundingBox canvas_size{};
-static Rectangle canvasRec{};
-static bool screen_size_changed{false};
-static Model example_model;
-
-void CanvasInit()
+inline void CanvasRenderHandler(Clay_RenderCommand * renderCommand)
 {
-    canvas_texture = LoadRenderTexture(GetScreenWidth(), GetScreenHeight());
-    example_model = LoadModel("../src/stand_dock_model.obj");
-}
+    static RenderTexture canvas_texture = LoadRenderTexture(GetScreenWidth(), GetScreenHeight());
+    static Clay_BoundingBox canvas_size{};
+    static Rectangle canvasRec{};
+    static bool screen_size_changed{false};
+    
+    Clay_BoundingBox boundingBox = {roundf(renderCommand->boundingBox.x), roundf(renderCommand->boundingBox.y), roundf(renderCommand->boundingBox.width), roundf(renderCommand->boundingBox.height)};
+    Clay_CustomRenderData *config = &renderCommand->renderData.custom;
+    Scene &scene = *reinterpret_cast<Scene *> (renderCommand->renderData.custom.customData);
 
-
-static inline void RenderCanvas(Clay_BoundingBox & element)
-{
-    screen_size_changed = (canvas_size.height != element.height || canvas_size.width != element.width);
+    screen_size_changed = (canvas_size.height != boundingBox.height || canvas_size.width != boundingBox.width);
     
     if(screen_size_changed)
     {
-        canvas_texture = LoadRenderTexture(element.width, element.height); 
+        canvas_texture = LoadRenderTexture(boundingBox.width, boundingBox.height); 
     }
     
-    canvasRec = {.x = 0,.y=0, .width=element.width,.height = -element.height};
+    canvasRec = {.x = 0, .y=0, .width = boundingBox.width, .height = -boundingBox.height};
     
-    DrawTextureRec(canvas_texture.texture, canvasRec, (Vector2){element.x, -element.y} , WHITE);
-    canvas_size = element;
-}
-
-void DrawCanvas(Scene & scene)
-{
-    CLAY({
-        .id = CLAY_ID("WorkbenchCanvas"),
-        .layout =
-            {
-                .sizing = layoutExpandMinWidth(500),
-            },
-        .backgroundColor = COLOR_GREEN,
-        .custom = { .customData = &canvas_texture},
-    }){};
-
-    Vector3 mouse_world_pos = scene.camera.GetScreenPosition();
-
-    scene.camera.ProcessPanTilt();
     BeginTextureMode(canvas_texture);
         ClearBackground(WHITE);
         BeginMode3D(scene.camera.raylibCamera);
 
-            auto modelColor = (Color){140,140,140,255}; 
-            auto wireframeColor = (Color){140,140,140,100}; 
+        RenderCanvas(scene);
 
-            DrawModel(example_model, {0, 0, 0}, 1.0f, modelColor);
-            DrawModelWires(example_model, {0, 0, 0}, 1.0f, wireframeColor);
-            UI::DrawOriginPlane(UI::OriginPlane::XZ, {0,0,0}, {20, 20}, Color{100, 100, 10, 100});
-            UI::DrawGrid(UI::OriginPlane::XZ, 10, 1.0f);
-        
-         EndMode3D();
+        EndMode3D();
     EndTextureMode();
+    DrawTextureRec(canvas_texture.texture, canvasRec, (Vector2){boundingBox.x, -boundingBox.y} , WHITE);
+    canvas_size = boundingBox;
 }
-    
-
-
-
     // DrawText(TextFormat("Target(%0.2f, %0.2f, %0.2f)",  camera.target.x, camera.target.y, camera.target.z), 10, screenHeight - 60, 10, DARKGRAY);
     // DrawText(TextFormat("Position(%0.2f, %0.2f, %0.2f)", camera.position.x, camera.position.y, camera.position.z), 10, screenHeight - 40, 10, DARKGRAY);
     // DrawText(TextFormat("Up(%0.2f, %0.2f, %0.2f)",  camera.up.x, camera.up.y, camera.up.z), 10, screenHeight - 20, 10, DARKGRAY);

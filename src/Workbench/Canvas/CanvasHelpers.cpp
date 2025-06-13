@@ -1,4 +1,4 @@
-#include "geometry_math.h"
+#include "GeometryMath.h"
 
 float canvas_scale{1.0F};
 float grid_spacing_mm = 5;
@@ -119,3 +119,13 @@ namespace UI
         rlPopMatrix();
     }
 }
+
+
+Vector2 get_canvas_center()
+{
+    float x = float(GetScreenWidth()) * 0.5;
+    float y = float(GetScreenHeight()) * 0.5;
+
+    return {-x, -y};
+}
+

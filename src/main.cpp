@@ -1,18 +1,14 @@
 #define CLAY_IMPLEMENTATION
 #include "ui_components.h"
 #include "clay.h"
-#include "workbench.cpp"
 #include "renderers/raylib/clay_renderer_raylib.c"
-#include "scene.h"
+#include "Workbench/Workbench.h"
+#include "Workbench/Scene/Scene.h"
+#include "Workbench/Scene/SceneManager.h"
+#include "Workbench/Canvas/RenderHandler.h"
 
 void HandleClayErrors(Clay_ErrorData errorData) {
   printf("%s", errorData.errorText.chars);
-}
-
-static inline void MyCustomRenderCommand(Clay_RenderCommand *renderCommand)
-{
-    Clay_BoundingBox boundingBox = {roundf(renderCommand->boundingBox.x), roundf(renderCommand->boundingBox.y), roundf(renderCommand->boundingBox.width), roundf(renderCommand->boundingBox.height)};
-    RenderCanvas(boundingBox);
 }
 
 int main(void) {
@@ -45,10 +41,9 @@ int main(void) {
 
   Clay_SetMeasureTextFunction(Raylib_MeasureText, fonts);
 
-  Clay_SetCustomRenderCommandFunction(MyCustomRenderCommand);
+  Clay_SetCustomRenderCommandFunction(CanvasRenderHandler);
 
   Scene active_scene{};
-  CanvasInit();
 
  while (!WindowShouldClose()) 
  {
