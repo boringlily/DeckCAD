@@ -8,6 +8,7 @@ RUN dnf install -y epel-release; \
 	libXrandr-devel \
 	libXinerama \
 	libXinerama-devel \
+	fmt-devel \
 	gcc \
 	gcc-c++ \
 	libXcursor \
