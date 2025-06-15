@@ -1,10 +1,13 @@
 #include "Workbench.h"
 #include "Scene.h"
 
+
 void DrawCanvas(Scene & scene)
 {
+    auto WorkbenchCanvasId = CLAY_ID("WorkbenchCanvas");
+    
     CLAY({
-        .id = CLAY_ID("WorkbenchCanvas"),
+        .id = WorkbenchCanvasId,
         .layout =
             {
                 .sizing = layoutExpandMinWidth(500),
@@ -13,8 +16,11 @@ void DrawCanvas(Scene & scene)
         .custom = { .customData = &scene},
     })
     {
-        Vector3 mouse_world_pos = scene.camera.GetScreenPosition();
-        scene.camera.ProcessPanTilt();
+        if(Clay_PointerOver(WorkbenchCanvasId))
+        {
+            Vector3 mouse_world_pos = scene.camera.GetScreenPosition();
+            scene.camera.ProcessPanTilt();
+        }
     };
 };
 
