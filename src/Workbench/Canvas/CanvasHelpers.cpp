@@ -7,10 +7,10 @@ constexpr distance GRID_SPACING_MAX{1000};
 
 struct Plane3D
 {
-Vector3 center;
-float angle_x;
-float angle_y;
-Vector2 size{20, 20};
+    Vector3 center;
+    float angle_x;
+    float angle_y;
+    Vector2 size{20, 20};
 };
 
 namespace UI
@@ -77,9 +77,9 @@ namespace UI
 
     }
     
-    void DrawGrid(OriginPlane plane,int slices, float spacing)
+    void DrawGrid(OriginPlane plane, int slices, float spacing)
     {
-        int halfSlices = slices/2;
+        int halfSlices = slices / 2;
         rlPushMatrix();
             switch(plane)
             {
@@ -109,23 +109,15 @@ namespace UI
                         rlColor3f(0.75f, 0.75f, 0.75f);
                     }
 
-                    rlVertex3f((float)i*spacing, 0.0f, (float)-halfSlices*spacing);
-                    rlVertex3f((float)i*spacing, 0.0f, (float)halfSlices*spacing);
+                    rlVertex3f(static_cast<float>(i) * spacing, 0.0f, static_cast<float>(-halfSlices) * spacing);
+                    rlVertex3f(static_cast<float>(i)  * spacing, 0.0f, static_cast<float>(halfSlices) * spacing);
 
-                    rlVertex3f((float)-halfSlices*spacing, 0.0f, (float)i*spacing);
-                    rlVertex3f((float)halfSlices*spacing, 0.0f, (float)i*spacing);
+                    rlVertex3f(static_cast<float>(-halfSlices) * spacing, 0.0f, static_cast<float>(i) * spacing);
+                    rlVertex3f(static_cast<float>(halfSlices) * spacing, 0.0f, static_cast<float>(i) * spacing);
                 }
             rlEnd();
         rlPopMatrix();
     }
 }
 
-
-Vector2 get_canvas_center()
-{
-    float x = float(GetScreenWidth()) * 0.5;
-    float y = float(GetScreenHeight()) * 0.5;
-
-    return {-x, -y};
-}
 

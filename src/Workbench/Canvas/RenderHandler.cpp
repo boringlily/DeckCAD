@@ -10,43 +10,42 @@
 #include <vector>
 #include <string>
 #include <sstream>
-#include "fmt/format.h"
 
 #include "Scene.h"
 #include "CanvasHelpers.cpp"
 #include "RenderHandler.h"
 
-void RenderCanvas(Scene &scene)
+void RenderCanvas(Scene& scene)
 { 
     static Model example_model = LoadModel("../src/stand_dock_model.obj");
-    auto modelColor = (Color){140,140,140,255}; 
-    auto wireframeColor = (Color){140,140,140,100};
+    auto modelColor = (Color){140, 140, 140, 255}; 
+    auto wireframeColor = (Color){140, 140, 140, 100};
 
     DrawModel(example_model, {0, 0, 0}, 1.0f, modelColor);
     DrawModelWires(example_model, {0, 0, 0}, 1.0f, wireframeColor);
-    UI::DrawOriginPlane(UI::OriginPlane::XZ, {0,0,0}, {10, 10}, Color{20, 20, 100, 100});
+    UI::DrawOriginPlane(UI::OriginPlane::XZ, {0, 0, 0}, {10, 10}, Color{20, 20, 100, 100});
     UI::DrawGrid(UI::OriginPlane::XZ, 100, 1.0f);
 }
 
-void CanvasRenderHandler(Clay_RenderCommand * renderCommand)
+void CanvasRenderHandler(Clay_RenderCommand* renderCommand)
 {
     static RenderTexture canvas_texture = LoadRenderTexture(GetScreenWidth(), GetScreenHeight());
-    static Clay_BoundingBox canvas_size{};
+    static Clay_BoundingBox canvasSize{};
     static Rectangle canvasRec{};
-    static bool screen_size_changed{false};
+    static bool screenSizeChanged{false};
     
     Clay_BoundingBox boundingBox = {roundf(renderCommand->boundingBox.x), roundf(renderCommand->boundingBox.y), roundf(renderCommand->boundingBox.width), roundf(renderCommand->boundingBox.height)};
-    Clay_CustomRenderData *config = &renderCommand->renderData.custom;
-    Scene &scene = *reinterpret_cast<Scene *> (renderCommand->renderData.custom.customData);
+    Clay_CustomRenderData* config = &renderCommand->renderData.custom;
+    Scene& scene = *reinterpret_cast<Scene*>(renderCommand->renderData.custom.customData);
 
-    screen_size_changed = (canvas_size.height != boundingBox.height || canvas_size.width != boundingBox.width);
+    screenSizeChanged = (canvasSize.height != boundingBox.height || canvasSize.width != boundingBox.width);
     
-    if(screen_size_changed)
+    if(screenSizeChanged)
     {
         canvas_texture = LoadRenderTexture(boundingBox.width, boundingBox.height); 
     }
     
-    canvasRec = {.x = 0, .y=0, .width = boundingBox.width, .height = -boundingBox.height};
+    canvasRec = {.x = 0, .y = 0, .width = boundingBox.width, .height = -boundingBox.height};
     
     BeginTextureMode(canvas_texture);
         ClearBackground(WHITE);
@@ -57,7 +56,7 @@ void CanvasRenderHandler(Clay_RenderCommand * renderCommand)
         EndMode3D();
     EndTextureMode();
     DrawTextureRec(canvas_texture.texture, canvasRec, (Vector2){boundingBox.x, -boundingBox.y} , WHITE);
-    canvas_size = boundingBox;
+    canvasSize = boundingBox;
 }
     // DrawText(TextFormat("Target(%0.2f, %0.2f, %0.2f)",  camera.target.x, camera.target.y, camera.target.z), 10, screenHeight - 60, 10, DARKGRAY);
     // DrawText(TextFormat("Position(%0.2f, %0.2f, %0.2f)", camera.position.x, camera.position.y, camera.position.z), 10, screenHeight - 40, 10, DARKGRAY);

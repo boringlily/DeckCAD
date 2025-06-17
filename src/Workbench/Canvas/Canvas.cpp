@@ -2,7 +2,7 @@
 #include "Scene.h"
 
 
-void DrawCanvas(Scene & scene)
+void DrawCanvas(Scene& scene)
 {
     auto WorkbenchCanvasId = CLAY_ID("WorkbenchCanvas");
     
