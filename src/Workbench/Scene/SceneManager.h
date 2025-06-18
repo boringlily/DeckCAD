@@ -1,21 +1,26 @@
 #pragma once
 #include "Scene.h"
+#include <vector>
 
-class SceneManager
-{
-    public:
-    SceneManager()
+class SceneManager {
+public:
+    SceneManager() {};
+
+    Scene& GetActiveScene()
     {
-        active_scene = {};
+        if (sceneList.empty()) {
+            CreateEmptyScene();
+        }
+
+        return sceneList[activeSceneId];
     };
 
-    static Scene &GetActiveScene()
+    void CreateEmptyScene()
     {
-        return active_scene;
-    };
+        sceneList.emplace_back();
+    }
 
-    private: 
-
-    static Scene active_scene;
+private:
+    uint32_t activeSceneId = 0;
+    std::vector<Scene> sceneList;
 };
-
