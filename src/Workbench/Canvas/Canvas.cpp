@@ -4,18 +4,18 @@
 void DrawCanvas(Scene& scene)
 {
     auto WorkbenchCanvasId = CLAY_ID("WorkbenchCanvas");
+    static constexpr float CANVAS_WIDTH_SHRINK_MIN { 500.0f };
 
     CLAY({
         .id = WorkbenchCanvasId,
         .layout = {
-            .sizing = layoutExpandMinWidth(500),
+            .sizing = LAYOUT_EXPAND_MIN_MAX_WIDTH(CANVAS_WIDTH_SHRINK_MIN),
         },
-        .backgroundColor = COLOR_GREEN,
+        .backgroundColor = COLOR_GREEN, // This background color should not be visible as the Canvas Texture should be rendered to fill all the available space.
         .custom = { .customData = &scene },
     })
     {
         if (Clay_PointerOver(WorkbenchCanvasId)) {
-            Vector3 mouse_world_pos = scene.camera.GetScreenPosition();
             scene.camera.ProcessPanTilt();
         }
     };

@@ -18,6 +18,7 @@ set(SCENE_DIR ${WORKBENCH_DIR}/Scene)
 
 set(SRC 
 ${SRC_DIR}/main.cpp
+${SCENE_DIR}/SceneCamera.cpp
 ${EXPLORER_DIR}/Explorer.cpp
 ${CANVAS_DIR}/Canvas.cpp
 ${CANVAS_DIR}/RenderHandler.cpp
@@ -32,6 +33,8 @@ ${SCENE_DIR}
 ${CANVAS_DIR}
 ${TOOLBOX_DIR}
 )
+
+file(COPY "${CMAKE_CURRENT_SOURCE_DIR}/src/assets" DESTINATION "${CMAKE_CURRENT_BINARY_DIR}") 
 
 add_executable(${PROJECT_NAME} ${SRC} ${INC})
 target_include_directories(${PROJECT_NAME} PUBLIC ${INC})

@@ -1,14 +1,7 @@
-#include "GeometryMath.h"
-
-float canvas_scale { 1.0F };
-float grid_spacing_mm = 5;
-constexpr distance GRID_SPACING_MIN { 0.001 };
-constexpr distance GRID_SPACING_MAX { 1000 };
-
 struct Plane3D {
     Vector3 center;
-    float angle_x;
-    float angle_y;
+    float angleX;
+    float angleY;
     Vector2 size { 20, 20 };
 };
 
@@ -56,8 +49,8 @@ void DrawPlane(Plane3D plane)
 {
     rlPushMatrix();
     rlTranslatef(plane.center.x, plane.center.y, plane.center.z);
-    rlRotatef(plane.angle_x, 1, 0, 0);
-    rlRotatef(plane.angle_y, 0, 0, -1);
+    rlRotatef(plane.angleX, 1, 0, 0);
+    rlRotatef(plane.angleY, 0, 0, -1);
 
     rlScalef(plane.size.x, 1.0f, plane.size.y);
     rlBegin(RL_QUADS);
