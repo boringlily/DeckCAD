@@ -3,7 +3,7 @@
 
 void DrawCanvas(Scene& scene)
 {
-    auto WorkbenchCanvasId = CLAY_ID("WorkbenchCanvas");
+    Clay_ElementId WorkbenchCanvasId = CLAY_ID("WorkbenchCanvas");
     static constexpr float CANVAS_WIDTH_SHRINK_MIN { 500.0f };
 
     CLAY({
