@@ -1,0 +1,7 @@
+repos:
+  - repo: https://github.com/cpp-linter/cpp-linter-hooks
+    rev: v0.6.1  # Use the ref you want to point at
+    hooks:
+      - id: clang-format
+        args: [--style=Webkit, --sort-includes=false] # Other coding style: LLVM, GNU, Chromium, Microsoft, Mozilla, WebKit.
+        files: ^(src|include)/.*\.(cpp|cc|cxx|h|hpp)$

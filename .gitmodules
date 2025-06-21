@@ -3,4 +3,4 @@
 	url = https://github.com/raysan5/raylib.git
 [submodule "submodules/clay"]
 	path = submodules/clay
-	url = https://github.com/nicbarker/clay.git
+	url = https://github.com/boringlily/clay.git

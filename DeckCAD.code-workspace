@@ -74,7 +74,22 @@
 			"clay_renderer_raylib.c": "cpp",
 			"clay-video-demo.c": "cpp",
 			"xlocale": "cpp",
-			"xiosbase": "cpp"
+			"xiosbase": "cpp",
+			"clay_raylib_experimental.c": "cpp",
+			"chrono": "cpp",
+			"any": "cpp",
+			"compare": "cpp",
+			"functional": "cpp",
+			"type_traits": "cpp",
+			"xmemory": "cpp",
+			"memory_resource": "cpp",
+			"numeric": "cpp",
+			"xlocmes": "c",
+			"xlocmon": "c",
+			"xlocnum": "c",
+			"xloctime": "c",
+			"xutility": "cpp",
+			"system_error": "cpp"
 		}
 	},
 	"extensions": {
