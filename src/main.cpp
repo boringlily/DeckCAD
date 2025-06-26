@@ -72,7 +72,9 @@ int main(void)
                     .layoutDirection = CLAY_TOP_TO_BOTTOM },
                 .backgroundColor = { 43, 41, 51, 255 } })
         {
-            DrawWorkbench(sceneManager.GetActiveScene());
+            // DrawWorkbench(sceneManager.GetActiveScene());
+
+
         };
 
         Clay_RenderCommandArray renderCommands = Clay_EndLayout();
