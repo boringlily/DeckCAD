@@ -20,5 +20,3 @@ static constexpr Clay_Sizing LAYOUT_EXPAND_MIN_MAX_WIDTH(float min, float max = 
     };
 };
 
-constexpr int WINDOW_MIN_WIDTH = 1024;
-constexpr int WINDOW_MIN_HEIGHT = 800;

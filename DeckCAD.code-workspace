@@ -89,7 +89,8 @@
 			"xlocnum": "c",
 			"xloctime": "c",
 			"xutility": "cpp",
-			"system_error": "cpp"
+			"system_error": "cpp",
+			"atomic": "cpp"
 		}
 	},
 	"extensions": {

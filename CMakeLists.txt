@@ -9,6 +9,9 @@ set(RAYLIB_DIR submodules/raylib/src)
 set(CLAY_DIR submodules/clay)
 
 set(SRC_DIR ${CMAKE_SOURCE_DIR}/src)
+set(LAYOUT_DIR ${SRC_DIR}/Layout)
+set(RENDER_DIR ${LAYOUT_DIR}/Render)
+set(STYLE_DIR ${LAYOUT_DIR}/Style)
 set(WORKBENCH_DIR ${CMAKE_SOURCE_DIR}/src/Workbench)
 set(EXPLORER_DIR ${WORKBENCH_DIR}/Explorer)
 set(CANVAS_DIR ${WORKBENCH_DIR}/Canvas)
@@ -17,16 +20,20 @@ set(SCENE_DIR ${WORKBENCH_DIR}/Scene)
 
 
 set(SRC 
-${SRC_DIR}/main.cpp
 ${SCENE_DIR}/SceneCamera.cpp
 ${EXPLORER_DIR}/Explorer.cpp
 ${CANVAS_DIR}/Canvas.cpp
 ${CANVAS_DIR}/RenderHandler.cpp
 ${TOOLBOX_DIR}/Toolbox.cpp
+${RENDER_DIR}/LayoutRenderer.cpp
+${SRC_DIR}/main.cpp
 )
 
 set(INC 
 ${SRC_DIR}
+${LAYOUT_DIR}
+${RENDER_DIR}
+${STYLE_DIR}
 ${WORKBENCH_DIR}
 ${EXPLORER_DIR}
 ${SCENE_DIR}
