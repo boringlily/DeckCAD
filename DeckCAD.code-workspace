@@ -90,7 +90,8 @@
 			"xloctime": "c",
 			"xutility": "cpp",
 			"system_error": "cpp",
-			"atomic": "cpp"
+			"atomic": "cpp",
+			"xstring": "cpp"
 		}
 	},
 	"extensions": {

@@ -1,25 +1,24 @@
 #define CLAY_IMPLEMENTATION
 #include "clay.h"
 #include "ClayPrimitives.h"
-#include "Layout/Render/LayoutRenderer.h"
+#include "UI/Layout/LayoutEngine.h"
 #include "Workbench/Workbench.h"
 #include "Workbench/Scene/Scene.h"
 #include "Workbench/Scene/SceneManager.h"
 #include "Workbench/Canvas/RenderHandler.h"
 
 
-
-
 int main(void)
 {
-
-    LayoutRenderer layoutRenderer;
+    UI::ClayRender clayRender{}; 
+    
     SceneManager sceneManager;
 
-    while (!WindowShouldClose()) {
+    while (!WindowShouldClose()) 
+    { 
         // Run once per frame
 
-        layoutRenderer.FrameStart();
+        clayRender.StartFrame();
 
         CLAY(
             { .id = CLAY_ID("OuterContainer"),
@@ -31,8 +30,7 @@ int main(void)
 
             DrawWorkbench(sceneManager.GetActiveScene());
         };
-
-        layoutRenderer.FrameEnd();
         
+        clayRender.EndFrame();
     }
 }

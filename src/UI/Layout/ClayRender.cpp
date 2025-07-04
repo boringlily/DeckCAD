@@ -1,6 +1,5 @@
 #define RAYLIB_IMPLEMENTATION
 #include "raylib.h"
-// #define CLAY_IMPLEMENTATION
 #include "clay.h"
 #include "ClayPrimitives.h"
 #include "raymath.h"
@@ -9,7 +8,7 @@
 #include "stdio.h"
 #include "stdlib.h"
 #include <string>
-#include "LayoutRenderer.h"
+#include "LayoutEngine.h"
 #include "RenderHandler.h"
 
 #define CLAY_RECTANGLE_TO_RAYLIB_RECTANGLE(rectangle) (Rectangle) { .x = rectangle.x, .y = rectangle.y, .width = rectangle.width, .height = rectangle.height }
@@ -74,7 +73,9 @@ void HandleClayErrors(Clay_ErrorData errorData)
     printf("%s", errorData.errorText.chars);
 }
 
-LayoutRenderer::LayoutRenderer() 
+using namespace UI;
+
+ClayRender::ClayRender() 
 {
     constexpr int WINDOW_MIN_WIDTH = 1024;
     constexpr int WINDOW_MIN_HEIGHT = 800;
@@ -91,7 +92,7 @@ LayoutRenderer::LayoutRenderer()
 
     uint64_t clayRequiredMemory = Clay_MinMemorySize();
     
-    clayMemory = Clay_CreateArenaWithCapacityAndMemory(
+    static Clay_Arena clayMemory = Clay_CreateArenaWithCapacityAndMemory(
         clayRequiredMemory, malloc(clayRequiredMemory));
 
     Clay_Initialize(
@@ -107,14 +108,12 @@ LayoutRenderer::LayoutRenderer()
     Clay_SetMeasureTextFunction(Raylib_MeasureText, LoadedFonts.data());
 }
 
-LayoutRenderer::~LayoutRenderer()
+ClayRender::~ClayRender()
 {
-    if(temp_render_buffer) free(temp_render_buffer);
-    temp_render_buffer_len = 0;
     CloseWindow();
 }
 
-void LayoutRenderer::FrameStart() 
+void ClayRender::StartFrame() 
 {
 
     Clay_Dimensions newScreenSize = GetScreenSize();
@@ -131,7 +130,7 @@ void LayoutRenderer::FrameStart()
     Clay_BeginLayout();
 }
 
-void LayoutRenderer::FrameEnd() 
+void ClayRender::EndFrame() 
 {
     Clay_RenderCommandArray renderCommands = Clay_EndLayout();
     BeginDrawing();
@@ -141,7 +140,7 @@ void LayoutRenderer::FrameEnd()
     EndDrawing();
 }
 
-void LayoutRenderer::Render(Clay_RenderCommandArray renderCommands, Font* fonts)
+void ClayRender::Render(Clay_RenderCommandArray renderCommands, Font* fonts)
 {
     for (int j = 0; j < renderCommands.length; j++)
     {
@@ -152,20 +151,17 @@ void LayoutRenderer::Render(Clay_RenderCommandArray renderCommands, Font* fonts)
             case CLAY_RENDER_COMMAND_TYPE_TEXT: {
                 Clay_TextRenderData *textData = &renderCommand->renderData.text;
                 Font fontToUse = fonts[textData->fontId];
-    
                 int strlen = textData->stringContents.length + 1;
     
-                if(strlen > temp_render_buffer_len) {
-                    // Grow the temp buffer if we need a larger string
-                    if(temp_render_buffer) free(temp_render_buffer);
-                    temp_render_buffer = (char *) malloc(strlen);
-                    temp_render_buffer_len = strlen;
+                if(strlen > tempRenderBuffer.capacity())
+                {
+                    tempRenderBuffer.reserve(strlen);
                 }
     
                 // Raylib uses standard C strings so isn't compatible with cheap slices, we need to clone the string to append null terminator
-                memcpy(temp_render_buffer, textData->stringContents.chars, textData->stringContents.length);
-                temp_render_buffer[textData->stringContents.length] = '\0';
-                DrawTextEx(fontToUse, temp_render_buffer, (Vector2){boundingBox.x, boundingBox.y}, (float)textData->fontSize, (float)textData->letterSpacing, CLAY_COLOR_TO_RAYLIB_COLOR(textData->textColor));
+                memcpy(tempRenderBuffer.data(), textData->stringContents.chars, textData->stringContents.length);
+                tempRenderBuffer[textData->stringContents.length] = '\0';
+                DrawTextEx(fontToUse, tempRenderBuffer.data(), (Vector2){boundingBox.x, boundingBox.y}, (float)textData->fontSize, (float)textData->letterSpacing, CLAY_COLOR_TO_RAYLIB_COLOR(textData->textColor));
     
                 break;
             }
