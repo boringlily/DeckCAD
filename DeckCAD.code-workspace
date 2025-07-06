@@ -91,7 +91,8 @@
 			"xutility": "cpp",
 			"system_error": "cpp",
 			"atomic": "cpp",
-			"xstring": "cpp"
+			"xstring": "cpp",
+			"iostream": "cpp"
 		}
 	},
 	"extensions": {

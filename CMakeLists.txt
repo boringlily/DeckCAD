@@ -20,10 +20,9 @@ set(SCENE_DIR ${WORKBENCH_DIR}/Scene)
 
 
 set(SRC 
-${SCENE_DIR}/SceneCamera.cpp
 ${EXPLORER_DIR}/Explorer.cpp
 ${CANVAS_DIR}/Canvas.cpp
-${CANVAS_DIR}/RenderHandler.cpp
+${CANVAS_DIR}/CanvasCamera.cpp
 ${TOOLBOX_DIR}/Toolbox.cpp
 ${LAYOUT_DIR}/ClayRender.cpp
 ${SRC_DIR}/main.cpp

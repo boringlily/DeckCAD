@@ -1,6 +1,6 @@
 #pragma once
-#include "SceneCamera.h"
 #include <iostream>
+#include "Canvas.h"
 
 class Scene {
 public:
@@ -14,7 +14,13 @@ public:
         exampleModel = LoadModel("./assets/exampleModel.obj");
     }
 
-    SceneCamera camera {};
+    void Update()
+    {
+        canvas.Draw();
+    }
+
+private:
+    CanvasComponent canvas { exampleModel };
 
     Model exampleModel {};
 };

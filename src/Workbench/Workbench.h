@@ -1,10 +1,8 @@
 #pragma once
 #include "ClayPrimitives.h"
-
-class Scene;
+#include "Scene.h"
 
 void DrawExplorer(Scene& scene);
-void DrawCanvas(Scene& scene);
 void DrawToolbox(Scene& scene);
 
 inline void DrawWorkbench(Scene& scene)
@@ -25,7 +23,8 @@ inline void DrawWorkbench(Scene& scene)
         {
             DrawExplorer(scene);
 
-            DrawCanvas(scene);
+            // DrawCanvas(scene);
+            scene.Update();
 
             DrawToolbox(scene);
         };

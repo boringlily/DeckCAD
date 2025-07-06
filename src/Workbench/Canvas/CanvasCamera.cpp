@@ -1,24 +1,22 @@
 #define RAYLIB_IMPLEMENTATION
 #include "raylib.h"
 #include "rlgl.h"
-#include "SceneCamera.h"
+#include "CanvasCamera.h"
 
-SceneCamera::SceneCamera()
+CanvasCamera::CanvasCamera()
 {
     Reset();
 };
 
-void SceneCamera::Reset()
+void CanvasCamera::Reset()
 {
     raylibCamera.up = { .5, 0, 0 };
-    raylibCamera.position = (Vector3) { 15.0f, 15.0f, 15.0f }; // camera position
-    raylibCamera.target = (Vector3) { 0.0f, 0.0f, 0.0f }; // camera looking at point
-    raylibCamera.up = (Vector3) { 0.0f, 1.0f, 0.0f }; // camera up vector (rotation towards target)
     raylibCamera.fovy = 90; // camera field-of-view Y
+    SetOrientation(CanvasCamera::CameraOrientation::Isometric_XYZ);
     raylibCamera.projection = CAMERA_PERSPECTIVE;
 }
 
-void SceneCamera::ProcessPanTilt()
+void CanvasCamera::ProcessPanTilt()
 {
     Vector2 mouseDelta { GetMouseDelta() };
 
@@ -87,7 +85,31 @@ void SceneCamera::ProcessPanTilt()
     CameraMoveToTarget(&raylibCamera, zoom);
 };
 
-Vector3 SceneCamera::GetMouseScreenPosition()
+void CanvasCamera::SetOrientation(CameraOrientation orientation)
+{
+    raylibCamera.target = (Vector3) { 0.0f, 0.0f, 0.0f }; // camera looking at point
+
+    switch (orientation) {
+    case CameraOrientation::Isometric_XYZ:
+        raylibCamera.position = (Vector3) { 15.0f, 15.0f, 15.0f }; // camera position
+        raylibCamera.up = (Vector3) { 0.0f, 1.0f, 0.0f }; // camera up vector (rotation towards target)
+        break;
+    case CameraOrientation::Plane_XY:
+        raylibCamera.up = { 0, 1, 0 };
+        raylibCamera.position = Vector3(0.0, 0.0, 15.0f);
+        break;
+    case CameraOrientation::Plane_XZ:
+        raylibCamera.up = { 0, 0, -1 };
+        raylibCamera.position = { 0.0, 15.0f, 0.0 };
+        break;
+    case CameraOrientation::Plane_YZ:
+        raylibCamera.up = { 0, 1, 0 };
+        raylibCamera.position = Vector3(15.0f, 0.0, 0.0);
+        break;
+    }
+}
+
+Vector3 CanvasCamera::GetMouseScreenPosition()
 {
     return GetScreenToWorldRay(GetMousePosition(), raylibCamera).position;
 }

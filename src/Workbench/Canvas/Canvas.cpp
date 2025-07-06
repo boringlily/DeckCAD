@@ -1,22 +1,45 @@
-#include "Workbench.h"
-#include "Scene.h"
+#include "clay.h"
+#include "assert.h"
 
-void DrawCanvas(Scene& scene)
+#include "raylib.h"
+#include "rlgl.h"
+#include "raymath.h"
+#include "rcamera.h"
+
+#include <array>
+#include <vector>
+#include <string>
+#include <sstream>
+
+#include "CanvasPlanes.cpp"
+
+#include "Canvas.h"
+
+void CanvasComponent::UpdateInternal()
 {
-    Clay_ElementId WorkbenchCanvasId = CLAY_ID("WorkbenchCanvas");
-    static constexpr float CANVAS_WIDTH_SHRINK_MIN { 500.0f };
+    static Clay_Dimensions canvasSize {};
+    bool hasChanged = CheckDimensionChanged(canvasSize);
 
-    CLAY({
-        .id = WorkbenchCanvasId,
-        .layout = {
-            .sizing = LAYOUT_EXPAND_MIN_MAX_WIDTH(CANVAS_WIDTH_SHRINK_MIN),
-        },
-        .backgroundColor = COLOR_GREEN, // This background color should not be visible as the Canvas Texture should be rendered to fill all the available space.
-        .custom = { .customData = &scene },
-    })
-    {
-        if (Clay_PointerOver(WorkbenchCanvasId)) {
-            scene.camera.ProcessPanTilt();
-        }
-    };
-};
+    if (hasChanged) {
+        canvasTexture = LoadRenderTexture(canvasSize.width, canvasSize.height);
+    }
+
+    if (Clay_PointerOver(clayId)) {
+        camera.ProcessPanTilt();
+    }
+
+    BeginTextureMode(canvasTexture);
+    ClearBackground(WHITE);
+    BeginMode3D(camera.raylibCamera);
+
+    auto modelColor = (Color) { 140, 140, 140, 255 };
+    auto wireframeColor = (Color) { 140, 140, 140, 100 };
+
+    DrawModel(exampleModel, { 0, 0, 0 }, 1.0f, modelColor);
+    DrawModelWires(exampleModel, { 0, 0, 0 }, 1.0f, wireframeColor);
+    UI::DrawOriginPlane(UI::OriginPlane::XZ, { 0, 0, 0 }, { 10, 10 }, Color { 20, 20, 100, 100 });
+    UI::DrawGrid(UI::OriginPlane::XZ, 100, 1.0f);
+
+    EndMode3D();
+    EndTextureMode();
+}

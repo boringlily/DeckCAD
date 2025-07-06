@@ -19,4 +19,3 @@ static constexpr Clay_Sizing LAYOUT_EXPAND_MIN_MAX_WIDTH(float min, float max = 
         .height = CLAY_SIZING_GROW()
     };
 };
-
