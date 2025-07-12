@@ -85,7 +85,7 @@ ClayRender::ClayRender()
     std::string WINDOW_TITLE = "DeckCAD";
     SetConfigFlags(
         FLAG_WINDOW_RESIZABLE
-        // | FLAG_WINDOW_HIGHDPI // when FLAG_WINDOW_HIGHDPI is set the clay layout engine stops working with any Windows display scaling other than 100%.
+        | FLAG_WINDOW_HIGHDPI // when FLAG_WINDOW_HIGHDPI is set the clay layout engine stops working with any Windows display scaling other than 100%.
         // this seems like something worth investigating.
         | FLAG_MSAA_4X_HINT
         | FLAG_VSYNC_HINT);
@@ -146,8 +146,11 @@ void ClayRender::EndFrame()
 void ClayRender::Render(Clay_RenderCommandArray renderCommands, Font* fonts)
 {
     for (int j = 0; j < renderCommands.length; j++) {
+        // Account for display pixel scaling such as the Apple Retina 2x ration.
+        Vector2 windowScaleDPI = GetWindowScaleDPI();
         Clay_RenderCommand* renderCommand = Clay_RenderCommandArray_Get(&renderCommands, j);
-        Clay_BoundingBox boundingBox = { roundf(renderCommand->boundingBox.x), roundf(renderCommand->boundingBox.y), roundf(renderCommand->boundingBox.width), roundf(renderCommand->boundingBox.height) };
+        Clay_BoundingBox boundingBox = { roundf(renderCommand->boundingBox.x/windowScaleDPI.x), roundf(renderCommand->boundingBox.y/windowScaleDPI.y), roundf(renderCommand->boundingBox.width/windowScaleDPI.x), roundf(renderCommand->boundingBox.height/windowScaleDPI.y) };
+
         switch (renderCommand->commandType) {
         case CLAY_RENDER_COMMAND_TYPE_TEXT: {
             Clay_TextRenderData* textData = &renderCommand->renderData.text;
@@ -231,7 +234,6 @@ void ClayRender::Render(Clay_RenderCommandArray renderCommands, Font* fonts)
             break;
         }
         case CLAY_RENDER_COMMAND_TYPE_CUSTOM: {
-            // CanvasRenderHandler(renderCommand);
             break;
         }
         default: {

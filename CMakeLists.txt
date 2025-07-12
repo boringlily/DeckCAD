@@ -11,7 +11,6 @@ set(CLAY_DIR submodules/clay)
 set(SRC_DIR ${CMAKE_SOURCE_DIR}/src)
 set(UI_DIR ${SRC_DIR}/UI)
 set(LAYOUT_DIR ${UI_DIR}/LAYOUT)
-set(STYLE_DIR ${UI_DIR}/Style)
 set(WORKBENCH_DIR ${CMAKE_SOURCE_DIR}/src/Workbench)
 set(EXPLORER_DIR ${WORKBENCH_DIR}/Explorer)
 set(CANVAS_DIR ${WORKBENCH_DIR}/Canvas)
@@ -32,7 +31,6 @@ set(INC
 ${SRC_DIR}
 ${UI_DIR}
 ${LAYOUT_DIR}
-${STYLE_DIR}
 ${WORKBENCH_DIR}
 ${EXPLORER_DIR}
 ${SCENE_DIR}
