@@ -1,3 +1,4 @@
+#pragma once
 #include "Graphics.h"
 #include "raylib.h"
 #include "rlgl.h"

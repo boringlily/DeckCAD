@@ -17,12 +17,15 @@ if(NOT HOT_RELOAD)
     list(APPEND LIBS_TO_LINK
         CORE
     )
+else()
+    list(APPEND SRC_FILES
+      LibLoader.cpp
+    )
 endif()
 
 if(WIN32)
     if(HOT_RELOAD)
         list(APPEND SRC_FILES
-            LibLoader.cpp
         )
     endif()
     list(APPEND LIBS_TO_LINK
@@ -32,7 +35,6 @@ if(WIN32)
 elseif(UNIX AND NOT APPLE)
     if(HOT_RELOAD)
         list(APPEND SRC_FILES
-            HotReload/HotReload_linux.cpp
         )
     endif()
     list(APPEND LIBS_TO_LINK
@@ -41,7 +43,6 @@ elseif(UNIX AND NOT APPLE)
 elseif(APPLE)
     if(HOT_RELOAD)
         list(APPEND SRC_FILES
-            HotReload/HotReload_apple.cpp
         )
     endif()
     list(APPEND LIBS_TO_LINK

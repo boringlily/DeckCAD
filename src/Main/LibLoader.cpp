@@ -10,23 +10,30 @@
 #include <string.h>
 #include <sys/stat.h>
 
+// If platform is Windows
 #if defined(PLATFORM_WIN32)
 
 #define LIB_PREFIX
 #define LIB_FILE_EXT ".dll"
 #include <Windows.h>
 
+// If platform is Unix based
 #elif defined(PLATFORM_LINUX) || defined(PLATFORM_DARWIN)
 
 #include <dlfcn.h>
 #include <unistd.h>
 
+// If platform is MacOS
 #if defined(PLATFORM_DARWIN)
-#define LIB_PREFIX "lib"
-#define LIB_FILE_EXT ".so"
-#else
+#include "mach-o/dyld.h"
 #define LIB_PREFIX "lib"
 #define LIB_FILE_EXT ".dylib"
+
+#else
+// If platform is Linux
+#define LIB_PREFIX "lib"
+#define LIB_FILE_EXT ".so"
+
 #endif
 #endif
 
@@ -154,7 +161,7 @@ bool PlatformFileDelete(const char* filepath)
 #if defined(PLATFORM_WIN32)
     return ::DeleteFileA(filepath);
 #elif defined(PLATFORM_LINUX) || defined(PLATFORM_DARWIN)
-
+    return ::remove(filepath) == 0;
 #endif
 }
 
@@ -168,10 +175,11 @@ bool PlatformGetFileLastModifyTime(const char* filepath, int64_t& last_modify_ti
 #elif defined(PLATFORM_LINUX) || defined(PLATFORM_DARWIN)
     struct stat file_stat {
     };
-    if (::stat(self->filepath, &file_stat) == 0) {
-        return false
+    if (::stat(filepath, &file_stat) != 0) {
+        return false;
     }
     last_modify_time = file_stat.st_mtime;
+    return true;
 #endif
 }
 
@@ -216,7 +224,7 @@ LOADER_API bool InitDynamicLibrary(DynamicLibrary* library, const char* library_
 
 LOADER_API bool InitDynamicLibraryFullPath(DynamicLibrary* library, const char* full_file_path)
 {
-    // PlatformSetCwdToProcessDirectory();
+    PlatformSetCwdToProcessDirectory();
     if (full_file_path == nullptr) {
         assert(library->lib_path[0] != 0 && "[LibraryLoader]: A path must be specified");
     } else {
@@ -235,19 +243,19 @@ LOADER_API bool InitDynamicLibraryFullPath(DynamicLibrary* library, const char* 
 LOADER_API void CloseDynamicLibrary(DynamicLibrary* library)
 {
     PlatformFileDelete(library->copy_path);
-    PlatformFreeLibrary((HMODULE)library->handle);
+    PlatformFreeLibrary(library->handle);
 }
 
 LOADER_API bool LoadDynamicLibrary(DynamicLibrary* library)
 {
-    int64_t last_write_time;
+    int64_t last_write_time { 0 };
     bool result = PlatformGetFileLastModifyTime(library->lib_path, last_write_time);
     if (last_write_time == library->last_write_time || !result) {
         return false;
     }
 
     if (library->handle != nullptr) {
-        result = PlatformFreeLibrary((HMODULE)library->handle);
+        result = PlatformFreeLibrary(library->handle);
         assert(result && "[LibraryLoader]: Failed to free library.");
     }
 

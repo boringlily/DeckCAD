@@ -12,7 +12,7 @@ public:
 
     void Load()
     {
-        exampleModel = LoadModel("../assets/exampleModel.obj");
+        exampleModel = LoadModel("../assets/example_model.obj");
     }
 
     Model exampleModel {};
