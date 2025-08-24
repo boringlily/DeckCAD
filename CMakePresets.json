@@ -1,0 +1,45 @@
+{
+  "version": 9,
+  "include": ["CMakeUserEnv.json"],
+  "configurePresets": [
+    {
+      "name": "Default",
+      "hidden": false,
+      "inherits": [ "user_clang_paths" ],
+      "generator": "Ninja",
+      "description": "Default staticly build",
+      "binaryDir": "${sourceDir}/build/",
+      "cacheVariables": {
+        "CMAKE_C_COMPILER": "$env{USER_CLANG_20_PATH}",
+        "CMAKE_CXX_COMPILER": "$env{USER_CLANG++_20_PATH}"
+      }
+    },
+    {
+      "inherits": [ "Default" ],
+      "name": "HotReload",
+      "hidden": false,
+      "generator": "Ninja",
+      "description": "Build with Hot Reload enabled",
+      "cacheVariables": {
+        "CMAKE_BUILD_TYPE": "Debug",
+        "HOT_RELOAD": "ON"
+      }
+    }
+  ],
+  "buildPresets": [
+    {
+      "name": "Default",
+      "configurePreset": "Default"
+    },
+    {
+      "name": "HotReload",
+      "configurePreset": "HotReload"
+    }
+  ],
+  "testPresets": [
+    {
+      "name": "Test",
+      "configurePreset": "Default"
+    }
+  ]
+}

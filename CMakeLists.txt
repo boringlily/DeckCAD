@@ -5,50 +5,73 @@ project(DeckCAD)
 set(CMAKE_C_STANDARD 11) 
 set(CMAKE_CXX_STANDARD 23)
 
-set(RAYLIB_DIR submodules/raylib/src)
-set(CLAY_DIR submodules/clay)
+set_property(GLOBAL PROPERTY USE_FOLDERS ON)
+
+set(CMAKE_PDB_OUTPUT_DIRECTORY     "${CMAKE_BINARY_DIR}/bin/$<CONFIG>")
+set(CMAKE_ARCHIVE_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/bin/$<CONFIG>")
+set(CMAKE_LIBRARY_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/bin/$<CONFIG>")
+set(CMAKE_RUNTIME_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/bin/$<CONFIG>")
+
+file(COPY "${CMAKE_CURRENT_SOURCE_DIR}/assets" DESTINATION "${CMAKE_BINARY_DIR}/bin") 
+# Global compile definitions.
+add_compile_definitions(
+    $<$<PLATFORM_ID:Linux>:PLATFORM_LINUX=1>
+    $<$<PLATFORM_ID:Windows>:PLATFORM_WIN32=1>
+    $<$<PLATFORM_ID:Darwin>:PLATFORM_DARWIN=1>
+)
+
+
+option(HOT_RELOAD "Enable a dynamic build with Runtime loading of the application Core Logic" OFF)
+
+SET(CMAKE_POLICY_DEFAULT_CMP0077 NEW) 
+
+set(CUSTOMIZE_BUILD ON)
+set(BUILD_EXAMPLES OFF)
+set(WITH_PIC OFF)
+set(BUILD_SHARED_LIBS OFF)
+set(SUPPORT_MODULE_RAUDIO OFF)
+set(SUPPORT_FILEFORMAT_BMP ON)
+
+
+if(HOT_RELOAD)
+add_compile_definitions(__HOT_RELOAD_ENABLED__)
+add_compile_definitions(CLAY_DLL)
+set(WITH_PIC ON)
+set(BUILD_SHARED_LIBS ON)
+endif()
+
+
+set(RAYLIB_DIR ${CMAKE_SOURCE_DIR}/submodules/raylib)
+set(CLAY_DIR ${CMAKE_SOURCE_DIR}/submodules/clay)
 
 set(SRC_DIR ${CMAKE_SOURCE_DIR}/src)
-set(WORKBENCH_DIR ${CMAKE_SOURCE_DIR}/src/Workbench)
-set(EXPLORER_DIR ${WORKBENCH_DIR}/Explorer)
-set(CANVAS_DIR ${WORKBENCH_DIR}/Canvas)
-set(TOOLBOX_DIR ${WORKBENCH_DIR}/Toolbox)
-set(SCENE_DIR ${WORKBENCH_DIR}/Scene)
 
+set(COMMON_DIR ${SRC_DIR}/Common)
+set(GRAPHICS_DIR ${SRC_DIR}/Graphics)
+set(CORE_DIR ${SRC_DIR}/Core)
+set(MAIN_DIR ${SRC_DIR}/Main)
 
-set(SRC 
-${SRC_DIR}/main.cpp
-${SCENE_DIR}/SceneCamera.cpp
-${EXPLORER_DIR}/Explorer.cpp
-${CANVAS_DIR}/Canvas.cpp
-${CANVAS_DIR}/RenderHandler.cpp
-${TOOLBOX_DIR}/Toolbox.cpp
-)
-
-set(INC 
-${SRC_DIR}
-${WORKBENCH_DIR}
-${EXPLORER_DIR}
-${SCENE_DIR}
-${CANVAS_DIR}
-${TOOLBOX_DIR}
-)
-
-file(COPY "${CMAKE_CURRENT_SOURCE_DIR}/assets" DESTINATION "${CMAKE_CURRENT_BINARY_DIR}") 
-
-add_executable(${PROJECT_NAME} ${SRC} ${INC})
-target_include_directories(${PROJECT_NAME} PUBLIC ${INC})
-
-target_include_directories(${PROJECT_NAME} PRIVATE ${CLAY_DIR})
-target_include_directories(${PROJECT_NAME} PRIVATE ${RAYLIB_DIR})
-
-add_subdirectory(submodules/raylib/projects/CMake)
-
-target_link_libraries(${PROJECT_NAME} raylib)
-
-# Checks if OSX and links appropriate frameworks (only required on MacOS)
-if (APPLE)
-    target_link_libraries(${PROJECT_NAME} "-framework IOKit")
-    target_link_libraries(${PROJECT_NAME} "-framework Cocoa")
-    target_link_libraries(${PROJECT_NAME} "-framework OpenGL")
+# This custom target's job is to configure cmake each time we compile, this is only useful for hot-reloading feature.
+if(HOT_RELOAD)
+add_custom_target(hot_reload ALL
+        # COMMAND cd .. / cmake -B build
+    )
 endif()
+
+# Macro used to append a random string to the target's pdb name.
+macro(RANDOMIZE_PDB_NAME target)
+    string(RANDOM random_string)
+    set(pdbname "${target}_")
+    string(APPEND pdbname ${random_string})
+    set_target_properties(${target}
+        PROPERTIES
+        COMPILE_PDB_NAME ${pdbname}
+        PDB_NAME ${pdbname}
+    )
+endmacro()
+
+add_subdirectory(${RAYLIB_DIR}/projects/CMake)
+add_subdirectory(${COMMON_DIR})
+add_subdirectory(${GRAPHICS_DIR})
+add_subdirectory(${CORE_DIR})
+add_subdirectory(${MAIN_DIR})
