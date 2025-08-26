@@ -35,7 +35,7 @@ set(SUPPORT_FILEFORMAT_BMP ON)
 
 if(HOT_RELOAD)
 add_compile_definitions(__HOT_RELOAD_ENABLED__)
-if(PLATFORM_WINDOWS)
+if(WIN32)
     add_compile_definitions(CLAY_DLL)
 endif()
 set(WITH_PIC ON)
