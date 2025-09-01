@@ -3,8 +3,9 @@
 #include "Explorer/Explorer.cpp"
 #include "Canvas/Canvas.cpp"
 #include "Toolbox/Toolbox.cpp"
+#include "AppMemory.h"
 
-inline void DrawWorkbench(Scene& scene)
+inline void DrawWorkbench(AppMemory& app)
 {
     /// Workbench components
     CLAY({ .id = CLAY_ID("Workbench"),
@@ -19,11 +20,11 @@ inline void DrawWorkbench(Scene& scene)
                 .layout = { .sizing = LAYOUT_EXPAND,
                     .layoutDirection = CLAY_LEFT_TO_RIGHT } })
         {
-            DrawExplorer(scene);
+            DrawExplorer(app.GetCurrentScene());
 
-            DrawCanvas(scene);
+            DrawCanvas(app.GetCurrentScene());
 
-            DrawToolbox(scene);
+            DrawToolbox(app.GetCurrentScene());
         };
 
         CLAY(
@@ -34,9 +35,9 @@ inline void DrawWorkbench(Scene& scene)
                     .childAlignment = { .y = CLAY_ALIGN_Y_CENTER },
                     .layoutDirection = CLAY_LEFT_TO_RIGHT,
                 },
-                .backgroundColor = COLOR_LIGHT_GREY })
+                .backgroundColor = GuiTheme.BgDark })
         {
-            DrawIconElement(IconId::Settings, GuiTheme.TextBase);
+            DrawIcon(IconId::Settings, GuiTheme.TextBase);
             CLAY_TEXT(CLAY_STRING("Active Mode: {UNKNOWN}"), &TextStyle.body);
         };
     };

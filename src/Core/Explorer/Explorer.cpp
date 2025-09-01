@@ -9,5 +9,5 @@ void DrawExplorer(Scene& scene)
         .layout = {
             .sizing = LAYOUT_EXPAND_MIN_MAX_WIDTH(EXPLORER_SHRINK_MIN_WIDTH, EXPLORER_GROW_MAX_WIDTH),
         },
-        .backgroundColor = COLOR_RED });
+        .backgroundColor = GuiTheme.BgBase });
 }

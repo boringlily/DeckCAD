@@ -11,5 +11,5 @@ void DrawToolbox(Scene& scene)
         .layout = {
             .sizing = LAYOUT_EXPAND_MIN_MAX_WIDTH(TOOLBOX_MIN_SHRINK_WIDTH, TOOLBOX_MAX_GROW_WIDTH),
         },
-        .backgroundColor = COLOR_BLUE });
+        .backgroundColor = GuiTheme.BgBase });
 }

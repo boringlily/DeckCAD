@@ -7,7 +7,10 @@ extern "C" {
 #endif
 
 CORE_API
-void CoreUpdate(AppMemory& appMemory);
+void CoreInit(AppMemory& app);
+
+CORE_API
+void CoreUpdate();
 
 #ifdef __cplusplus
 }
