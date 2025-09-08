@@ -19,18 +19,18 @@ static void CanvasRenderToTexture(Scene& scene)
 {
     Clay_Dimensions canvas_size = GetDimensions(canvasId);
 
-    if (static_cast<int>(canvas_size.width) != scene.canvasTexture.texture.width || static_cast<int>(canvas_size.height) != scene.canvasTexture.texture.height) {
-        if (scene.canvasTexture.texture.id != 0) {
-            UnloadRenderTexture(scene.canvasTexture);
+    if (static_cast<int>(canvas_size.width) != app_global->canvas_texture.texture.width || static_cast<int>(canvas_size.height) != app_global->canvas_texture.texture.height) {
+        if (app_global->canvas_texture.texture.id != 0) {
+            UnloadRenderTexture(app_global->canvas_texture);
         }
-        scene.canvasTexture = LoadRenderTexture(canvas_size.width, canvas_size.height);
+        app_global->canvas_texture = LoadRenderTexture(canvas_size.width, canvas_size.height);
     }
 
     if (Clay_PointerOver(canvasId)) {
         scene.camera.ProcessPanTilt();
     }
 
-    BeginTextureMode(scene.canvasTexture);
+    BeginTextureMode(app_global->canvas_texture);
     ClearBackground(WHITE);
     BeginMode3D(scene.camera.raylib_camera);
 
@@ -44,7 +44,7 @@ static void CanvasRenderToTexture(Scene& scene)
 
     EndMode3D();
     EndTextureMode();
-    SetTextureFilter(scene.canvasTexture.texture, TEXTURE_FILTER_ANISOTROPIC_16X);
+    SetTextureFilter(app_global->canvas_texture.texture, TEXTURE_FILTER_ANISOTROPIC_16X);
 }
 
 void DrawCanvas(Scene& scene)
@@ -55,7 +55,7 @@ void DrawCanvas(Scene& scene)
         .layout = {
             .sizing = LAYOUT_EXPAND_MIN_MAX_WIDTH(CANVAS_WIDTH_SHRINK_MIN),
         },
-        .custom = ClayCustom_TextureRenderConfig(scene.canvasTexture) })
+        .custom = ClayCustom_TextureRenderConfig(app_global->canvas_texture) })
     {
         CanvasRenderToTexture(scene);
     };

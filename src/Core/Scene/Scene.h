@@ -7,7 +7,7 @@
 class Scene {
 public:
     Scene(std::string name)
-        : scene_name { name } {};
+        : filename { name } {};
     Scene()
     {
         Load();
@@ -18,9 +18,8 @@ public:
         exampleModel = LoadModel("../assets/example_model.obj");
     }
 
-    std::string scene_name { "Unknown" };
+    std::string filename { "Untitled" };
 
     Model exampleModel {};
     CanvasCamera camera {};
-    RenderTexture canvasTexture;
 };
