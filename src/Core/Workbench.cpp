@@ -37,7 +37,6 @@ inline void DrawWorkbench(AppMemory& app)
                 },
                 .backgroundColor = GuiTheme.BgDark })
         {
-            DrawIcon(IconId::Settings, GuiTheme.TextBase);
             CLAY_TEXT(CLAY_STRING("Active Mode: {UNKNOWN}"), &TextStyle.body);
         };
     };
