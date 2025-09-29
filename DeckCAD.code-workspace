@@ -89,7 +89,22 @@
 			"xlocnum": "c",
 			"xloctime": "c",
 			"xutility": "cpp",
-			"system_error": "cpp"
+			"system_error": "cpp",
+			"atomic": "cpp",
+			"xstring": "cpp",
+			"iostream": "cpp",
+			"internal.h": "c",
+			"xlocinfo": "cpp",
+			"bit": "cpp",
+			"concepts": "cpp",
+			"exception": "cpp",
+			"list": "cpp",
+			"utility": "cpp",
+			"xfacet": "cpp",
+			"xhash": "cpp",
+			"xlocbuf": "cpp",
+			"xtr1common": "cpp",
+			"filesystem": "cpp"
 		}
 	},
 	"extensions": {
