@@ -1,144 +1,27 @@
 #include "Components.h"
+#include "AppMemory.h"
 #include <string>
 #include <array>
 #include <initializer_list>
+
+#include "SketchToolset.cpp"
 
 // Toolbox tools
 // Inspector - Provide a mechanism to view some kind of data about different geometry, does not modify model.
 // ModelCommand - Creates commands in the command list for the cad kernel that dictate model generation.
 // MetaData - Non-historic actions that modify metadata in the ModelCommands and affects how different models are displayed on the ui.
 
-// Flags
-enum ToolContext : u32 {
-    Solid = 0x01,
-    Sketch = 0x02,
-};
-
-enum ToolStatus : u32 {
-    active,
-    done
-};
-
-inline bool MouseClickedAndHovered()
-{
-    return Clay_Hovered() && IsMouseButtonDown(MOUSE_BUTTON_LEFT);
-}
-
-Clay_ElementDeclaration ToolboxButtonConfig(bool active)
-{
-    return {
-        .layout = {
-            .sizing = { .width = CLAY_SIZING_GROW(), .height = CLAY_SIZING_FIT() },
-            .padding = CLAY_PADDING_ALL(4),
-            .childAlignment = ALIGN_CENTER,
-        },
-        .backgroundColor = active || Clay_Hovered() ? GuiTheme.BgBase : GuiTheme.BgLight,
-        .cornerRadius = { 4u },
-    };
-}
-
-using DrawToolFunc = ToolStatus (*)();
-using DrawToolsetFunc = void (*)();
-
-static ToolStatus PlaceholderFunc()
-{
-    ToolStatus status = ToolStatus::active;
-
-    CLAY({ .layout = {
-               .sizing = { .width = CLAY_SIZING_GROW(), .height = CLAY_SIZING_FIT() },
-               .padding = CLAY_PADDING_ALL(4),
-               .childGap = 8,
-               .layoutDirection = CLAY_TOP_TO_BOTTOM,
-           },
-        .backgroundColor = GuiTheme.BgBase })
-    {
-        CLAY_TEXT(CLAY_STRING("Hi, you have clicked a placeholder."), &TextStyle.title);
-        CLAY(ToolboxButtonConfig(false))
-        {
-            CLAY_TEXT(CLAY_STRING("Done"), &TextStyle.buttonActive);
-
-            if (MouseClickedAndHovered()) {
-                status = done;
-            }
-        };
-    }
-
-    return status;
-}
-
 struct Toolset {
     std::string_view name;
-    ToolContext tab_visible_context { 0xFF }; // In what contexts the toolset is available.
+    Toolbox::Context tab_visible_context { 0xFF }; // Visibility control for toolset context
     DrawToolsetFunc function = nullptr;
 };
 
-ToolContext context { Solid };
-u32 active_toolset { 0 };
-DrawToolFunc active_tool { nullptr };
-
-constexpr void BeginToolGroup(Clay_String group_name)
-{
-    Clay_ElementDeclaration group = {
-        .layout = {
-            .sizing = { .width = CLAY_SIZING_GROW(), .height = CLAY_SIZING_FIT() },
-            .padding = CLAY_PADDING_ALL(4),
-            .childGap = 8,
-            .layoutDirection = CLAY_TOP_TO_BOTTOM,
-        },
-        .backgroundColor = GuiTheme.BgBase
-    };
-
-    Clay__OpenElement();
-    Clay__ConfigureOpenElement(group);
-
-    CLAY_TEXT(group_name, &TextStyle.subtitle);
-}
-
-void EndToolGroup()
-{
-    Clay__CloseElement();
-}
-
-constexpr void ToolSelectButton(std::string_view name, IconId icon, DrawToolFunc function)
-{
-    CLAY({
-        .layout = {
-            .sizing = { .width = CLAY_SIZING_FIT(), .height = CLAY_SIZING_FIT() },
-            .padding = CLAY_PADDING_ALL(4),
-            .childGap = 4,
-            .childAlignment = ALIGN_CENTER,
-            .layoutDirection = CLAY_LEFT_TO_RIGHT,
-        },
-        .backgroundColor = Clay_Hovered() ? GuiTheme.BgBase : GuiTheme.BgLight,
-        .cornerRadius = { 4u },
-    })
-    {
-
-        DrawIcon(icon, GuiTheme.TextBase);
-
-        static Clay_String tool_name {};
-        tool_name = { true, static_cast<s32>(name.size()), name.data() };
-
-        CLAY_TEXT(tool_name, &TextStyle.body);
-
-        if (Clay_Hovered() && IsMouseButtonReleased(MOUSE_BUTTON_LEFT)) {
-            active_tool = function;
-        }
-    };
-}
-
-void SketchToolSet()
-{
-    BeginToolGroup(CLAY_STRING("Draw"));
-    ToolSelectButton("Line", Unknown, &PlaceholderFunc);
-    EndToolGroup();
-}
-
-std::array<Toolset, 2> toolset_list = {
-    // (Toolset){
-    //     .name = "Solid",
-    //     .tab_visible_context = ToolContext::Solid,
-    // },
+std::array<Toolset, 3> toolset_list = {
+    (Toolset) {
+        .name = "Solid",
+        .tab_visible_context = Toolbox::Context::Solid,
+    },
     (Toolset) {
         .name = "Sketch",
         .function = &SketchToolSet },
@@ -163,12 +46,12 @@ void DrawToolbox(Scene& scene)
         .backgroundColor = GuiTheme.BgBase })
     {
 
-        //
-        if (active_tool == nullptr) {
-            // Tabs
+        if (scene.toolbox.active_tool == nullptr) {
+
+            // Draw toolset tabs
             CLAY({ .id = TOOLSET_TABS_ID,
                 .layout = {
-                    .sizing = { .width = CLAY_SIZING_GROW(), .height = CLAY_SIZING_FIT() },
+                    .sizing = { .width = CLAY_SIZING_FIT(), .height = CLAY_SIZING_FIT() },
                     .padding = CLAY_PADDING_ALL(4),
                     .childGap = 8,
                 },
@@ -179,24 +62,24 @@ void DrawToolbox(Scene& scene)
 
                 for (auto& toolset : toolset_list) {
 
-                    bool tab_active { tabs == active_toolset };
+                    bool tab_active { tabs == scene.toolbox.active_toolset };
 
-                    CLAY({
-                        .layout = {
-                            .sizing = { .width = CLAY_SIZING_GROW(), .height = CLAY_SIZING_FIT() },
-                            .padding = CLAY_PADDING_ALL(4),
-                            .childAlignment = ALIGN_CENTER },
-                        .backgroundColor = tab_active || Clay_Hovered() ? GuiTheme.BgBase : GuiTheme.BgLight,
-                        .cornerRadius = { 4u },
-                    })
+                    // Toolset Tab Element
+                    CLAY({ .layout = {
+                               .sizing = { .width = CLAY_SIZING_GROW(), .height = CLAY_SIZING_FIT() },
+                               .padding = LAYOUT_PADDING_SIDES_AND_TOP(16, 4),
+                               .childAlignment = ALIGN_CENTER },
+                        .backgroundColor = tab_active || Clay_Hovered() ? GuiTheme.BgLight : GuiTheme.BgBase,
+                        .cornerRadius = CLAY_CORNER_RADIUS(8u),
+                        .border = (Clay_BorderElementConfig) { .color = GuiTheme.AccentPrimary, .width = (tab_active ? (Clay_BorderWidth) { 2, 2, 2, 2, 0 } : (Clay_BorderWidth) { 0 }) } })
                     {
                         static Clay_String tab_name {};
                         tab_name = { true, static_cast<s32>(toolset.name.size()), toolset.name.data() };
 
-                        CLAY_TEXT(tab_name, &TextStyle.buttonActive);
+                        CLAY_TEXT(tab_name, tab_active ? &TextStyle.buttonActive : &TextStyle.buttonMuted);
 
                         if (Clay_Hovered() && IsMouseButtonReleased(MOUSE_BUTTON_LEFT)) {
-                            active_toolset = tabs;
+                            scene.toolbox.active_toolset = tabs;
                         }
                     };
                     tabs++;
@@ -204,47 +87,26 @@ void DrawToolbox(Scene& scene)
             }
 
             // Groups and Tools
-
             CLAY({ .id = TOOLSET_ID,
                 .layout = {
                     .sizing = { .width = CLAY_SIZING_GROW(), .height = CLAY_SIZING_FIT() },
                     .padding = CLAY_PADDING_ALL(4),
-                    .childGap = 8,
+                    .childGap = 16,
                     .layoutDirection = CLAY_TOP_TO_BOTTOM,
                 },
                 .backgroundColor = GuiTheme.BgBase })
             {
-                auto toolset = toolset_list[active_toolset];
+                auto toolset = toolset_list[scene.toolbox.active_toolset];
 
                 if (toolset.function) {
                     toolset.function();
+                } else {
+                    CLAY_TEXT(CLAY_STRING("The toolset function is not assigned."), &TextStyle.body);
                 }
-
-                // Groups
-                // for(auto &group: toolset->groups)
-                // {
-                //     CLAY({
-                //         .layout = {
-                //             .sizing = { .width = CLAY_SIZING_GROW(), .height = CLAY_SIZING_FIT() },
-                //             .padding = CLAY_PADDING_ALL(4),
-                //             .childGap = 8,
-                //             .layoutDirection = CLAY_TOP_TO_BOTTOM,
-                //         },
-                //         .backgroundColor = GuiTheme.BgBase })
-                //         {
-                //             // Tools
-                //             for(auto &tool: group.tools)
-                //             {
-
-                //
-
-                //             }
-                //         }
-                // }
             };
         } else {
-            if (active_tool() == ToolStatus::done) {
-                active_tool = nullptr;
+            if (scene.toolbox.active_tool() == Toolbox::ToolStatus::done) {
+                scene.toolbox.active_tool = nullptr;
             }
         }
     }

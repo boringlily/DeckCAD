@@ -4,8 +4,26 @@
 #include "raylib.h"
 #include <string>
 
-class Scene {
-public:
+struct Toolbox {
+    enum Context : u32 {
+        Solid = 0x01,
+        Sketch = 0x02,
+    };
+
+    enum ToolStatus : u32 {
+        active,
+        done
+    };
+
+    using ToolFunctionPointer = Toolbox::ToolStatus (*)();
+    Toolbox() {};
+
+    Context context { Solid };
+    u32 active_toolset { 0 };
+    ToolFunctionPointer active_tool { nullptr };
+};
+
+struct Scene {
     Scene(std::string name)
         : filename { name } {};
     Scene()
@@ -22,4 +40,5 @@ public:
 
     Model exampleModel {};
     CanvasCamera camera {};
+    Toolbox toolbox;
 };
