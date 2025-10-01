@@ -89,16 +89,12 @@ struct ClayTextStyles {
 };
 
 static inline ClayTextStyles TextStyle = {
-    .title = { .textColor = GuiTheme.TextBase, .fontId = static_cast<u8>(FontId::Semibold), .fontSize = 20, .wrapMode = CLAY_TEXT_WRAP_NONE },
-    .subtitle = { .textColor = GuiTheme.TextBase, .fontId = static_cast<u8>(FontId::Semibold), .fontSize = 18, .wrapMode = CLAY_TEXT_WRAP_NONE },
-    .body = { .textColor = GuiTheme.TextBase, .fontId = static_cast<u8>(FontId::Regular), .fontSize = 14 },
-    .caption = {
-        .textColor = GuiTheme.TextBase,
-        .fontId = static_cast<u8>(FontId::MediumItalic),
-        .fontSize = 12,
-    },
-    .buttonActive = { .textColor = GuiTheme.TextBase, .fontId = static_cast<u8>(FontId::Regular), .fontSize = 14, .wrapMode = CLAY_TEXT_WRAP_NONE },
-    .buttonMuted = { .textColor = GuiTheme.TextMuted, .fontId = static_cast<u8>(FontId::Regular), .fontSize = 14, .wrapMode = CLAY_TEXT_WRAP_NONE, .textAlignment = CLAY_TEXT_ALIGN_CENTER },
+    .title = { .textColor = GuiTheme.TextBase, .fontId = static_cast<u8>(FontId::Semibold), .fontSize = 24, .wrapMode = CLAY_TEXT_WRAP_NONE },
+    .subtitle = { .textColor = GuiTheme.TextBase, .fontId = static_cast<u8>(FontId::Semibold), .fontSize = 16, .wrapMode = CLAY_TEXT_WRAP_NONE },
+    .body = { .textColor = GuiTheme.TextBase, .fontId = static_cast<u8>(FontId::Regular), .fontSize = 16 },
+    .caption = { .textColor = GuiTheme.TextBase, .fontId = static_cast<u8>(FontId::MediumItalic), .fontSize = 16 },
+    .buttonActive = { .textColor = GuiTheme.TextBase, .fontId = static_cast<u8>(FontId::Regular), .fontSize = 16, .wrapMode = CLAY_TEXT_WRAP_NONE },
+    .buttonMuted = { .textColor = GuiTheme.TextMuted, .fontId = static_cast<u8>(FontId::Regular), .fontSize = 16, .wrapMode = CLAY_TEXT_WRAP_NONE, .textAlignment = CLAY_TEXT_ALIGN_CENTER },
 };
 
 #define Make_Icons(DO)  \

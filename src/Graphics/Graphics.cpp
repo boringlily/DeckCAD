@@ -33,10 +33,10 @@ static inline void LoadAppFonts()
         u8 filename[26];
     };
     static constexpr std::array<FontLoadConfig, 4u> fontLoadList {
-        FontLoadConfig { .id = FontId::Regular, .loadSizePixels = 28, .filename = "Nunito-Regular.ttf" },
-        FontLoadConfig { .id = FontId::Medium, .loadSizePixels = 32, .filename = "Nunito-Medium.ttf" },
-        FontLoadConfig { .id = FontId::MediumItalic, .loadSizePixels = 32, .filename = "Nunito-MediumItalic.ttf" },
-        FontLoadConfig { .id = FontId::Semibold, .loadSizePixels = 48, .filename = "Nunito-SemiBold.ttf" },
+        FontLoadConfig { .id = FontId::Regular, .loadSizePixels = 16, .filename = "Nunito-Regular.ttf" },
+        FontLoadConfig { .id = FontId::Medium, .loadSizePixels = 16, .filename = "Nunito-Medium.ttf" },
+        FontLoadConfig { .id = FontId::MediumItalic, .loadSizePixels = 16, .filename = "Nunito-MediumItalic.ttf" },
+        FontLoadConfig { .id = FontId::Semibold, .loadSizePixels = 24, .filename = "Nunito-SemiBold.ttf" },
     };
 
     for (auto& font : fontLoadList) {
