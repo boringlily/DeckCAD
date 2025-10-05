@@ -105,7 +105,8 @@ void DrawToolbox(Scene& scene)
                 }
             };
         } else {
-            if (scene.toolbox.active_tool() == Toolbox::ToolStatus::done) {
+            scene.toolbox.active_tool();
+            if (scene.toolbox.active_tool_status == Toolbox::ToolStatus::done) {
                 scene.toolbox.active_tool = nullptr;
             }
         }

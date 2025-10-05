@@ -13,8 +13,8 @@ struct AppMemory {
 
     Scene& GetCurrentScene()
     {
-        // Crash if this value is zero
-        assert(header_state > 0);
+        // Crash if this value is zero or outside the vector range.
+        assert(header_state > 0 && (header_state - 1) < scenes.size() && "Attempt to get scene with out of range index");
         return scenes[header_state - 1];
     }
 };

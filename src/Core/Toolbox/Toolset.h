@@ -1,9 +1,10 @@
-using DrawToolsetFunc = void (*)();
+#pragma once
+#include "AppMemory.h"
+#include "clay.h"
+#include "DumbTypes.h"
+#include <print>
 
-inline bool MouseClickedAndHovered()
-{
-    return Clay_Hovered() && IsMouseButtonReleased(MOUSE_BUTTON_LEFT);
-}
+using DrawToolsetFunc = void (*)();
 
 Clay_ElementDeclaration ToolboxButtonConfig(bool active)
 {
@@ -18,10 +19,9 @@ Clay_ElementDeclaration ToolboxButtonConfig(bool active)
     };
 }
 
-static Toolbox::ToolStatus PlaceholderFunc()
+/// @brief Used as a placeholder for tool buttons that aren't implemented.
+static void ToolPlaceholderFunction()
 {
-    auto status = Toolbox::ToolStatus::active;
-
     CLAY({ .layout = {
                .sizing = { .width = CLAY_SIZING_GROW(), .height = CLAY_SIZING_FIT() },
                .padding = CLAY_PADDING_ALL(4),
@@ -35,13 +35,15 @@ static Toolbox::ToolStatus PlaceholderFunc()
         {
             CLAY_TEXT(CLAY_STRING("Ok, I understand."), &TextStyle.buttonActive);
 
-            if (MouseClickedAndHovered()) {
-                status = Toolbox::ToolStatus::done;
-            }
+            auto button_action = [](Clay_ElementId element_id, Clay_PointerData pointer_data, intptr_t user_data) -> void {
+                if (pointer_data.state == CLAY_POINTER_DATA_PRESSED_THIS_FRAME) {
+                    app_global->GetCurrentScene().toolbox.active_tool_status = Toolbox::ToolStatus::done;
+                }
+            };
+
+            Clay_OnHover(button_action, 0u);
         };
     }
-
-    return status;
 }
 
 constexpr void BeginToolGroup(Clay_String group_name)
@@ -89,9 +91,13 @@ constexpr void ToolSelectButton(std::string_view name, IconId icon, Toolbox::Too
         tool_name = { true, static_cast<s32>(name.size()), name.data() };
 
         CLAY_TEXT(tool_name, &TextStyle.body);
+        auto activate_tool_button = [](Clay_ElementId element_id, Clay_PointerData pointer_data, intptr_t user_data) -> void {
+            if (pointer_data.state == CLAY_POINTER_DATA_PRESSED_THIS_FRAME) {
+                app_global->GetCurrentScene().toolbox.active_tool_status = Toolbox::ToolStatus::active;
+                app_global->GetCurrentScene().toolbox.active_tool = reinterpret_cast<Toolbox::ToolFunctionPointer>(user_data);
+            }
+        };
 
-        if (Clay_Hovered() && IsMouseButtonReleased(MOUSE_BUTTON_LEFT)) {
-            app_global->GetCurrentScene().toolbox.active_tool = function;
-        }
+        Clay_OnHover(activate_tool_button, reinterpret_cast<intptr_t>(function));
     };
 }

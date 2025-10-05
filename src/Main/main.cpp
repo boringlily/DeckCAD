@@ -3,6 +3,7 @@
 #include "stdio.h"
 #include "assert.h"
 #include <functional>
+#include <print>
 
 #ifdef __HOT_RELOAD_ENABLED__
 #include "LibLoaderClass.h"
@@ -16,7 +17,7 @@ void Update(AppMemory& app_memory)
 {
 #ifdef __HOT_RELOAD_ENABLED__
     if (CoreLib.TryReload()) {
-        printf("----- Hot Reload %u -----\n", CoreLib.reload_count);
+        std::println("----- Hot Reload {} -----", CoreLib.reload_count);
 
         CoreInitFunc(app_memory);
     }

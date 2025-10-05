@@ -3,6 +3,7 @@
 #include "Scene/Scene.h"
 #include "Workbench.cpp"
 #include "AppHeader.cpp"
+#include <print>
 
 #ifdef __cplusplus
 extern "C" {
@@ -12,7 +13,7 @@ CORE_API
 void CoreInit(AppMemory& app)
 {
     app_global = &app;
-    printf("app_global memory initialized.\n");
+    std::println("app_global memory initialized.");
     assert(app_global && "Application memory null");
 }
 

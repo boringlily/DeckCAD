@@ -27,15 +27,21 @@ void SketchToolSet()
     if (is_sketch_context) {
         DrawIcon(IconId::Check, GuiTheme.AlertSuccess);
         CLAY_TEXT(CLAY_STRING("Finish Sketch"), &TextStyle.body);
-        if (MouseClickedAndHovered()) {
-            scene.toolbox.context = Toolbox::Context::Solid;
-        }
+        auto finish_sketch_button = [](Clay_ElementId element_id, Clay_PointerData pointer_data, intptr_t user_data) -> void {
+            if (pointer_data.state == CLAY_POINTER_DATA_PRESSED_THIS_FRAME) {
+                app_global->GetCurrentScene().toolbox.context = Toolbox::Context::Solid;
+            }
+        };
+        Clay_OnHover(finish_sketch_button, 0u);
     } else {
         DrawIcon(IconId::Plus, GuiTheme.TextBase);
         CLAY_TEXT(CLAY_STRING("Create Sketch"), &TextStyle.body);
-        if (MouseClickedAndHovered()) {
-            scene.toolbox.context = Toolbox::Context::Sketch;
-        }
+        auto start_sketch_button = [](Clay_ElementId element_id, Clay_PointerData pointer_data, intptr_t user_data) -> void {
+            if (pointer_data.state == CLAY_POINTER_DATA_PRESSED_THIS_FRAME) {
+                app_global->GetCurrentScene().toolbox.context = Toolbox::Context::Sketch;
+            }
+        };
+        Clay_OnHover(start_sketch_button, 0u);
     }
 
     Clay__CloseElement();
@@ -55,16 +61,16 @@ void SketchToolSet()
     })
     {
         BeginToolGroup(CLAY_STRING("Draw"));
-        ToolSelectButton("Line", Unknown, &PlaceholderFunc);
+        ToolSelectButton("Line", Unknown, &ToolPlaceholderFunction);
         EndToolGroup();
 
         BeginToolGroup(CLAY_STRING("Dimensions"));
-        ToolSelectButton("Length", Unknown, &PlaceholderFunc);
-        ToolSelectButton("Angle", Unknown, &PlaceholderFunc);
+        ToolSelectButton("Length", Unknown, &ToolPlaceholderFunction);
+        ToolSelectButton("Angle", Unknown, &ToolPlaceholderFunction);
         EndToolGroup();
 
         BeginToolGroup(CLAY_STRING("Constraints"));
-        ToolSelectButton("Coincident", Unknown, &PlaceholderFunc);
+        ToolSelectButton("Coincident", Unknown, &ToolPlaceholderFunction);
         EndToolGroup();
     };
 }
