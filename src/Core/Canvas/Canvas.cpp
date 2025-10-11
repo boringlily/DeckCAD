@@ -37,8 +37,6 @@ static void CanvasRenderToTexture(Scene& scene)
     auto modelColor = (Color) { 140, 140, 140, 255 };
     auto wireframeColor = (Color) { 140, 140, 140, 100 };
 
-    DrawModel(scene.exampleModel, { 0, 0, 0 }, 1.0f, modelColor);
-    DrawModelWires(scene.exampleModel, { 0, 0, 0 }, 1.0f, wireframeColor);
     UI::DrawOriginPlane(UI::OriginPlane::XZ, { 0, 0, 0 }, { 10, 10 }, Color { 20, 20, 100, 100 });
     UI::DrawGrid(UI::OriginPlane::XZ, 100, 1.0f);
 

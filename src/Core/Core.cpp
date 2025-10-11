@@ -5,6 +5,8 @@
 #include "AppHeader.cpp"
 #include <print>
 
+AppMemory* app_global { nullptr };
+
 #ifdef __cplusplus
 extern "C" {
 #endif
@@ -20,6 +22,7 @@ void CoreInit(AppMemory& app)
 CORE_API
 void CoreUpdate()
 {
+    assert(app_global && "CoreUpdate called before CoreInit");
     AppMemory& app = *app_global;
 
     Graphics::BeginFrame();

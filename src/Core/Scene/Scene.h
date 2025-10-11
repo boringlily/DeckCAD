@@ -8,19 +8,10 @@
 struct Scene {
     Scene(std::string name)
         : filename { name } {};
-    Scene()
-    {
-        Load();
-    };
-
-    void Load()
-    {
-        exampleModel = LoadModel("../assets/example_model.obj");
-    }
+    Scene() {};
 
     std::string filename { "Untitled" };
 
-    Model exampleModel {};
     CanvasCamera camera {};
     Toolbox toolbox;
 };

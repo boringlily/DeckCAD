@@ -52,7 +52,6 @@ void LayoutAppHeader()
                     .cornerRadius = { 4u },
                 })
                 {
-
                     static Clay_String filename {};
                     filename = { false, static_cast<s32>(scene.filename.size()), scene.filename.c_str() };
 

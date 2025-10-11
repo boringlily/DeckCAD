@@ -19,4 +19,4 @@ struct AppMemory {
     }
 };
 
-static AppMemory* app_global { nullptr };
+extern AppMemory* app_global;

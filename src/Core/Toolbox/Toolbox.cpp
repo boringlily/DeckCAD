@@ -96,7 +96,9 @@ void DrawToolbox(Scene& scene)
                 },
                 .backgroundColor = GuiTheme.BgBase })
             {
-                auto toolset = toolset_list[scene.toolbox.active_toolset];
+                u32 active_toolset = scene.toolbox.active_toolset;
+                assert(active_toolset < toolset_list.size());
+                Toolset toolset = toolset_list.at(active_toolset);
 
                 if (toolset.function) {
                     toolset.function();

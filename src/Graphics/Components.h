@@ -60,10 +60,10 @@ GRAPHICS_API
 Clay_CustomElementConfig ClayCustom_TextureRenderConfig(RenderTexture& render_texture);
 
 GRAPHICS_API
-void DrawIcon(IconId iconId, StyleColor color);
+void DrawIcon(IconId icon_id, StyleColor color);
 
 GRAPHICS_API
-void DrawIconWithBg(IconId iconId, StyleColor icon_color, StyleColor bg_color);
+void DrawIconWithBg(IconId icon_id, StyleColor icon_color, StyleColor bg_color);
 
 #ifdef __cplusplus
 }

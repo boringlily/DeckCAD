@@ -6,7 +6,7 @@
 
 using DrawToolsetFunc = void (*)();
 
-Clay_ElementDeclaration ToolboxButtonConfig(bool active)
+inline Clay_ElementDeclaration ToolboxButtonConfig(bool active)
 {
     return {
         .layout = {
@@ -42,7 +42,7 @@ static void ToolPlaceholderFunction()
     }
 }
 
-constexpr void BeginToolGroup(Clay_String group_name)
+inline void BeginToolGroup(Clay_String group_name)
 {
     Clay_ElementDeclaration group = {
         .layout = {
@@ -61,12 +61,12 @@ constexpr void BeginToolGroup(Clay_String group_name)
     CLAY_TEXT(group_name, &TextStyle.subtitle);
 }
 
-constexpr void EndToolGroup()
+inline void EndToolGroup()
 {
     Clay__CloseElement();
 }
 
-constexpr void ToolSelectButton(std::string_view name, IconId icon, Toolbox::ToolFunctionPointer function)
+inline void ToolSelectButton(std::string_view name, IconId icon, Toolbox::ToolFunctionPointer function)
 {
     CLAY({
         .layout = {
