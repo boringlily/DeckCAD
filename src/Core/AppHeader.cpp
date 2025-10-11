@@ -1,22 +1,6 @@
 #include "Graphics.h"
 #include <format>
 
-void HeaderButtonAction(Clay_ElementId element_id, Clay_PointerData pointer_data, intptr_t user_data)
-{
-    if (pointer_data.state == CLAY_POINTER_DATA_PRESSED_THIS_FRAME) {
-        app_global->header_state = (u32)user_data;
-    }
-};
-
-void AddSceneButtonAction(Clay_ElementId element_id, Clay_PointerData pointer_data, intptr_t user_data)
-{
-    if (pointer_data.state == CLAY_POINTER_DATA_PRESSED_THIS_FRAME) {
-        u32 new_scene_id { static_cast<u32>(app_global->scenes.size() + 1u) };
-        app_global->scenes.emplace_back(std::format("Untitled {}", new_scene_id));
-        app_global->header_state = new_scene_id;
-    }
-};
-
 void LayoutAppHeader()
 {
     CLAY(
@@ -45,16 +29,16 @@ void LayoutAppHeader()
             .cornerRadius = { 8u },
         })
         {
-            Clay_OnHover(HeaderButtonAction, 0);
+            if (Inputs::MouseHoveredAndPressed(Inputs::Mouse::Left)) {
+                app_global->header_state = 0;
+            }
             DrawIcon(IconId::Home, GuiTheme.TextBase);
         };
 
         if (app_global->scenes.size()) {
             u32 scene_id { 1 };
             for (auto& scene : app_global->scenes) {
-                auto active = [scene_id]() -> bool {
-                    return scene_id == app_global->header_state;
-                };
+                bool active = scene_id == app_global->header_state;
 
                 CLAY({
                     .layout = {
@@ -64,7 +48,7 @@ void LayoutAppHeader()
                         .childAlignment = ALIGN_CENTER,
                         .layoutDirection = CLAY_LEFT_TO_RIGHT,
                     },
-                    .backgroundColor = Clay_Hovered() || active() ? GuiTheme.BgLight : GuiTheme.BgDark,
+                    .backgroundColor = Clay_Hovered() || active ? GuiTheme.BgLight : GuiTheme.BgDark,
                     .cornerRadius = { 4u },
                 })
                 {
@@ -72,10 +56,13 @@ void LayoutAppHeader()
                     static Clay_String filename {};
                     filename = { false, static_cast<s32>(scene.filename.size()), scene.filename.c_str() };
 
-                    Clay_OnHover(HeaderButtonAction, scene_id);
-                    CLAY_TEXT(filename, active() ? &TextStyle.buttonActive : &TextStyle.buttonMuted);
+                    if (Inputs::MouseHoveredAndPressed(Inputs::Mouse::Left)) {
+                        app_global->header_state = scene_id;
+                    }
 
-                    if (active()) {
+                    CLAY_TEXT(filename, active ? &TextStyle.buttonActive : &TextStyle.buttonMuted);
+
+                    if (active) {
                         CLAY({
                             .layout = {
                                 .sizing = { .width = CLAY_SIZING_FIT(), .height = CLAY_SIZING_FIT() },
@@ -105,7 +92,11 @@ void LayoutAppHeader()
             .cornerRadius = { 8u },
         })
         {
-            Clay_OnHover(AddSceneButtonAction, 0);
+            if (Inputs::MouseHoveredAndPressed(Inputs::Mouse::Left)) {
+                u32 new_scene_id { static_cast<u32>(app_global->scenes.size() + 1u) };
+                app_global->scenes.emplace_back(std::format("Untitled {}", new_scene_id));
+                app_global->header_state = new_scene_id;
+            }
             DrawIcon(IconId::Plus, GuiTheme.TextBase);
         };
     };

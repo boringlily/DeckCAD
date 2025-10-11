@@ -78,7 +78,7 @@ void DrawToolbox(Scene& scene)
 
                         CLAY_TEXT(tab_name, tab_active ? &TextStyle.buttonActive : &TextStyle.buttonMuted);
 
-                        if (Clay_Hovered() && IsMouseButtonReleased(MOUSE_BUTTON_LEFT)) {
+                        if (Inputs::MouseHoveredAndPressed(Inputs::Mouse::Left)) {
                             scene.toolbox.active_toolset = tabs;
                         }
                     };

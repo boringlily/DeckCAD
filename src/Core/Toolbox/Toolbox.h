@@ -1,4 +1,4 @@
-#pragma
+#pragma once
 #include "DumbTypes.h"
 
 struct Toolbox {

@@ -35,13 +35,9 @@ static void ToolPlaceholderFunction()
         {
             CLAY_TEXT(CLAY_STRING("Ok, I understand."), &TextStyle.buttonActive);
 
-            auto button_action = [](Clay_ElementId element_id, Clay_PointerData pointer_data, intptr_t user_data) -> void {
-                if (pointer_data.state == CLAY_POINTER_DATA_PRESSED_THIS_FRAME) {
-                    app_global->GetCurrentScene().toolbox.active_tool_status = Toolbox::ToolStatus::done;
-                }
-            };
-
-            Clay_OnHover(button_action, 0u);
+            if (Inputs::MouseHoveredAndPressed(Inputs::Mouse::Left)) {
+                app_global->GetCurrentScene().toolbox.active_tool_status = Toolbox::ToolStatus::done;
+            }
         };
     }
 }
@@ -84,20 +80,16 @@ constexpr void ToolSelectButton(std::string_view name, IconId icon, Toolbox::Too
         .cornerRadius = CLAY_CORNER_RADIUS(8),
     })
     {
-
         DrawIcon(icon, GuiTheme.TextBase);
 
         static Clay_String tool_name {};
         tool_name = { true, static_cast<s32>(name.size()), name.data() };
 
         CLAY_TEXT(tool_name, &TextStyle.body);
-        auto activate_tool_button = [](Clay_ElementId element_id, Clay_PointerData pointer_data, intptr_t user_data) -> void {
-            if (pointer_data.state == CLAY_POINTER_DATA_PRESSED_THIS_FRAME) {
-                app_global->GetCurrentScene().toolbox.active_tool_status = Toolbox::ToolStatus::active;
-                app_global->GetCurrentScene().toolbox.active_tool = reinterpret_cast<Toolbox::ToolFunctionPointer>(user_data);
-            }
-        };
 
-        Clay_OnHover(activate_tool_button, reinterpret_cast<intptr_t>(function));
+        if (Inputs::MouseHoveredAndPressed(Inputs::Mouse::Left)) {
+            app_global->GetCurrentScene().toolbox.active_tool_status = Toolbox::ToolStatus::active;
+            app_global->GetCurrentScene().toolbox.active_tool = function;
+        }
     };
 }

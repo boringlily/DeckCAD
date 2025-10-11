@@ -6,10 +6,7 @@ void SketchToolSet()
     Scene& scene = app_global->GetCurrentScene();
     bool is_sketch_context { scene.toolbox.context == Toolbox::Context::Sketch };
 
-    Clay__OpenElement();
-
-    Clay_ElementDeclaration sketch_create_finish_button_config = {
-        .id = CLAY_ID("SketchToolsetControlButton"),
+    CLAY({ .id = CLAY_ID("SketchToolsetControlButton"),
         .layout = {
             .sizing = { .width = CLAY_SIZING_GROW(), .height = CLAY_SIZING_FIT() },
             .padding = CLAY_PADDING_ALL(4),
@@ -19,32 +16,14 @@ void SketchToolSet()
         },
         .backgroundColor = Clay_Hovered() ? GuiTheme.BgLight : GuiTheme.BgBase,
         .cornerRadius = CLAY_CORNER_RADIUS(8),
-        .border = (Clay_BorderElementConfig) { .color = GuiTheme.BgDark, .width = { 2, 2, 2, 2, 0 } }
+        .border = (Clay_BorderElementConfig) { .color = GuiTheme.BgDark, .width = { 2, 2, 2, 2, 0 } } })
+    {
+        DrawIcon(is_sketch_context ? IconId::Check : IconId::Plus, GuiTheme.TextBase);
+        CLAY_TEXT(is_sketch_context ? CLAY_STRING("Finish Sketch") : CLAY_STRING("Create Sketch"), &TextStyle.body);
+        if (Inputs::MouseHoveredAndPressed(Inputs::Mouse::Left)) {
+            app_global->GetCurrentScene().toolbox.context = is_sketch_context ? Toolbox::Context::Solid : Toolbox::Context::Sketch;
+        }
     };
-
-    Clay__ConfigureOpenElement(sketch_create_finish_button_config);
-
-    if (is_sketch_context) {
-        DrawIcon(IconId::Check, GuiTheme.AlertSuccess);
-        CLAY_TEXT(CLAY_STRING("Finish Sketch"), &TextStyle.body);
-        auto finish_sketch_button = [](Clay_ElementId element_id, Clay_PointerData pointer_data, intptr_t user_data) -> void {
-            if (pointer_data.state == CLAY_POINTER_DATA_PRESSED_THIS_FRAME) {
-                app_global->GetCurrentScene().toolbox.context = Toolbox::Context::Solid;
-            }
-        };
-        Clay_OnHover(finish_sketch_button, 0u);
-    } else {
-        DrawIcon(IconId::Plus, GuiTheme.TextBase);
-        CLAY_TEXT(CLAY_STRING("Create Sketch"), &TextStyle.body);
-        auto start_sketch_button = [](Clay_ElementId element_id, Clay_PointerData pointer_data, intptr_t user_data) -> void {
-            if (pointer_data.state == CLAY_POINTER_DATA_PRESSED_THIS_FRAME) {
-                app_global->GetCurrentScene().toolbox.context = Toolbox::Context::Sketch;
-            }
-        };
-        Clay_OnHover(start_sketch_button, 0u);
-    }
-
-    Clay__CloseElement();
 
     if (!is_sketch_context)
         return;
