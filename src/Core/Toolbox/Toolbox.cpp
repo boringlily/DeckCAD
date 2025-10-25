@@ -62,26 +62,28 @@ void DrawToolbox(Scene& scene)
 
                 for (auto& toolset : toolset_list) {
 
-                    bool tab_active { tabs == scene.toolbox.active_toolset };
+                    if ((toolset.tab_visible_context & scene.toolbox.context)) {
+                        bool tab_active { tabs == scene.toolbox.active_toolset };
 
-                    // Toolset Tab Element
-                    CLAY({ .layout = {
-                               .sizing = { .width = CLAY_SIZING_GROW(), .height = CLAY_SIZING_FIT() },
-                               .padding = LAYOUT_PADDING_SIDES_AND_TOP(16, 4),
-                               .childAlignment = ALIGN_CENTER },
-                        .backgroundColor = tab_active || Clay_Hovered() ? GuiTheme.BgLight : GuiTheme.BgBase,
-                        .cornerRadius = CLAY_CORNER_RADIUS(8u),
-                        .border = (Clay_BorderElementConfig) { .color = GuiTheme.AccentPrimary, .width = (tab_active ? (Clay_BorderWidth) { 2, 2, 2, 2, 0 } : (Clay_BorderWidth) { 0 }) } })
-                    {
-                        static Clay_String tab_name {};
-                        tab_name = { true, static_cast<s32>(toolset.name.size()), toolset.name.data() };
+                        // Toolset Tab Element
+                        CLAY({ .layout = {
+                                   .sizing = { .width = CLAY_SIZING_GROW(), .height = CLAY_SIZING_FIT() },
+                                   .padding = LAYOUT_PADDING_SIDES_AND_TOP(16, 4),
+                                   .childAlignment = ALIGN_CENTER },
+                            .backgroundColor = tab_active || Clay_Hovered() ? GuiTheme.BgLight : GuiTheme.BgBase,
+                            .cornerRadius = CLAY_CORNER_RADIUS(8u),
+                            .border = (Clay_BorderElementConfig) { .color = GuiTheme.AccentPrimary, .width = (tab_active ? (Clay_BorderWidth) { 2, 2, 2, 2, 0 } : (Clay_BorderWidth) { 0 }) } })
+                        {
+                            static Clay_String tab_name {};
+                            tab_name = { true, static_cast<s32>(toolset.name.size()), toolset.name.data() };
 
-                        CLAY_TEXT(tab_name, tab_active ? &TextStyle.buttonActive : &TextStyle.buttonMuted);
+                            CLAY_TEXT(tab_name, tab_active ? &TextStyle.buttonActive : &TextStyle.buttonMuted);
 
-                        if (Inputs::MouseHoveredAndPressed(Inputs::Mouse::Left)) {
-                            scene.toolbox.active_toolset = tabs;
-                        }
-                    };
+                            if (Inputs::MouseHoveredAndPressed(Inputs::Mouse::Left)) {
+                                scene.toolbox.active_toolset = tabs;
+                            }
+                        };
+                    }
                     tabs++;
                 }
             }
