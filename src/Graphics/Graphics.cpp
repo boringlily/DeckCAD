@@ -33,10 +33,10 @@ static inline void LoadAppFonts()
         u8 filename[26];
     };
     static constexpr std::array<FontLoadConfig, 4u> fontLoadList {
-        FontLoadConfig { .id = FontId::Regular, .loadSizePixels = 28, .filename = "Nunito-Regular.ttf" },
-        FontLoadConfig { .id = FontId::Medium, .loadSizePixels = 32, .filename = "Nunito-Medium.ttf" },
-        FontLoadConfig { .id = FontId::MediumItalic, .loadSizePixels = 32, .filename = "Nunito-MediumItalic.ttf" },
-        FontLoadConfig { .id = FontId::Semibold, .loadSizePixels = 48, .filename = "Nunito-SemiBold.ttf" },
+        FontLoadConfig { .id = FontId::Regular, .loadSizePixels = 16, .filename = "Nunito-Regular.ttf" },
+        FontLoadConfig { .id = FontId::Medium, .loadSizePixels = 16, .filename = "Nunito-Medium.ttf" },
+        FontLoadConfig { .id = FontId::MediumItalic, .loadSizePixels = 16, .filename = "Nunito-MediumItalic.ttf" },
+        FontLoadConfig { .id = FontId::Semibold, .loadSizePixels = 24, .filename = "Nunito-SemiBold.ttf" },
     };
 
     for (auto& font : fontLoadList) {
@@ -73,9 +73,9 @@ void LoadAppIcons()
     }
 }
 
-Texture& GetIcon(IconId iconId)
+Texture& GetIcon(IconId icon_id)
 {
-    return LoadedIcons[iconId];
+    return LoadedIcons[icon_id];
 }
 
 #define CLAY_RECTANGLE_TO_RAYLIB_RECTANGLE(rectangle) \
@@ -228,9 +228,10 @@ void Graphics::Render(Clay_RenderCommandArray renderCommands)
         case CLAY_RENDER_COMMAND_TYPE_TEXT: {
             Clay_TextRenderData* textData = &renderCommand->renderData.text;
             Font fontToUse = loadedFonts[textData->fontId];
-            int strlen = textData->stringContents.length + 1;
-            if (strlen > tempRenderBuffer.capacity()) {
-                tempRenderBuffer.resize(strlen + 1);
+
+            size_t needed = static_cast<size_t>(textData->stringContents.length) + 1; // include null
+            if (needed > tempRenderBuffer.size()) {
+                tempRenderBuffer.resize(needed);
             }
 
             // Raylib uses standard C strings so isn't compatible with cheap slices, we need to clone the string to append null terminator

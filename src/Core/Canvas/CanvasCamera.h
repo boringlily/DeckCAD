@@ -25,12 +25,12 @@ public:
     Camera3D raylib_camera {};
 };
 
-CanvasCamera::CanvasCamera()
+inline CanvasCamera::CanvasCamera()
 {
     Reset();
 };
 
-void CanvasCamera::Reset()
+inline void CanvasCamera::Reset()
 {
     raylib_camera.up = { .5, 0, 0 };
     raylib_camera.fovy = 90; // camera field-of-view Y
@@ -38,7 +38,7 @@ void CanvasCamera::Reset()
     raylib_camera.projection = CAMERA_PERSPECTIVE;
 }
 
-void CanvasCamera::ProcessPanTilt()
+inline void CanvasCamera::ProcessPanTilt()
 {
     Vector2 mouseDelta { GetMouseDelta() };
 
@@ -107,7 +107,7 @@ void CanvasCamera::ProcessPanTilt()
     CameraMoveToTarget(&raylib_camera, zoom);
 };
 
-void CanvasCamera::SetOrientation(CameraOrientation orientation)
+inline void CanvasCamera::SetOrientation(CameraOrientation orientation)
 {
     raylib_camera.target = (Vector3) { 0.0f, 0.0f, 0.0f }; // camera looking at point
 
@@ -131,7 +131,7 @@ void CanvasCamera::SetOrientation(CameraOrientation orientation)
     }
 }
 
-Vector3 CanvasCamera::GetMouseScreenPosition()
+inline Vector3 CanvasCamera::GetMouseScreenPosition()
 {
     return GetScreenToWorldRay(GetMousePosition(), raylib_camera).position;
 }

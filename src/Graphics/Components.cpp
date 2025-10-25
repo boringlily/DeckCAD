@@ -5,7 +5,7 @@ enum ClayCustomCommands : uint32_t {
     DrawRenderTexture,
 };
 
-Texture& GetIcon(IconId iconId);
+Texture& GetIcon(IconId icon_id);
 
 #ifdef __cplusplus
 extern "C" {
@@ -21,13 +21,29 @@ Clay_CustomElementConfig ClayCustom_TextureRenderConfig(RenderTexture& render_te
 }
 
 GRAPHICS_API
-void DrawIconElement(IconId iconId, StyleColor color)
+void DrawIcon(IconId icon_id, StyleColor color)
 {
     CLAY({
         .layout = { .sizing = { .width = CLAY_SIZING_FIXED(24), .height = CLAY_SIZING_FIXED(24) } },
         .backgroundColor = color,
-        .image = { .imageData = &GetIcon(iconId) },
+        .image = { .imageData = &GetIcon(icon_id) },
     });
+}
+
+GRAPHICS_API
+void DrawIconWithBg(IconId icon_id, StyleColor icon_color, StyleColor bg_color)
+{
+    CLAY({
+        .layout = {
+            .sizing = { .width = CLAY_SIZING_FIXED(32), .height = CLAY_SIZING_FIXED(32) },
+            .childAlignment = ALIGN_CENTER,
+        },
+        .backgroundColor = bg_color,
+        .cornerRadius = { 8u },
+    })
+    {
+        DrawIcon(icon_id, icon_color);
+    }
 }
 
 #ifdef __cplusplus

@@ -1,21 +1,17 @@
 #pragma once
 #include <iostream>
+#include "Toolbox/Toolbox.h"
 #include "Canvas/CanvasCamera.h"
 #include "raylib.h"
+#include <string>
 
-class Scene {
-public:
-    Scene()
-    {
-        Load();
-    };
+struct Scene {
+    Scene(std::string name)
+        : filename { name } {};
+    Scene() {};
 
-    void Load()
-    {
-        exampleModel = LoadModel("../assets/example_model.obj");
-    }
+    std::string filename { "Untitled" };
 
-    Model exampleModel {};
     CanvasCamera camera {};
-    RenderTexture canvasTexture;
+    Toolbox toolbox;
 };
