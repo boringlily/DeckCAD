@@ -2,6 +2,7 @@
 #include <iostream>
 #include "Toolbox/Toolbox.h"
 #include "Canvas/CanvasCamera.h"
+#include "CAD/CommandList.h"
 #include "raylib.h"
 #include <string>
 
