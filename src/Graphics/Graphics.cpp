@@ -8,9 +8,12 @@
 #include "cstring"
 #include "stdio.h"
 #include "stdlib.h"
+
 #include <string>
 #include <array>
 #include <vector>
+#include <print>
+#include <format>
 
 #include "Graphics.h"
 #include "Components.cpp"
@@ -39,11 +42,16 @@ static inline void LoadAppFonts()
         FontLoadConfig { .id = FontId::Semibold, .loadSizePixels = 24, .filename = "Nunito-SemiBold.ttf" },
     };
 
+    // Load at higher scale if display is a retina.
+    f64 render_scale = static_cast<f64>(GetRenderWidth()) / GetScreenWidth();
+    if (render_scale < 1) {
+        render_scale = 1;
+    }
     for (auto& font : fontLoadList) {
         static std::array<char, 60> fullpath;
         snprintf(const_cast<char*>(fullpath.data()), 60, FONTS_PATH "%s", font.filename);
         u8 index = static_cast<u8>(font.id);
-        loadedFonts[index] = LoadFontEx(fullpath.data(), font.loadSizePixels, nullptr, 127);
+        loadedFonts[index] = LoadFontEx(fullpath.data(), font.loadSizePixels * render_scale, nullptr, 127);
         SetTextureFilter(loadedFonts[index].texture, TEXTURE_FILTER_BILINEAR);
     }
 }
