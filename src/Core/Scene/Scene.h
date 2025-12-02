@@ -2,7 +2,8 @@
 #include <iostream>
 #include "Toolbox/Toolbox.h"
 #include "Canvas/CanvasCamera.h"
-#include "CAD/CommandList.h"
+#include "CAD/CommandEngine.h"
+#include "CAD/ParametricExpression.h"
 #include "raylib.h"
 #include <string>
 
@@ -13,6 +14,11 @@ struct Scene {
 
     std::string filename { "Untitled" };
 
+    // Project data
+    ParameterEngine parameter_engine {};
+    GeometryEngine geometry_engine {};
+
+    // Gui data
     CanvasCamera camera {};
     Toolbox toolbox;
 };

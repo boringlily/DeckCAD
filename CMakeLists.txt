@@ -4,6 +4,7 @@ project(DeckCAD)
 # Require C11 and Cpp23
 set(CMAKE_C_STANDARD 11) 
 set(CMAKE_CXX_STANDARD 23)
+set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fno-exceptions")
 
 set_property(GLOBAL PROPERTY USE_FOLDERS ON)
 
