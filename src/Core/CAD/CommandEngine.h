@@ -20,15 +20,17 @@ struct Command {
     Command(CommandType type, u32 index)
         : type { type }
         , index { index } {};
+
     const CommandType type;
     const u32 index;
 };
 
 static_assert(sizeof(Command) == sizeof(u64));
 
-class GeometryEngine {
+/// Primary interface used to construct a sequence of CAD commands that are passed onto the kernel to generate geometry.
+class GeometryCommander {
 public:
-    GeometryEngine() {};
+    GeometryCommander() {};
 
 public: // Commands
 private:
