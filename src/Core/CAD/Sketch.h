@@ -18,18 +18,18 @@ class iSketchGeometry {
 
 class SketchLineCommand {
 public:
-    SketchLine() = delete;
+    SketchLineCommand() = delete;
 };
 
 class SketchCommand {
 public:
-    Sketch() = delete;
-    Sketch(std::string name, Geometry::Plane3d plane) {};
+    SketchCommand() = delete;
+    SketchCommand(std::string name, Geometry::Plane3d plane) {};
     std::vector<iSketchGeometry> geometry;
 
-    SketchLine& CreateLine()
-    {
-    }
+    // SketchLineCommand& CreateLine()
+    // {
+    // };
 
     std::string name;
     Geometry::Plane3d plane;

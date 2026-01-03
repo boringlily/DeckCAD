@@ -5,7 +5,7 @@
 #include "Toolbox/Toolbox.cpp"
 #include "AppMemory.h"
 
-inline void DrawWorkbench(AppMemory& app)
+inline void DrawWorkbench(Scene& scene)
 {
     /// Workbench components
     CLAY({ .id = CLAY_ID("Workbench"),
@@ -20,11 +20,11 @@ inline void DrawWorkbench(AppMemory& app)
                 .layout = { .sizing = LAYOUT_EXPAND,
                     .layoutDirection = CLAY_LEFT_TO_RIGHT } })
         {
-            DrawExplorer(app.GetCurrentScene());
+            DrawExplorer(scene);
 
-            DrawCanvas(app.GetCurrentScene());
+            LayoutCanvas(scene);
 
-            DrawToolbox(app.GetCurrentScene());
+            DrawToolbox(scene);
         };
 
         CLAY(

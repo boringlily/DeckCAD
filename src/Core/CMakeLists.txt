@@ -13,7 +13,7 @@ ${GRAPHICS_DIR}
 ${RAYLIB_DIR}/src
 ${CLAY_DIR}
 ${CORE_DIR}
-${CORE_DIR}
+${CORE_DIR}/Scene
 )
 
 set(LIBS_TO_LINK

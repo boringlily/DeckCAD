@@ -1,10 +1,10 @@
 #pragma once
-#include "AppMemory.h"
+#include "Scene.h"
 #include "clay.h"
 #include "DumbTypes.h"
 #include <print>
 
-using DrawToolsetFunc = void (*)();
+using DrawToolsetFunc = void (*)(Scene& scene);
 
 inline Clay_ElementDeclaration ToolboxButtonConfig(bool active)
 {
@@ -20,7 +20,7 @@ inline Clay_ElementDeclaration ToolboxButtonConfig(bool active)
 }
 
 /// @brief Used as a placeholder for tool buttons that aren't implemented.
-static void ToolPlaceholderFunction()
+static void ToolPlaceholderFunction(Scene& scene)
 {
     CLAY({ .layout = {
                .sizing = { .width = CLAY_SIZING_GROW(), .height = CLAY_SIZING_FIT() },
@@ -36,7 +36,7 @@ static void ToolPlaceholderFunction()
             CLAY_TEXT(CLAY_STRING("Ok, I understand."), &TextStyle.buttonActive);
 
             if (Inputs::MouseHoveredAndPressed(Inputs::Mouse::Left)) {
-                app_global->GetCurrentScene().toolbox.active_tool_status = Toolbox::ToolStatus::done;
+                scene.toolbox.active_tool_status = Toolbox::ToolStatus::done;
             }
         };
     }
@@ -66,7 +66,7 @@ inline void EndToolGroup()
     Clay__CloseElement();
 }
 
-inline void ToolSelectButton(std::string_view name, IconId icon, Toolbox::ToolFunctionPointer function)
+inline void ToolSelectButton(Scene& scene, std::string_view name, IconId icon, Toolbox::ToolFunctionPointer function)
 {
     CLAY({
         .layout = {
@@ -88,8 +88,8 @@ inline void ToolSelectButton(std::string_view name, IconId icon, Toolbox::ToolFu
         CLAY_TEXT(tool_name, &TextStyle.body);
 
         if (Inputs::MouseHoveredAndPressed(Inputs::Mouse::Left)) {
-            app_global->GetCurrentScene().toolbox.active_tool_status = Toolbox::ToolStatus::active;
-            app_global->GetCurrentScene().toolbox.active_tool = function;
+            scene.toolbox.active_tool_status = Toolbox::ToolStatus::active;
+            scene.toolbox.active_tool = function;
         }
     };
 }

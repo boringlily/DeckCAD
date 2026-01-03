@@ -1,5 +1,6 @@
 #pragma once
 #include <iostream>
+#include "DumbTypes.h"
 #include "Toolbox/Toolbox.h"
 #include "Canvas/CanvasCamera.h"
 #include "CAD/CommandEngine.h"
@@ -7,18 +8,24 @@
 #include "raylib.h"
 #include <string>
 
-struct Scene {
-    Scene(std::string name)
-        : filename { name } {};
-    Scene() {};
+// forward declaration
+class AppMemory;
+
+class Scene {
+public:
+    Scene() = delete;
 
     std::string filename { "Untitled" };
-
-    // Project data
-    ParameterEngine parameter_engine {};
-    GeometryEngine geometry_engine {};
 
     // Gui data
     CanvasCamera camera {};
     Toolbox toolbox;
+    RenderTexture& canvas_texture;
+
+private:
+    Scene(std::string name, RenderTexture& canvas_texture)
+        : filename { name }
+        , canvas_texture { canvas_texture } {};
+
+    friend class AppMemory;
 };

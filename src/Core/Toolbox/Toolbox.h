@@ -1,6 +1,8 @@
 #pragma once
 #include "DumbTypes.h"
 
+// Forward Declaration
+struct Scene;
 struct Toolbox {
     /// @brief Bit flags that represent which contexts a tool belongs to.
     enum Context : u8 {
@@ -14,7 +16,7 @@ struct Toolbox {
         done
     };
 
-    using ToolFunctionPointer = void (*)();
+    using ToolFunctionPointer = void (*)(Scene& scene);
     Toolbox() {};
 
     Context context { Solid };

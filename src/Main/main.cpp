@@ -8,9 +8,8 @@
 #ifdef __HOT_RELOAD_ENABLED__
 #include "LibLoaderClass.h"
 
-LibraryFunction<void, AppMemory&> CoreInitFunc("CoreInit");
-LibraryFunction<void> CoreUpdateFunc("CoreUpdate");
-LibraryLoader CoreLib("CORE", "./", { &CoreInitFunc, &CoreUpdateFunc });
+LibraryFunction<void, AppMemory&> CoreUpdateFunc("CoreUpdate");
+LibraryLoader CoreLib("CORE", "./", { &CoreUpdateFunc });
 #endif
 
 void Update(AppMemory& app_memory)
@@ -18,13 +17,11 @@ void Update(AppMemory& app_memory)
 #ifdef __HOT_RELOAD_ENABLED__
     if (CoreLib.TryReload()) {
         std::println("----- Hot Reload {} -----", CoreLib.reload_count);
-
-        CoreInitFunc(app_memory);
     }
 
-    CoreUpdateFunc();
+    CoreUpdateFunc(app_memory);
 #else
-    CoreUpdate();
+    CoreUpdate(app_memory);
 #endif
 }
 
@@ -33,10 +30,6 @@ int main(void)
     Graphics::Initialize();
 
     AppMemory app_memory {};
-
-#ifndef __HOT_RELOAD_ENABLED__
-    CoreInit(app_memory);
-#endif
 
     while (!WindowShouldClose()) {
         Update(app_memory);

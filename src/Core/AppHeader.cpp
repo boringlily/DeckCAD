@@ -1,7 +1,7 @@
 #include "Graphics.h"
 #include <format>
 
-void LayoutAppHeader()
+void LayoutAppHeader(AppMemory& app)
 {
     CLAY(
         { .id = CLAY_ID("Header"),
@@ -25,20 +25,22 @@ void LayoutAppHeader()
                 .childAlignment = ALIGN_CENTER,
                 .layoutDirection = CLAY_LEFT_TO_RIGHT,
             },
-            .backgroundColor = Clay_Hovered() || app_global->header_state == 0 ? GuiTheme.BgLight : GuiTheme.BgDark,
+            .backgroundColor = Clay_Hovered() || app.IsHomeLayerActive() ? GuiTheme.BgLight : GuiTheme.BgDark,
             .cornerRadius = { 8u },
         })
         {
             if (Inputs::MouseHoveredAndPressed(Inputs::Mouse::Left)) {
-                app_global->header_state = 0;
+                app.ActivateHomeLayer();
             }
             DrawIcon(IconId::Home, GuiTheme.TextBase);
         };
 
-        if (app_global->scenes.size()) {
-            u32 scene_id { 1 };
-            for (auto& scene : app_global->scenes) {
-                bool active = scene_id == app_global->header_state;
+        SceneList& scene_list = app.GetSceneList();
+
+        if (scene_list.size()) {
+            u32 scene_id { 0 };
+            for (auto& scene : scene_list) {
+                bool active = scene_id == app.GetActiveSceneId();
 
                 CLAY({
                     .layout = {
@@ -56,7 +58,11 @@ void LayoutAppHeader()
                     filename = { false, static_cast<s32>(scene.filename.size()), scene.filename.c_str() };
 
                     if (Inputs::MouseHoveredAndPressed(Inputs::Mouse::Left)) {
-                        app_global->header_state = scene_id;
+                        if (app.TryActivateScene(scene_id)) {
+                            app.ActivateSceneLayer();
+                        } else {
+                            // TODO: Show error "ERROR: Failed to activate scene {id}"
+                        }
                     }
 
                     CLAY_TEXT(filename, active ? &TextStyle.buttonActive : &TextStyle.buttonMuted);
@@ -92,9 +98,8 @@ void LayoutAppHeader()
         })
         {
             if (Inputs::MouseHoveredAndPressed(Inputs::Mouse::Left)) {
-                u32 new_scene_id { static_cast<u32>(app_global->scenes.size() + 1u) };
-                app_global->scenes.emplace_back(std::format("Untitled {}", new_scene_id));
-                app_global->header_state = new_scene_id;
+
+                app.CreateNewScene();
             }
             DrawIcon(IconId::Plus, GuiTheme.TextBase);
         };

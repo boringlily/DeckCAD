@@ -34,6 +34,6 @@ public:
 
 public: // Commands
 private:
-    std::vector<Sketch> sketches;
+    std::vector<SketchCommand> sketche_commands;
     std::vector<Command> history;
 };

@@ -1,5 +1,6 @@
 #include "Components.h"
 #include "AppMemory.h"
+#include "Scene.h"
 #include <string>
 #include <array>
 #include <initializer_list>
@@ -103,13 +104,13 @@ void DrawToolbox(Scene& scene)
                 Toolset toolset = toolset_list.at(active_toolset);
 
                 if (toolset.function) {
-                    toolset.function();
+                    toolset.function(scene);
                 } else {
                     CLAY_TEXT(CLAY_STRING("The toolset function is not assigned."), &TextStyle.body);
                 }
             };
         } else {
-            scene.toolbox.active_tool();
+            scene.toolbox.active_tool(scene);
             if (scene.toolbox.active_tool_status == Toolbox::ToolStatus::done) {
                 scene.toolbox.active_tool = nullptr;
             }

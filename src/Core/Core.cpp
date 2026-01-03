@@ -5,26 +5,13 @@
 #include "AppHeader.cpp"
 #include <print>
 
-AppMemory* app_global { nullptr };
-
 #ifdef __cplusplus
 extern "C" {
 #endif
 
 CORE_API
-void CoreInit(AppMemory& app)
+void CoreUpdate(AppMemory& app)
 {
-    app_global = &app;
-    std::println("app_global memory initialized.");
-    assert(app_global && "Application memory null");
-}
-
-CORE_API
-void CoreUpdate()
-{
-    assert(app_global && "CoreUpdate called before CoreInit");
-    AppMemory& app = *app_global;
-
     Graphics::BeginFrame();
 
     CLAY(
@@ -34,11 +21,10 @@ void CoreUpdate()
                 .layoutDirection = CLAY_TOP_TO_BOTTOM },
         })
     {
-        LayoutAppHeader();
+        LayoutAppHeader(app);
 
-        if (app.header_state) {
-            DrawWorkbench(app);
-        } else {
+        switch (app.GetActiveLayer()) {
+        case AppLayer::Home_Layer:
             CLAY(
                 { .id = CLAY_ID("HomePage"),
                     .layout = {
@@ -52,6 +38,33 @@ void CoreUpdate()
             {
                 CLAY_TEXT(CLAY_STRING("This is going to be the homepage."), &TextStyle.title);
             };
+
+            break;
+        case AppLayer::Settings_Layer:
+
+            CLAY(
+                { .id = CLAY_ID("SettingsPage"),
+                    .layout = {
+                        .sizing = LAYOUT_EXPAND,
+                        .padding = CLAY_PADDING_ALL(8),
+                        .childGap = 8,
+                        .childAlignment = ALIGN_CENTER,
+                        .layoutDirection = CLAY_LEFT_TO_RIGHT,
+                    },
+                    .backgroundColor = GuiTheme.BgBase })
+            {
+                CLAY_TEXT(CLAY_STRING("This is going to be the global settings page."), &TextStyle.title);
+            };
+
+            break;
+        case AppLayer::Scene_Layer:
+
+            Scene* scene_ptr = app.GetActiveScene();
+            if (scene_ptr != nullptr) {
+                DrawWorkbench(*scene_ptr);
+            }
+
+            break;
         }
     };
 
