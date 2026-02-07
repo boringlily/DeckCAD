@@ -3,10 +3,7 @@
 #include "DumbTypes.h"
 #include "Toolbox/Toolbox.h"
 #include "Canvas/CanvasCamera.h"
-#include "CAD/CommandEngine.h"
-#include "CAD/ParametricExpression.h"
-#include "raylib.h"
-#include <string>
+#include "CAD/GeneralCommandManager.h"
 
 // forward declaration
 class AppMemory;
@@ -21,6 +18,9 @@ public:
     CanvasCamera camera {};
     Toolbox toolbox;
     RenderTexture& canvas_texture;
+
+    // Cad Command System
+    GeneralCommandManager command_manager;
 
 private:
     Scene(std::string name, RenderTexture& canvas_texture)
