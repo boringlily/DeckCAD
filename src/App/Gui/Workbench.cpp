@@ -1,9 +1,9 @@
-#include "Scene/Scene.h"
+#include "Scene.h"
 #include "Components.h"
 #include "Explorer/Explorer.cpp"
 #include "Canvas/Canvas.cpp"
 #include "Toolbox/Toolbox.cpp"
-#include "AppMemory.h"
+#include "AppState.h"
 
 inline void DrawWorkbench(Scene& scene)
 {

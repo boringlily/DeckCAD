@@ -1,5 +1,5 @@
 #pragma once
-#include "Scene/Scene.h"
+#include "Scene.h"
 
 #include <vector>
 #include <optional>
@@ -13,7 +13,7 @@ enum class AppLayer {
 
 using SceneList = std::vector<Scene>;
 
-class AppMemory {
+class AppState {
 public:
     // Global Data
 

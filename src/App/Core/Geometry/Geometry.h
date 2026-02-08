@@ -8,11 +8,16 @@ struct Point2 {
     f64 y { 0 };
 };
 
-struct Point3 : public Point2 {
+struct Point3 {
+    f64 x { 0 };
+    f64 y { 0 };
     f64 z { 0 };
 };
 
-struct Point4 : public Point3 {
+struct Point4 {
+    f64 x { 0 };
+    f64 y { 0 };
+    f64 z { 0 };
     f64 w { 0 };
 };
 

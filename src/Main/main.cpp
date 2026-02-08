@@ -1,5 +1,5 @@
 #include "Graphics.h"
-#include "Core.h"
+#include "App.h"
 #include "stdio.h"
 #include "assert.h"
 #include <functional>
@@ -8,20 +8,20 @@
 #ifdef __HOT_RELOAD_ENABLED__
 #include "LibLoaderClass.h"
 
-LibraryFunction<void, AppMemory&> CoreUpdateFunc("CoreUpdate");
-LibraryLoader CoreLib("CORE", "./", { &CoreUpdateFunc });
+LibraryFunction<void, AppState&> AppUpdateFunction("AppUpdate");
+LibraryLoader AppLib("App", "./", { &AppUpdateFunction });
 #endif
 
-void Update(AppMemory& app_memory)
+void Update(AppState& app_memory)
 {
 #ifdef __HOT_RELOAD_ENABLED__
-    if (CoreLib.TryReload()) {
-        std::println("----- Hot Reload {} -----", CoreLib.reload_count);
+    if (AppLib.TryReload()) {
+        std::println("----- Hot Reload {} -----", AppLib.reload_count);
     }
 
-    CoreUpdateFunc(app_memory);
+    AppUpdateFunction(app_memory);
 #else
-    CoreUpdate(app_memory);
+    AppUpdate(app_memory);
 #endif
 }
 
@@ -29,7 +29,7 @@ int main(void)
 {
     Graphics::Initialize();
 
-    AppMemory app_memory {};
+    AppState app_memory {};
 
     while (!WindowShouldClose()) {
         Update(app_memory);

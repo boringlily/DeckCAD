@@ -44,14 +44,17 @@ set(BUILD_SHARED_LIBS ON)
 endif()
 
 
-set(RAYLIB_DIR ${CMAKE_SOURCE_DIR}/submodules/raylib)
-set(CLAY_DIR ${CMAKE_SOURCE_DIR}/submodules/clay)
+set(RAYLIB_DIR "${CMAKE_SOURCE_DIR}/submodules/raylib")
+set(CLAY_DIR "${CMAKE_SOURCE_DIR}/submodules/clay")
 
-set(SRC_DIR ${CMAKE_SOURCE_DIR}/src)
+set(SRC_DIR "${CMAKE_SOURCE_DIR}/src")
 
-set(COMMON_DIR ${SRC_DIR}/Common)
-set(GRAPHICS_DIR ${SRC_DIR}/Graphics)
-set(CORE_DIR ${SRC_DIR}/Core)
+set(COMMON_DIR "${SRC_DIR}/Common")
+set(GRAPHICS_DIR "${SRC_DIR}/Graphics")
+set(APP_DIR "${SRC_DIR}/App")
+
+set(APP_INC_DIRS "")
+
 set(MAIN_DIR ${SRC_DIR}/Main)
 
 # This custom target's job is to configure cmake each time we compile, this is only useful for hot-reloading feature.
@@ -76,5 +79,5 @@ endmacro()
 add_subdirectory(${RAYLIB_DIR}/projects/CMake)
 add_subdirectory(${COMMON_DIR})
 add_subdirectory(${GRAPHICS_DIR})
-add_subdirectory(${CORE_DIR})
+add_subdirectory(${APP_DIR})
 add_subdirectory(${MAIN_DIR})

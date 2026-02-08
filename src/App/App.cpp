@@ -1,16 +1,15 @@
-#include "Core.h"
+#include "App.h"
 #include "Graphics.h"
-#include "Scene/Scene.h"
-#include "Workbench.cpp"
-#include "AppHeader.cpp"
+#include "Gui/Workbench.cpp"
+#include "Gui/AppHeader.cpp"
 #include <print>
 
 #ifdef __cplusplus
 extern "C" {
 #endif
 
-CORE_API
-void CoreUpdate(AppMemory& app)
+APP_API
+void AppUpdate(AppState& app)
 {
     Graphics::BeginFrame();
 

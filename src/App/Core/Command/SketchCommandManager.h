@@ -1,6 +1,7 @@
 #pragma once
 #include "Geometry.h"
 #include "Command.h"
+#include <expected>
 
 enum SketchGeometryType {
     LineSegment,
@@ -11,6 +12,20 @@ enum SketchGeometryType {
 class SketchLineCommand {
 public:
     SketchLineCommand() = delete;
+
+    std::vector<Geometry::Point2> points;
+
+    void AddPoint()
+    {
+    }
+
+    void RemoveLastPoint()
+    {
+    }
+
+    void UpdateLastPoint()
+    {
+    }
 };
 
 class SketchCommandManager : GeneralCommand {
@@ -21,6 +36,11 @@ public:
         , plane { std::move(plane) } {};
 
     std::vector<SketchCommandId> history;
+
+    // std::expected<SketchLineCommand&> CreateLine
+    // {
+
+    // };
 
     CommandParameter<std::string> name;
     CommandParameter<Geometry::Plane3d> plane;

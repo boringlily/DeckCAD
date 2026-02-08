@@ -1,7 +1,7 @@
 #include "Graphics.h"
 #include <format>
 
-void LayoutAppHeader(AppMemory& app)
+void LayoutAppHeader(AppState& app)
 {
     CLAY(
         { .id = CLAY_ID("Header"),

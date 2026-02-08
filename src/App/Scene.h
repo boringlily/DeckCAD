@@ -1,12 +1,13 @@
 #pragma once
 #include <iostream>
 #include "DumbTypes.h"
-#include "Toolbox/Toolbox.h"
-#include "Canvas/CanvasCamera.h"
-#include "CAD/GeneralCommandManager.h"
+
+#include "Toolbox.h"
+#include "CanvasCamera.h"
+#include "GeneralCommandManager.h"
 
 // forward declaration
-class AppMemory;
+class AppState;
 
 class Scene {
 public:
@@ -27,5 +28,5 @@ private:
         : filename { name }
         , canvas_texture { canvas_texture } {};
 
-    friend class AppMemory;
+    friend class AppState;
 };

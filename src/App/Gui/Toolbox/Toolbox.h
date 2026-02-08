@@ -3,6 +3,7 @@
 
 // Forward Declaration
 struct Scene;
+
 struct Toolbox {
     /// @brief Bit flags that represent which contexts a tool belongs to.
     enum Context : u8 {
