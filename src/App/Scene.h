@@ -20,7 +20,6 @@ public:
     Toolbox toolbox;
     RenderTexture& canvas_texture;
 
-    // Cad Command System
     GeneralCommandManager command_manager;
 
 private:

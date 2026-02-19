@@ -32,14 +32,20 @@ private:
 
 class Command {
 public:
-    explicit Command() = default;
+    explicit Command() {};
 
     /// @brief A valid command is one that has all the required parameters set to be processed by the Geometry Engine.
     /// @return True if command is valid.
     virtual bool IsValid() = 0;
 
+    bool IsFinished()
+    {
+        return GetFlag(Flag::Finished);
+    }
+
 protected:
     enum class Flag : u32 {
+        Finished,
         Suppressed,
 
         // Sketch and Wireframe Only
@@ -69,14 +75,4 @@ private:
     static constexpr bool is_allowed_type_v = is_allowed_type<T, AllowedTypes...>::value;
 
     u32 flags { 0 };
-};
-
-class GeneralCommand : public Command {
-public:
-    explicit GeneralCommand() = default;
-};
-
-class SketchCommand : public Command {
-public:
-    explicit SketchCommand() = default;
 };

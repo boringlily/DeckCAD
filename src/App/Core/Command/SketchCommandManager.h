@@ -28,19 +28,11 @@ public:
     }
 };
 
-class SketchCommandManager : GeneralCommand {
+class SketchContextCommand : public GeneralCommand {
 public:
-    SketchCommandManager() = default;
-    SketchCommandManager(std::string name, Geometry::Plane3d plane)
-        : name { std::move(name) }
-        , plane { std::move(plane) } {};
-
-    std::vector<SketchCommandId> history;
-
-    // std::expected<SketchLineCommand&> CreateLine
-    // {
-
-    // };
+    SketchContextCommand() = delete;
+    SketchContextCommand(u32 sketch_number)
+        : GeneralCommand(GeneralCommand::ID(GeneralCommand::ID::Type::StartSketch, sketch_number)) {};
 
     CommandParameter<std::string> name;
     CommandParameter<Geometry::Plane3d> plane;
@@ -49,4 +41,27 @@ public:
     {
         return (name.IsSet() && plane.IsSet());
     }
+
+    bool IsActive()
+    {
+        return is_active;
+    }
+
+private:
+    bool is_active { false };
+};
+
+class SketchCommandManager {
+public:
+    SketchCommandManager() = default;
+
+    bool BeginSketchContext()
+    {
+    }
+
+    bool EndSketchContext()
+    {
+    }
+
+private:
 };

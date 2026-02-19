@@ -1,6 +1,28 @@
 #include "Scene.h"
 #include "Toolset.h"
 
+/// @brief Used as a placeholder for tool buttons that aren't implemented.
+void LineToolFunction(Scene& scene)
+{
+    CLAY({ .layout = {
+               .sizing = { .width = CLAY_SIZING_GROW(), .height = CLAY_SIZING_FIT() },
+               .padding = CLAY_PADDING_ALL(4),
+               .childGap = 8,
+               .layoutDirection = CLAY_TOP_TO_BOTTOM,
+           },
+        .backgroundColor = GuiTheme.BgBase })
+    {
+        // ideas
+        // step 0) before this function
+        // sketch = scene.command_manager.StartSketchContext();
+
+        // sketch.parameter1;
+        // sketch.parameter2;
+
+        // if(sketch.isValid());
+    }
+}
+
 void SketchToolSet(Scene& scene)
 {
     bool is_sketch_context { scene.toolbox.context == Toolbox::Context::Sketch };
