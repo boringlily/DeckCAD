@@ -6,14 +6,4 @@
 class GeometryEngine() {
     public :
 
-        void ProcessCommands(GeneralCommandManager & command_manager) {
-
-        }
-
-    private :
-
-        Sketch ComputeSketch(SketchCommandManager & SketchCommand) {
-
-        }
-
 };

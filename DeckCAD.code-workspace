@@ -105,7 +105,8 @@
 			"xlocbuf": "cpp",
 			"xtr1common": "cpp",
 			"filesystem": "cpp"
-		}
+		},
+		"cmake.cmakePath": ""
 	},
 	"extensions": {
 		"recommendations": []

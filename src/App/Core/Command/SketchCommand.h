@@ -1,16 +1,15 @@
 #pragma once
 #include <Command.h>
 
-class GeneralCommand : public Command {
+class SketchCommand : public Command {
 public:
     using Count = u32;
     enum Type : u32 {
         None = 0,
+        // Geometric Commands
+        Line,
 
-        StartSketch,
-        Extrude,
-
-        GeneralCommandEnd,
+        //
     };
 
     Type type { None };
