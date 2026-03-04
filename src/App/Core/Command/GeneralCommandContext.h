@@ -17,36 +17,19 @@ enum class CommandContext {
     Sketch
 };
 
-class CommandHistory {
+class GeneralCommandContext {
 public:
-    std::array<GeneralCommand, u16_max> general_history;
-    std::array<SketchCommand, u16_max> sketch_history;
+    explicit GeneralCommandContext(CommandHistory& history)
+        : history { history } {};
 
-}
-
-class CommandManager {
-public:
-    using ContextVariant = std::variant<GeneralCommandFactory, SketchCommandFactory>;
-
-    void FinishCommand() {};
-    void CancelCommand() {};
-
-    ContextVariant& GetContextVariant()
+    void StartSketchCommand()
     {
-        return context_variant;
+        GeneralCommand command { GeneralCommandType::CreateSketch };
+
+        history.active_general_command = command;
     }
 
-    CommandContext GetContext()
-    {
-        return current_context;
-    }
-
-    CommandContext current_context { CommandContext::General };
-    ContextVariant context_variant = GeneralCommandFactory();
-
-    // General Context
-    GeneralCommandFactory general_command_manager;
-
-    // Sub-context that is only available when a GeneralCommands::StartSketchCommand is issued.
-    SketchCommandFactory sketch_command_manager;
+    // Count of every command issued for the active history.
+private:
+    CommandHistory& history;
 };

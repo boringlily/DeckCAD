@@ -14,7 +14,7 @@ void LineToolFunction(Scene& scene)
     {
         // ideas
         // step 0) before this function
-        // sketch = scene.command_manager.StartSketchContext();
+        // sketch = scene.command_manager.GetSketchContext();
 
         // sketch.parameter1;
         // sketch.parameter2;

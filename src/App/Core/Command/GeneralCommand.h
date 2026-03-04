@@ -1,18 +1,17 @@
 #pragma once
 #include <Command.h>
+#include <Geometry.h>
 
-class GeneralCommand : public Command {
+enum class GeneralCommandType : u32 {
+    None = 0,
+
+    CreateSketch,
+    Extrude,
+
+    COMMAND_COUNT
+};
+
+class GeneralCommand : public Command<GeneralCommandType> {
 public:
-    using Count = u32;
-    enum Type : u32 {
-        None = 0,
-
-        StartSketch,
-        Extrude,
-
-        GeneralCommandEnd,
-    };
-
-    Type type { None };
-    Count count { 0 };
+    Geometry::Plane3d plane;
 };

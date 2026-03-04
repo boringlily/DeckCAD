@@ -1,17 +1,21 @@
 #pragma once
 #include <Command.h>
+#include <Geometry.h>
 
-class SketchCommand : public Command {
+enum class SketchCommandType : u32 {
+    None = 0,
+
+    // Geometric Commands
+    Line,
+
+    // Dimensional Constraints
+
+    // Geometric Constraints
+
+    COMMAND_COUNT
+};
+
+class SketchCommand : public Command<SketchCommandType> {
 public:
-    using Count = u32;
-    enum Type : u32 {
-        None = 0,
-        // Geometric Commands
-        Line,
-
-        //
-    };
-
-    Type type { None };
-    Count count { 0 };
+    std::optional<Geometry::Point2> p1, p2;
 };

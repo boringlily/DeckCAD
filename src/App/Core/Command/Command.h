@@ -1,47 +1,28 @@
 #pragma once
-#include "CommandIds.h"
 #include <type_traits>
 
-/// @brief A command can have parameters that by-default are not set,
-/// this allows the logic to detect if required parameters have been set for the command to be processed by the GeometryEngine
-template <typename T>
-class CommandParameter {
-public:
-    explicit CommandParameter() = default;
-    explicit CommandParameter(T param)
-        : value { param } {};
-
-    bool IsSet()
-    {
-        return value.has_value();
-    }
-
-    void Set(T _value)
-    {
-        value = _value;
-    }
-
-    void Clear()
-    {
-        value = std::nullopt;
-    };
-
-private:
-    std::optional<T> value { std::nullopt };
-};
-
+template <typename CommandType>
+requires std::is_enum_v<CommandType>
 class Command {
 public:
     explicit Command() {};
+    explicit Command(CommandType type)
+        : type { type } {};
 
     /// @brief A valid command is one that has all the required parameters set to be processed by the Geometry Engine.
     /// @return True if command is valid.
-    virtual bool IsValid() = 0;
+    virtual bool IsValid() const
+    {
+        return true;
+    };
 
-    bool IsFinished()
+    bool IsFinished() const
     {
         return GetFlag(Flag::Finished);
     }
+
+    CommandType type;
+    u32 id;
 
 protected:
     enum class Flag : u32 {
