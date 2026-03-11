@@ -1,5 +1,9 @@
 #pragma once
 #include <cinttypes>
+#include <optional>
+#include <vector>
+#include <array>
+#include <variant>
 
 using u8 = uint8_t;
 using u16 = uint16_t;
@@ -23,3 +27,18 @@ constexpr s8 s8_max = INT8_MAX;
 constexpr s16 s16_max = INT16_MAX;
 constexpr s32 s32_max = INT32_MAX;
 constexpr s64 s64_max = INT64_MAX;
+
+// Dumb Types Library (DTL) - A collection of type aliases and utilities to simplify C++ code.
+namespace DTL {
+template <typename T>
+using Optional = std::optional<T>;
+
+template <typename T>
+using List = std::vector<T>;
+
+template <typename T, size_t N>
+using Array = std::array<T, N>;
+
+template <typename... Ts>
+using Variant = std::variant<Ts...>;
+}

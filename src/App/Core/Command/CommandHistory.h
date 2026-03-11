@@ -1,10 +1,5 @@
 #pragma once
-#include <DumbTypes.h>
-#include <array>
-#include <vector>
-#include <optional>
-#include "SketchCommand.h"
-#include "GeneralCommand.h"
+#include <DTL.h>
 
 struct SketchCommandSlice {
     u32 command_offset { 0 };
