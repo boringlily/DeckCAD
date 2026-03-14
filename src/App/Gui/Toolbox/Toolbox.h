@@ -1,5 +1,5 @@
 #pragma once
-#include "DumbTypes.h"
+#include "DTL.h"
 
 // Forward Declaration
 struct Scene;

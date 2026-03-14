@@ -1,6 +1,6 @@
 #pragma once
 #include <iostream>
-#include "DumbTypes.h"
+#include "DTL.h"
 
 #include "Toolbox.h"
 #include "CanvasCamera.h"
