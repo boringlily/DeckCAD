@@ -1,29 +1,27 @@
 #pragma once
 #include "DTL.h"
-#include "CommandTypes.h"
 
 using CommandId = u32;
 
-template <typename EnumType>
+template <typename CommandEnumType>
 class ICommand {
 public:
     ICommand() = delete;
-    ICommand(CommandType type, CommandId id)
+    ICommand(CommandEnumType type, CommandId id)
         : type { type }
         , id { id } {};
 
     virtual bool IsValid() = 0;
 
-    const EnumType type;
+    const CommandEnumType type;
     const CommandId id;
-}
+};
 
 template <typename CommandType, typename... variant_types>
 requires(std::derived_from<variant_types, ICommand<CommandType>>&&...) class CommandVariant {
 public:
-    CommandVariant()
-
-        using Command = ICommand<CommandType>;
+    CommandVariant(std::variant<variant_types...> variant)
+        : variant { variant } {};
 
     template <typename T>
     requires std::is_base_of_v<ICommand<CommandType>, T>
@@ -40,7 +38,7 @@ public:
 
     CommandType GetType()
     {
-        return std::visit([](Command& val) { return val.type; }, variant);
+        return std::visit([](ICommand<CommandType>& val) { return val.type; }, variant);
     }
 
     bool IsType(CommandType type)
@@ -50,7 +48,7 @@ public:
 
 private:
     DTL::Variant<variant_types...> variant;
-}
+};
 
 enum class PartCommandType {
     CreateSketch,
@@ -60,5 +58,12 @@ enum class PartCommandType {
 using IPartCommand
     = ICommand<PartCommandType>;
 
-class PartFeature : public CommandVariant<> {
+class CreateSketchCommand : public IPartCommand {
+    virtual bool IsValid()
+    {
+        return false;
+    }
+};
+
+class PartFeature : public CommandVariant<PartCommandType, CreateSketchCommand> {
 };

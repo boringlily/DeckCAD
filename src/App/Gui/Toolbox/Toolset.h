@@ -1,7 +1,7 @@
 #pragma once
 #include "Scene.h"
 #include "clay.h"
-#include "DumbTypes.h"
+#include "DTL.h"
 #include <print>
 
 using DrawToolsetFunc = void (*)(Scene& scene);
