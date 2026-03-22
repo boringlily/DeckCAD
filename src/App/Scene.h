@@ -4,7 +4,7 @@
 
 #include "Toolbox.h"
 #include "CanvasCamera.h"
-#include "CommandManager.h"
+#include "CommandToolbox.h"
 
 // forward declaration
 class AppState;
@@ -20,7 +20,8 @@ public:
     Toolbox toolbox;
     RenderTexture& canvas_texture;
 
-    CommandManager command_manager;
+    // CommandToolbox command_toolbox;
+    PartCommandToolbox part_command_toolbox;
 
 private:
     Scene(std::string name, RenderTexture& canvas_texture)

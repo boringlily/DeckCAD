@@ -49,21 +49,3 @@ public:
 private:
     DTL::Variant<variant_types...> variant;
 };
-
-enum class PartCommandType {
-    CreateSketch,
-    Extrude,
-};
-
-using IPartCommand
-    = ICommand<PartCommandType>;
-
-class CreateSketchCommand : public IPartCommand {
-    virtual bool IsValid()
-    {
-        return false;
-    }
-};
-
-class PartFeature : public CommandVariant<PartCommandType, CreateSketchCommand> {
-};
