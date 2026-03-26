@@ -27,7 +27,7 @@ public:
 
     /// @brief Returns reference to the active command. Caller must ensure a command is active before calling this function.
     /// @pre IsCommandActive() == true
-    /// @return
+    /// @return Reference to the active command or crash if no command is active.
     FeatureVariant& GetActiveCommand()
     {
         assert(active_command != nullptr);

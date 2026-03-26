@@ -20,6 +20,8 @@ set(APP_INC_DIRS
 "${APP_DIR}/Core"
 "${APP_DIR}/Core/Kernel"
 "${APP_DIR}/Core/Command"
+"${APP_DIR}/Core/Command/Part"
+"${APP_DIR}/Core/Command/Sketch"
 "${APP_DIR}/Core/Geometry"
 )
 
