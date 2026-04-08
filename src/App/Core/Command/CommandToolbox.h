@@ -1,17 +1,39 @@
 #pragma once
-#include "PartCommandToolbox.h"
+#include "PartFeature.h"
+#include "SketchFeature.h"
 
 class CommandToolbox {
 public:
-    PartCommandToolbox part_toolbox;
-
     bool IsSketchContext()
     {
-        return part_toolbox.IsCommandActive() && part_toolbox.GetActiveCommand().IsType(PartCommandType::CreateSketch);
+        return sketch_command.has_value() || (IsPartCommandActive() && part_command.value().IsType(PartCommandType::CreateSketch));
     }
 
     bool IsSketchCommandActive()
     {
-        return IsSketchContext() && part_toolbox.GetActiveCommand().As<CreateSketchCommand>()->IsCommandActive();
+        return sketch_command.has_value();
     }
-}
+
+    bool IsPartCommandActive()
+    {
+        return part_command.has_value();
+    }
+
+    bool StartSketchCommand(SketchCommandType type)
+    {
+    }
+
+    bool StartPartCommand(PartCommandType type)
+    {
+    }
+
+    void CancelSketchCommand()
+    {
+    }
+
+private:
+    std::optional<PartFeature> part_command { std::nullopt };
+    std::optional<SketchFeature> sketch_command { std::nullopt };
+
+    std::vector<PartFeature> part_history;
+};

@@ -14,4 +14,6 @@ public:
 
     //  for now assume that the plane is always xy.
     // std::optional<Plane3> plane;
+
+    std::vector<SketchFeature> history;
 };
