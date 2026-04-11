@@ -3,43 +3,46 @@
   "include": ["CMakeUserEnv.json"],
   "configurePresets": [
     {
-      "name": "Default",
-      "hidden": false,
-      "inherits": [ "user_clang_paths" ],
+      "name": "base",
+      "hidden": true,
+      "inherits": ["user_clang_paths"],
       "generator": "Ninja",
-      "description": "Default staticly build",
-      "binaryDir": "${sourceDir}/build/",
+      "binaryDir": "${sourceDir}/build",
       "cacheVariables": {
         "CMAKE_C_COMPILER": "$env{USER_CLANG_20_PATH}",
-        "CMAKE_CXX_COMPILER": "$env{USER_CLANG++_20_PATH}"
+        "CMAKE_CXX_COMPILER": "$env{USER_CLANG++_20_PATH}",
+        "CMAKE_EXPORT_COMPILE_COMMANDS": "ON"
       }
     },
     {
-      "inherits": [ "Default" ],
-      "name": "HotReload",
-      "hidden": false,
-      "generator": "Ninja",
-      "description": "Build with Hot Reload enabled",
+      "name": "Debug",
+      "inherits": ["base"],
+      "description": "Unoptimized build with debug symbols and tests enabled",
       "cacheVariables": {
         "CMAKE_BUILD_TYPE": "Debug",
-        "HOT_RELOAD": "ON"
+        "DECKCAD_BUILD_TESTS": "ON"
+      }
+    },
+    {
+      "name": "Release",
+      "inherits": ["base"],
+      "binaryDir": "${sourceDir}/build-release",
+      "description": "Optimized build",
+      "cacheVariables": {
+        "CMAKE_BUILD_TYPE": "Release",
+        "DECKCAD_BUILD_TESTS": "OFF"
       }
     }
   ],
   "buildPresets": [
-    {
-      "name": "Default",
-      "configurePreset": "Default"
-    },
-    {
-      "name": "HotReload",
-      "configurePreset": "HotReload"
-    }
+    { "name": "Debug", "configurePreset": "Debug" },
+    { "name": "Release", "configurePreset": "Release" }
   ],
   "testPresets": [
     {
-      "name": "Test",
-      "configurePreset": "Default"
+      "name": "Debug",
+      "configurePreset": "Debug",
+      "output": { "outputOnFailure": true }
     }
   ]
 }
