@@ -1,6 +1,38 @@
-[submodule "submodules/raylib"]
-	path = submodules/raylib
-	url = https://github.com/raysan5/raylib.git
-[submodule "submodules/clay"]
-	path = submodules/clay
-	url = https://github.com/boringlily/clay.git
+[submodule "submodules/sdl"]
+	path = submodules/sdl
+	url = https://github.com/libsdl-org/SDL.git
+	branch = release-3.2.x
+	shallow = true
+[submodule "submodules/dawn"]
+	path = submodules/dawn
+	url = https://github.com/google/dawn.git
+	shallow = true
+[submodule "submodules/imgui"]
+	path = submodules/imgui
+	url = https://github.com/ocornut/imgui.git
+	branch = docking
+	shallow = true
+[submodule "submodules/freetype"]
+	path = submodules/freetype
+	url = https://github.com/freetype/freetype.git
+	shallow = true
+[submodule "submodules/msdfgen"]
+	path = submodules/msdfgen
+	url = https://github.com/Chlumsky/msdfgen.git
+	shallow = true
+[submodule "submodules/nanosvg"]
+	path = submodules/nanosvg
+	url = https://github.com/memononen/nanosvg.git
+	shallow = true
+[submodule "submodules/googletest"]
+	path = submodules/googletest
+	url = https://github.com/google/googletest.git
+	shallow = true
+[submodule "submodules/glaze"]
+	path = submodules/glaze
+	url = https://github.com/stephenberry/glaze.git
+	shallow = true
+[submodule "submodules/tracy"]
+	path = submodules/tracy
+	url = https://github.com/wolfpld/tracy.git
+	shallow = true
