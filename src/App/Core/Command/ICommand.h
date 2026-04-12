@@ -20,8 +20,8 @@ public:
 template <typename CommandType, typename... variant_types>
 requires(std::derived_from<variant_types, ICommand<CommandType>>&&...) class CommandVariant {
 public:
-    CommandVariant(std::variant<variant_types...> variant)
-        : variant { variant } {};
+    CommandVariant(auto&& command)
+        : variant { std::forward<decltype(command)>(command) } {};
 
     template <typename T>
     requires std::is_base_of_v<ICommand<CommandType>, T>

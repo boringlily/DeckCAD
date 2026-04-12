@@ -21,7 +21,7 @@ public:
     RenderTexture& canvas_texture;
 
     // CommandToolbox command_toolbox;
-    PartCommandToolbox part_command_toolbox;
+    CommandToolbox command_toolbox;
 
 private:
     Scene(std::string name, RenderTexture& canvas_texture)

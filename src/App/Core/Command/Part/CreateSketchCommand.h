@@ -1,8 +1,8 @@
 #pragma once
 #include "PartCommandType.h"
-#include "SketchCommandToolbox.h"
+#include "SketchFeature.h"
 
-class CreateSketchCommand : public IPartCommand, public SketchCommandToolbox {
+class CreateSketchCommand : public IPartCommand {
 public:
     explicit CreateSketchCommand(CommandId id)
         : IPartCommand(PartCommandType::CreateSketch, id) {};

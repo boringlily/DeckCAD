@@ -3,6 +3,9 @@
 #include "SketchCommandType.h"
 
 class SketchLineCommand : public ISketchCommand {
+public:
+    explicit SketchLineCommand(CommandId id)
+        : ISketchCommand(SketchCommandType::Line, id) {};
     virtual bool IsValid() override
     {
         return false;
@@ -10,6 +13,9 @@ class SketchLineCommand : public ISketchCommand {
 };
 
 class SketchArcCommand : public ISketchCommand {
+public:
+    explicit SketchArcCommand(CommandId id)
+        : ISketchCommand(SketchCommandType::Arc, id) {};
     virtual bool IsValid() override
     {
         return false;
@@ -17,6 +23,9 @@ class SketchArcCommand : public ISketchCommand {
 };
 
 class SketchCircleCommand : public ISketchCommand {
+public:
+    explicit SketchCircleCommand(CommandId id)
+        : ISketchCommand(SketchCommandType::Circle, id) {};
     virtual bool IsValid() override
     {
         return false;
@@ -24,6 +33,9 @@ class SketchCircleCommand : public ISketchCommand {
 };
 
 class SketchDimensionCommand : public ISketchCommand {
+public:
+    explicit SketchDimensionCommand(CommandId id)
+        : ISketchCommand(SketchCommandType::Dimension, id) {};
     virtual bool IsValid() override
     {
         return false;
