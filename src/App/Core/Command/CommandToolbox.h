@@ -97,6 +97,16 @@ public:
         part_command.reset();
     }
 
+    std::optional<SketchFeature>& GetActiveSketchCommand()
+    {
+        return sketch_command;
+    }
+
+    std::optional<PartFeature>& GetActivePartCommand()
+    {
+        return part_command;
+    }
+
 private:
     CommandId next_id { 0 };
 

@@ -1,6 +1,7 @@
 #pragma once
 #include "ICommand.h"
 #include "SketchCommandType.h"
+#include "Geometry.h"
 
 class SketchLineCommand : public ISketchCommand {
 public:
@@ -10,6 +11,9 @@ public:
     {
         return false;
     }
+
+    Geometry::Point2 start;
+    Geometry::Point2 end;
 };
 
 class SketchArcCommand : public ISketchCommand {

@@ -1,33 +1,10 @@
 #include "Scene.h"
 #include "Toolset.h"
 
-/// @brief Used as a placeholder for tool buttons that aren't implemented.
-void LineToolFunction(Scene& scene)
+void DrawSketchToolset(Scene& scene)
 {
-    CLAY({ .layout = {
-               .sizing = { .width = CLAY_SIZING_GROW(), .height = CLAY_SIZING_FIT() },
-               .padding = CLAY_PADDING_ALL(4),
-               .childGap = 8,
-               .layoutDirection = CLAY_TOP_TO_BOTTOM,
-           },
-        .backgroundColor = GuiTheme.BgBase })
-    {
-        // ideas
-        // step 0) before this function
-        // sketch = scene.command_manager.GetSketchContext();
-
-        // sketch.parameter1;
-        // sketch.parameter2;
-
-        // if(sketch.isValid());
-    }
-}
-
-void SketchToolSet(Scene& scene)
-{
-    bool is_sketch_context { scene.toolbox.context == Toolbox::Context::Sketch };
-
-    CLAY({ .id = CLAY_ID("SketchToolsetControlButton"),
+    // Finish Sketch ends the active CreateSketch part command, returning to part context.
+    CLAY({ .id = CLAY_ID("SketchFinishButton"),
         .layout = {
             .sizing = { .width = CLAY_SIZING_GROW(), .height = CLAY_SIZING_FIT() },
             .padding = CLAY_PADDING_ALL(4),
@@ -39,37 +16,51 @@ void SketchToolSet(Scene& scene)
         .cornerRadius = CLAY_CORNER_RADIUS(8),
         .border = (Clay_BorderElementConfig) { .color = GuiTheme.BgDark, .width = { 2, 2, 2, 2, 0 } } })
     {
-        DrawIcon(is_sketch_context ? IconId::Check : IconId::Plus, GuiTheme.TextBase);
-        CLAY_TEXT(is_sketch_context ? CLAY_STRING("Finish Sketch") : CLAY_STRING("Create Sketch"), &TextStyle.body);
+        DrawIcon(IconId::Unknown, GuiTheme.TextBase);
+        CLAY_TEXT(CLAY_STRING("Finish Sketch"), &TextStyle.body);
         if (Inputs::MouseHoveredAndPressed(Inputs::Mouse::Left)) {
-            scene.toolbox.context = is_sketch_context ? Toolbox::Context::Solid : Toolbox::Context::Sketch;
+            scene.command_toolbox.FinishPartCommand();
         }
     };
 
-    if (!is_sketch_context)
-        return;
+    bool cmd_active = scene.command_toolbox.IsSketchCommandActive();
 
-    // Sketch Group List
-    CLAY({
-        .layout = {
-            .sizing = { .width = CLAY_SIZING_GROW(), .height = CLAY_SIZING_GROW() },
-            .childGap = 4,
-            .childAlignment = { .x = CLAY_ALIGN_X_CENTER, .y = CLAY_ALIGN_Y_TOP },
-            .layoutDirection = CLAY_TOP_TO_BOTTOM,
-        },
-    })
-    {
-        BeginToolGroup(CLAY_STRING("Draw"));
-        ToolSelectButton(scene, "Line", Unknown, &ToolPlaceholderFunction);
-        EndToolGroup();
+    if (!cmd_active) {
 
-        BeginToolGroup(CLAY_STRING("Dimensions"));
-        ToolSelectButton(scene, "Length", Unknown, &ToolPlaceholderFunction);
-        ToolSelectButton(scene, "Angle", Unknown, &ToolPlaceholderFunction);
-        EndToolGroup();
+        CLAY({
+            .layout = {
+                .sizing = { .width = CLAY_SIZING_GROW(), .height = CLAY_SIZING_FIT() },
+                .childGap = 4,
+                .layoutDirection = CLAY_TOP_TO_BOTTOM,
+            },
+        })
+        {
+            BeginToolGroup(CLAY_STRING("Draw"));
+            if (ToolSelectButton("Line", IconId::Unknown) && !cmd_active) {
+                scene.command_toolbox.StartSketchCommand(SketchCommandType::Line);
+            }
+            if (ToolSelectButton("Arc", IconId::Unknown) && !cmd_active) {
+                scene.command_toolbox.StartSketchCommand(SketchCommandType::Arc);
+            }
+            if (ToolSelectButton("Circle", IconId::Unknown) && !cmd_active) {
+                scene.command_toolbox.StartSketchCommand(SketchCommandType::Circle);
+            }
+            EndToolGroup();
 
-        BeginToolGroup(CLAY_STRING("Constraints"));
-        ToolSelectButton(scene, "Coincident", Unknown, &ToolPlaceholderFunction);
-        EndToolGroup();
-    };
+            BeginToolGroup(CLAY_STRING("Dimensions"));
+            if (ToolSelectButton("Dimension", IconId::Unknown) && !cmd_active) {
+                scene.command_toolbox.StartSketchCommand(SketchCommandType::Dimension);
+            }
+            EndToolGroup();
+
+            BeginToolGroup(CLAY_STRING("Constraints"));
+            ToolSelectButton("Coincident", IconId::Unknown);
+            EndToolGroup();
+        };
+    } else {
+        auto command_optional = scene.command_toolbox.GetActiveSketchCommand();
+        assert(command_optional.has_value() &&);
+
+        switch (command.type)
+    }
 }

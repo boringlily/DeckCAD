@@ -2,9 +2,6 @@
 #include "Scene.h"
 #include "clay.h"
 #include "DTL.h"
-#include <print>
-
-using DrawToolsetFunc = void (*)(Scene& scene);
 
 inline Clay_ElementDeclaration ToolboxButtonConfig(bool active)
 {
@@ -17,29 +14,6 @@ inline Clay_ElementDeclaration ToolboxButtonConfig(bool active)
         .backgroundColor = active || Clay_Hovered() ? GuiTheme.BgBase : GuiTheme.BgLight,
         .cornerRadius = { 4u },
     };
-}
-
-/// @brief Used as a placeholder for tool buttons that aren't implemented.
-static void ToolPlaceholderFunction(Scene& scene)
-{
-    CLAY({ .layout = {
-               .sizing = { .width = CLAY_SIZING_GROW(), .height = CLAY_SIZING_FIT() },
-               .padding = CLAY_PADDING_ALL(4),
-               .childGap = 8,
-               .layoutDirection = CLAY_TOP_TO_BOTTOM,
-           },
-        .backgroundColor = GuiTheme.BgBase })
-    {
-        CLAY_TEXT(CLAY_STRING("Hi, you have clicked a placeholder. This tool currently is in-development and will be enabled once it is ready"), &TextStyle.body);
-        CLAY(ToolboxButtonConfig(false))
-        {
-            CLAY_TEXT(CLAY_STRING("Ok, I understand."), &TextStyle.buttonActive);
-
-            if (Inputs::MouseHoveredAndPressed(Inputs::Mouse::Left)) {
-                scene.toolbox.active_tool_status = Toolbox::ToolStatus::done;
-            }
-        };
-    }
 }
 
 inline void BeginToolGroup(Clay_String group_name)
@@ -66,8 +40,9 @@ inline void EndToolGroup()
     Clay__CloseElement();
 }
 
-inline void ToolSelectButton(Scene& scene, std::string_view name, IconId icon, Toolbox::ToolFunctionPointer function)
+inline bool ToolSelectButton(std::string_view name, IconId icon)
 {
+    bool clicked = false;
     CLAY({
         .layout = {
             .sizing = { .width = CLAY_SIZING_GROW(), .height = CLAY_SIZING_FIT() },
@@ -84,12 +59,11 @@ inline void ToolSelectButton(Scene& scene, std::string_view name, IconId icon, T
 
         static Clay_String tool_name {};
         tool_name = { true, static_cast<s32>(name.size()), name.data() };
-
         CLAY_TEXT(tool_name, &TextStyle.body);
 
         if (Inputs::MouseHoveredAndPressed(Inputs::Mouse::Left)) {
-            scene.toolbox.active_tool_status = Toolbox::ToolStatus::active;
-            scene.toolbox.active_tool = function;
+            clicked = true;
         }
     };
+    return clicked;
 }
