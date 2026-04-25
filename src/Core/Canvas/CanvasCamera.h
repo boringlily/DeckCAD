@@ -135,4 +135,3 @@ inline Vector3 CanvasCamera::GetMouseScreenPosition()
 {
     return GetScreenToWorldRay(GetMousePosition(), raylib_camera).position;
 }
-// TODO: atlas padding (still wrong)
