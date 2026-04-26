@@ -93,4 +93,3 @@ inline void ToolSelectButton(std::string_view name, IconId icon, Toolbox::ToolFu
         }
     };
 }
-// TODO: surface trace
