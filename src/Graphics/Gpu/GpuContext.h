@@ -90,4 +90,3 @@ private:
 };
 
 } // namespace Gpu
-// TODO: grid spacing
