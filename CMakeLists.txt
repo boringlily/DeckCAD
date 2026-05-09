@@ -26,6 +26,7 @@ set(CMAKE_RUNTIME_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/bin")
 
 option(DECKCAD_BUILD_TESTS "Build the DeckCAD unit tests" ON)
 option(DECKCAD_HOT_RELOAD "Build Core as a hot-reloadable shared library" OFF)
+option(DECKCAD_USE_COMPILER_CACHE "Route compiles through ccache/sccache if found, cached under DECKCAD_DEPS_DIR" ON)
 
 add_compile_definitions(
     $<$<PLATFORM_ID:Linux>:PLATFORM_LINUX=1>
@@ -35,6 +36,17 @@ add_compile_definitions(
 
 set(SUBMODULES_DIR ${CMAKE_CURRENT_SOURCE_DIR}/submodules)
 set(SRC_DIR ${CMAKE_CURRENT_SOURCE_DIR}/src)
+
+# Shares compiled objects for identical (source, flags) pairs across worktrees
+# and build directories via a compiler cache. CMake's Ninja generator keeps
+# its own incremental-build state (.ninja_log/.ninja_deps) only at the
+# top-level build directory, so pointing add_subdirectory() at a shared
+# binary directory does NOT make a fresh worktree skip rebuilding -- Ninja has
+# no record there of what it already built. A compiler cache sidesteps that
+# entirely: it keys on hashed preprocessed source + flags, not on which build
+# directory or Ninja log invoked it.
+include(${CMAKE_CURRENT_SOURCE_DIR}/cmake/DeckCADDeps.cmake)
+deckcad_enable_compiler_cache()
 
 # Fail early and clearly when the submodules have not been checked out. Each
 # entry names a file that only exists once the submodule is populated.
