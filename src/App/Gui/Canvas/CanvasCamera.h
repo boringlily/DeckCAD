@@ -4,6 +4,7 @@
 #include "rlgl.h"
 #include "rcamera.h"
 #include "raymath.h"
+#include "Geometry.h"
 
 class CanvasCamera {
 public:
@@ -11,7 +12,9 @@ public:
 
     void Reset();
     void ProcessPanTilt();
+    void ProcessPan2D();
     Vector3 GetMouseScreenPosition();
+    Geometry::Point2 GetMouseOnSketchPlane(Geometry::SketchPlane plane);
 
     enum class CameraOrientation {
         Isometric_XYZ,
@@ -21,6 +24,7 @@ public:
     };
 
     void SetOrientation(CameraOrientation orientation);
+    static CameraOrientation OrientationForSketchPlane(Geometry::SketchPlane plane);
 
     Camera3D raylib_camera {};
 };
@@ -134,4 +138,58 @@ inline void CanvasCamera::SetOrientation(CameraOrientation orientation)
 inline Vector3 CanvasCamera::GetMouseScreenPosition()
 {
     return GetScreenToWorldRay(GetMousePosition(), raylib_camera).position;
+}
+
+inline void CanvasCamera::ProcessPan2D()
+{
+    Vector2 mouseDelta { GetMouseDelta() };
+    static constexpr float PAN_SENS { 0.0012F };
+
+    if (IsMouseButtonDown(MOUSE_BUTTON_MIDDLE)) {
+        float dist = Vector3Distance(raylib_camera.position, { 0, 0, 0 });
+        float speed = PAN_SENS * dist;
+        if (mouseDelta.y != 0)
+            CameraMoveUp(&raylib_camera, speed * mouseDelta.y);
+        if (mouseDelta.x != 0)
+            CameraMoveRight(&raylib_camera, -speed * mouseDelta.x, true);
+    }
+
+    float zoom = raylib_camera.projection == CAMERA_PERSPECTIVE ? -GetMouseWheelMove() : 0;
+    CameraMoveToTarget(&raylib_camera, zoom);
+}
+
+inline Geometry::Point2 CanvasCamera::GetMouseOnSketchPlane(Geometry::SketchPlane plane)
+{
+    Ray ray = GetScreenToWorldRay(GetMousePosition(), raylib_camera);
+    switch (plane) {
+    case Geometry::SketchPlane::XY: {
+        float t = (ray.direction.z != 0.0f) ? -ray.position.z / ray.direction.z : 0.0f;
+        return { (f64)(ray.position.x + t * ray.direction.x),
+            (f64)(ray.position.y + t * ray.direction.y) };
+    }
+    case Geometry::SketchPlane::XZ: {
+        float t = (ray.direction.y != 0.0f) ? -ray.position.y / ray.direction.y : 0.0f;
+        return { (f64)(ray.position.x + t * ray.direction.x),
+            (f64)(ray.position.z + t * ray.direction.z) };
+    }
+    case Geometry::SketchPlane::YZ: {
+        float t = (ray.direction.x != 0.0f) ? -ray.position.x / ray.direction.x : 0.0f;
+        return { (f64)(ray.position.y + t * ray.direction.y),
+            (f64)(ray.position.z + t * ray.direction.z) };
+    }
+    }
+    return {};
+}
+
+inline CanvasCamera::CameraOrientation CanvasCamera::OrientationForSketchPlane(Geometry::SketchPlane plane)
+{
+    switch (plane) {
+    case Geometry::SketchPlane::XY:
+        return CameraOrientation::Plane_XY;
+    case Geometry::SketchPlane::XZ:
+        return CameraOrientation::Plane_XZ;
+    case Geometry::SketchPlane::YZ:
+        return CameraOrientation::Plane_YZ;
+    }
+    return CameraOrientation::Plane_XY;
 }

@@ -6,14 +6,16 @@
 class SketchLineCommand : public ISketchCommand {
 public:
     explicit SketchLineCommand(CommandId id)
-        : ISketchCommand(SketchCommandType::Line, id) {};
+        : ISketchCommand(SketchCommandType::Line, id)
+    {
+    }
     virtual bool IsValid() override
     {
-        return false;
+        return start.has_value() && end.has_value();
     }
 
-    Geometry::Point2 start;
-    Geometry::Point2 end;
+    std::optional<Geometry::Point2> start;
+    std::optional<Geometry::Point2> end;
 };
 
 class SketchArcCommand : public ISketchCommand {

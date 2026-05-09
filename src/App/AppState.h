@@ -15,6 +15,11 @@ using SceneList = std::vector<Scene>;
 
 class AppState {
 public:
+    AppState()
+    {
+        CreateNewScene();
+    };
+
     // Global Data
 
     void CreateNewScene()

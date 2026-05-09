@@ -1,19 +1,21 @@
 #pragma once
 #include "PartCommandType.h"
 #include "SketchFeature.h"
+#include "Geometry.h"
 
 class CreateSketchCommand : public IPartCommand {
 public:
     explicit CreateSketchCommand(CommandId id)
-        : IPartCommand(PartCommandType::CreateSketch, id) {};
+        : IPartCommand(PartCommandType::CreateSketch, id)
+    {
+    }
 
     virtual bool IsValid() override
     {
-        return false;
+        return plane.has_value();
     }
 
-    //  for now assume that the plane is always xy.
-    // std::optional<Plane3> plane;
+    std::optional<Geometry::SketchPlane> plane;
 
     std::vector<SketchFeature> history;
 };

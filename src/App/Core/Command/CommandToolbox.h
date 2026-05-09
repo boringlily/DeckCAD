@@ -1,6 +1,8 @@
 #pragma once
+#include <algorithm>
 #include "PartFeature.h"
 #include "SketchFeature.h"
+#include "Geometry.h"
 
 class CommandToolbox {
 public:
@@ -25,6 +27,8 @@ public:
             return false;
         if (!IsPartCommandActive() || !part_command.value().IsType(PartCommandType::CreateSketch))
             return false;
+        if (!part_command.value().IsValid())
+            return false;
 
         CommandId id = next_id++;
         switch (type) {
@@ -44,6 +48,24 @@ public:
             return false;
         }
         return true;
+    }
+
+    bool StartCreateSketch()
+    {
+        if (part_command.has_value())
+            return false;
+        CommandId id = next_id++;
+        part_command.emplace(CreateSketchCommand(id));
+        return true;
+    }
+
+    std::optional<Geometry::SketchPlane> GetActiveSketchPlane() const
+    {
+        if (!part_command.has_value())
+            return std::nullopt;
+        if (auto* cmd = const_cast<PartFeature&>(part_command.value()).As<CreateSketchCommand>())
+            return cmd->plane;
+        return std::nullopt;
     }
 
     bool StartPartCommand(PartCommandType type)
@@ -95,6 +117,21 @@ public:
         }
         part_history.push_back(std::move(part_command.value()));
         part_command.reset();
+    }
+
+    bool DeleteSketchCommand(CommandId id)
+    {
+        if (!part_command.has_value())
+            return false;
+        auto* cmd = part_command.value().As<CreateSketchCommand>();
+        if (!cmd)
+            return false;
+        auto it = std::find_if(cmd->history.begin(), cmd->history.end(),
+            [id](SketchFeature& f) { return f.GetId() == id; });
+        if (it == cmd->history.end())
+            return false;
+        cmd->history.erase(it);
+        return true;
     }
 
     std::optional<SketchFeature>& GetActiveSketchCommand()

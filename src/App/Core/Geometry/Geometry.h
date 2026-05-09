@@ -27,4 +27,10 @@ struct Plane3d {
     Point3 direction;
 };
 
+enum class SketchPlane {
+    XY,
+    XZ,
+    YZ,
+};
+
 };

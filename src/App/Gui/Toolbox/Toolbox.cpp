@@ -18,7 +18,7 @@ struct Toolset {
 static void DrawPartToolset(Scene& scene)
 {
     if (ToolSelectButton("Create Sketch", IconId::Unknown)) {
-        scene.command_toolbox.StartPartCommand(PartCommandType::CreateSketch);
+        scene.command_toolbox.StartCreateSketch();
     }
 }
 
@@ -108,7 +108,7 @@ void DrawToolbox(Scene& scene)
         // Active toolset content
         CLAY({ .id = CLAY_ID("Toolset"),
             .layout = {
-                .sizing = { .width = CLAY_SIZING_GROW(), .height = CLAY_SIZING_FIT() },
+                .sizing = LAYOUT_EXPAND,
                 .padding = CLAY_PADDING_ALL(4),
                 .childGap = 16,
                 .layoutDirection = CLAY_TOP_TO_BOTTOM,

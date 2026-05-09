@@ -13,8 +13,8 @@ public:
 
     virtual bool IsValid() = 0;
 
-    const CommandEnumType type;
-    const CommandId id;
+    CommandEnumType type;
+    CommandId id;
 };
 
 template <typename CommandType, typename... variant_types>
@@ -39,6 +39,11 @@ public:
     CommandType GetType()
     {
         return std::visit([](ICommand<CommandType>& val) { return val.type; }, variant);
+    }
+
+    CommandId GetId()
+    {
+        return std::visit([](ICommand<CommandType>& val) { return val.id; }, variant);
     }
 
     bool IsType(CommandType type)
