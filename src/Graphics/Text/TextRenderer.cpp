@@ -362,4 +362,3 @@ void TextRenderer::flushBatch(const Gpu::Context& gpu_ref,
 }
 
 } // namespace Text
-// TODO: hot reload probe
