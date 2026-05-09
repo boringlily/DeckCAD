@@ -9,8 +9,19 @@ CAD isn't my job, so I don't want to pay multiple hundreds for yearly licenses (
 3) Limited Inputs - Utilize the least amount of distinct input methods to perform actions. (Prefer multiple simple actions over one complex action - this will be important later).
 4) Learn - Experimentation and learning new things is more important than getting to the finish zone quickly.
 
+## Stack
+| Concern | Library |
+|---|---|
+| Window & input | SDL3 |
+| Graphics | WebGPU (Dawn) |
+| UI | Dear ImGui |
+| Viewport text | FreeType + msdfgen |
+| Icons | nanosvg |
+
+See [ARCHITECTURE.md](ARCHITECTURE.md) for the module layout and rendering conventions.
+
 ## Build
-To build the project follow the instructions in [BUILD.md].
+To build the project follow the instructions in [BUILD.md](BUILD.md).
 
 ## Contribution
 This project will be kept as Open Source and Closed Commit.

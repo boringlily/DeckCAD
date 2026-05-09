@@ -1,31 +1,44 @@
-# 1) Setting up build
+# Building DeckCAD
 
-## a) Pre-Requisits.
-Make sure you have the following tools installed on your platform.
-- CMake >= 3.10 
-- Clang 20.1.8
-- Python >= 3.10
-- Ninja
-- Git
+## 1) Prerequisites
 
-## b) Cmake User Presets
-In the project root create a file: *"CMakeUserEnv.json"* This file is ignored by git.
-Copy the following template in the code and for the environment variables *"USER_CLANG_20_PATH"* and *"USER_CLANG++_20_PATH"* replace the string values with the full path to your installed clang20 executeables. (To check the version of the compiler, in that directory run `./clang -v`). 
-``` json
-{
-  "version": 9,
-  "configurePresets": [
-    {
-      "name": "user_clang_paths",
-      "environment": {
-        "USER_CLANG_20_PATH": "/Path/to/clang20/executeable",
-        "USER_CLANG++_20_PATH": "/Path/to/clang20++/executeable"
-      }
-  }]
-}
-``` 
+| Tool    | Version   | Notes |
+|---------|-----------|-------|
+| CMake   | >= 3.20   | |
+| Clang   | 20.1.8    | Apple Clang also works, but the presets point at Homebrew LLVM |
+| Python  | >= 3.10   | Dawn's dependency fetcher and code generators need it |
+| Ninja   | any       | |
+| Git     | any       | |
 
-### My Windows Example :) 
+On macOS the Xcode Command Line Tools are enough; a full Xcode install is not
+required.
+
+## 2) Submodules
+
+```
+git submodule update --init --recursive
+```
+
+This populates `submodules/` with:
+
+| Submodule    | Role |
+|--------------|------|
+| `sdl`        | Window creation and input (SDL3) |
+| `dawn`       | Native WebGPU implementation (Metal / D3D12 / Vulkan) |
+| `imgui`      | Dear ImGui, `docking` branch, for the panel UI |
+| `freetype`   | Font outline loading |
+| `msdfgen`    | Multi-channel signed distance field generation |
+| `nanosvg`    | SVG icon rasterization |
+| `googletest` | Unit tests |
+| `glaze`      | Reserved for scene serialization; not yet wired into the build |
+| `tracy`      | Reserved for profiling; not yet wired into the build |
+
+Dawn pulls its own third-party tree at CMake configure time
+(`DAWN_FETCH_DEPENDENCIES=ON`), so `depot_tools` is not needed.
+
+## 3) Compiler paths
+
+Create `CMakeUserEnv.json` in the project root (git-ignored):
 
 ```json
 {
@@ -34,40 +47,78 @@ Copy the following template in the code and for the environment variables *"USER
     {
       "name": "user_clang_paths",
       "environment": {
-        "USER_CLANG_20_PATH": "C:/Program Files/LLVM/bin/clang.exe",
-        "USER_CLANG++_20_PATH": "C:/Program Files/LLVM/bin/clang++.exe"
+        "USER_CLANG_20_PATH": "/path/to/clang",
+        "USER_CLANG++_20_PATH": "/path/to/clang++"
       }
-  }]
+    }
+  ]
 }
 ```
 
-## c) Submodules:
-In the project root run `git submodule update --init --recursive`
-This will populate the submodules directory with external dependencies for this project. 
+## 4) Build
 
-## d) [optional] pre-commit formatting 
-If this project is being used in a fork, it is recommended to setup the pre-commit hook to run clang-format.
-1) `pip install pre-commit`
-2) In project root run `pre-commit install`
+```
+cmake --preset Debug
+cmake --build --preset Debug
+```
 
-The pre-commit hook will auto run when you use `git commit` and will only format staged files.
-It manually trigger formatting for all staged files with  `pre-commit run`, or format all files in the dir with `pre-commit run --all-files`. 
+The first build compiles Dawn and takes roughly 10-20 minutes. Later builds
+are incremental and fast.
 
-# 2) Building the project.
-The project is build with cmake and has two primary build presets.
+Run the app:
 
-## Default build
-All source is built into a single executeable file inside the cmake build folder.
-just run the exe found in `build/bin/<CMAKE_BUILD_TYPE>/DeckCAD`
+```
+./build/bin/DeckCAD
+```
 
-## Hot Reload build
-Enables hot-reloading and sets the `cmake_build_type` to debug.
-- "Main" is build into the "DeckCAD" executeable.
-- Graphics module is built as dynamic library that is compiletime linked.
-- Core module is build as dynamic library without any linking, the library is then loaded at runtime in Main by using the LibraryLoader.
-    - By Dynamically loading the Core Module, it allows us to preserve the memory context of the app while being able to modify and re-compile the Core runtime logic.
+Run the tests:
 
-### Building in commandline
-*In project root*
-1) Generate cmake build `cmake -B./build`
-2) Build project  `cmake --build --preset Default` or  `cmake --build --preset HotReload` 
+```
+ctest --preset Debug
+```
+
+A release build uses a separate directory so the two never fight over the
+same Dawn artifacts:
+
+```
+cmake --preset Release && cmake --build --preset Release
+```
+
+### Hot reload
+
+Configure with `DECKCAD_HOT_RELOAD=ON` to build `deckcad_core` (scenes, tools,
+panels) as a shared library instead of linking it into `DeckCAD` directly:
+
+```
+cmake --preset Debug -DDECKCAD_HOT_RELOAD=ON
+cmake --build --preset Debug
+```
+
+With the app running, rebuilding just `deckcad_core` — e.g.
+`cmake --build build --target deckcad_core` — reloads it into the running
+process on the next frame, so panel and app-logic edits show up without
+restarting. Editing `Main`, `Graphics`, or `Platform` still needs a restart.
+
+This also switches SDL3 to a shared library, so both the executable and
+`deckcad_core` load the same copy instead of each getting their own
+statically-linked one, which would otherwise register macOS's Objective-C
+classes twice and crash.
+
+## 5) Assets
+
+`assets/` is staged next to the executable after every build. At runtime the
+app resolves assets by walking up from the executable's own directory, so it
+runs correctly from any working directory.
+
+Shaders live in `assets/shaders/*.wgsl` and are loaded at runtime, so editing
+one only requires re-running the build's asset staging step, not a recompile.
+
+## 6) Optional: pre-commit formatting
+
+```
+pip install pre-commit
+pre-commit install
+```
+
+The hook runs clang-format over staged files. `pre-commit run --all-files`
+formats the whole tree.
