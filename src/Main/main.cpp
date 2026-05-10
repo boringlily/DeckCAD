@@ -170,4 +170,3 @@ int main(int, char**)
     window.destroyWindow();
     return 0;
 }
-// TODO: depth format
