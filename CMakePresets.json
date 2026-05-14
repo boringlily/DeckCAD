@@ -1,16 +1,13 @@
 {
   "version": 9,
-  "include": ["CMakeUserEnv.json"],
   "configurePresets": [
     {
       "name": "base",
       "hidden": true,
-      "inherits": ["user_toolchain"],
       "generator": "Ninja",
       "binaryDir": "${sourceDir}/build",
+      "toolchainFile": "${sourceDir}/cmake/toolchains/host.cmake",
       "cacheVariables": {
-        "CMAKE_C_COMPILER": "$env{DECKCAD_CC_PATH}",
-        "CMAKE_CXX_COMPILER": "$env{DECKCAD_CXX_PATH}",
         "CMAKE_EXPORT_COMPILE_COMMANDS": "ON"
       }
     },
