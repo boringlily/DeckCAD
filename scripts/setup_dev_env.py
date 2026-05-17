@@ -3,9 +3,12 @@
 
 Reads DECKCAD_TOOLCHAIN (format "<compiler>-<version>", e.g. "clang-20";
 defaults to "clang-20") and installs that compiler with the platform's
-package manager, then writes its resolved binary paths into
-CMakeUserEnv.json (already git-ignored) so CMakePresets.json's "base" preset
-picks them up via DECKCAD_CC_PATH / DECKCAD_CXX_PATH.
+package manager, then exports its resolved binary paths as real, persistent
+environment variables (DECKCAD_CC_PATH / DECKCAD_CXX_PATH) -- appended to
+your shell rc file on macOS/Linux, via `setx` on Windows. No repo file to
+author or keep in sync: cmake/toolchains/host.cmake reads them straight from
+the environment, and CMakePresets.json's "base" preset points at that
+toolchain file.
 
 Also creates the shared cache directory (DECKCAD_DEPS_DIR, or its per-OS
 default) that the compiler cache (see cmake/DeckCADDeps.cmake) and a
@@ -16,7 +19,6 @@ Usage:
     DECKCAD_TOOLCHAIN=clang-19 python3 scripts/setup_dev_env.py
 """
 
-import json
 import os
 import platform
 import shutil
@@ -24,8 +26,9 @@ import subprocess
 import sys
 from pathlib import Path
 
-REPO_ROOT = Path(__file__).resolve().parent.parent
 DEFAULT_TOOLCHAIN = "clang-20"
+ENV_BLOCK_START = "# >>> DeckCAD dev env (scripts/setup_dev_env.py) >>>"
+ENV_BLOCK_END = "# <<< DeckCAD dev env (scripts/setup_dev_env.py) <<<"
 
 
 def run(command, **kwargs):
@@ -71,7 +74,7 @@ def install_linux(version):
     elif shutil.which("dnf"):
         run(["sudo", "dnf", "install", "-y", f"clang-{version}", "lld"])
     else:
-        sys.exit("Neither apt-get nor dnf found; install clang manually and set DECKCAD_CC_PATH/DECKCAD_CXX_PATH yourself.")
+        sys.exit("Neither apt-get nor dnf found; install clang manually and export DECKCAD_CC_PATH/DECKCAD_CXX_PATH yourself.")
 
     cc = shutil.which(f"clang-{version}")
     cxx = shutil.which(f"clang++-{version}")
@@ -81,7 +84,7 @@ def install_linux(version):
             f"Could not find clang-{version}/clang++-{version} on PATH after install "
             f"(this distro's repos may not carry that exact version"
             + (f"; it does have an unversioned 'clang' at {installed}" if installed else "")
-            + "). Install it another way and set DECKCAD_CC_PATH/DECKCAD_CXX_PATH in CMakeUserEnv.json yourself."
+            + "). Install it another way and export DECKCAD_CC_PATH/DECKCAD_CXX_PATH yourself."
         )
     return cc, cxx
 
@@ -98,28 +101,57 @@ def install_windows(version):
     cxx = Path(program_files, "LLVM", "bin", "clang++.exe")
     if not cc.exists():
         sys.exit(f"Expected {cc} after installing LLVM, but it's not there. "
-                  "Find your install and set DECKCAD_CC_PATH/DECKCAD_CXX_PATH in CMakeUserEnv.json yourself.")
+                  "Find your install and export DECKCAD_CC_PATH/DECKCAD_CXX_PATH yourself.")
     print("Installed LLVM version (may differ from DECKCAD_TOOLCHAIN's request):")
     run([str(cc), "--version"])
     return str(cc), str(cxx)
 
 
-def write_cmake_user_env(cc_path, cxx_path):
-    path = REPO_ROOT / "CMakeUserEnv.json"
-    document = {
-        "version": 9,
-        "configurePresets": [
-            {
-                "name": "user_toolchain",
-                "environment": {
-                    "DECKCAD_CC_PATH": cc_path,
-                    "DECKCAD_CXX_PATH": cxx_path,
-                },
-            }
-        ],
-    }
-    path.write_text(json.dumps(document, indent=2) + "\n")
-    print(f"Wrote {path}")
+def detect_shell_rc():
+    shell = os.environ.get("SHELL", "")
+    home = Path.home()
+    if "zsh" in shell:
+        return home / ".zshrc"
+    if "bash" in shell:
+        # Terminal.app runs a login shell, which reads .bash_profile, not
+        # .bashrc, on macOS; most Linux desktops/terminals read .bashrc.
+        return home / (".bash_profile" if platform.system() == "Darwin" else ".bashrc")
+    # Unknown shell: fall back to the platform's usual default.
+    return home / (".zshrc" if platform.system() == "Darwin" else ".bashrc")
+
+
+def persist_env_vars_posix(values):
+    rc_path = detect_shell_rc()
+    lines = [ENV_BLOCK_START]
+    lines += [f'export {name}="{value}"' for name, value in values.items()]
+    lines.append(ENV_BLOCK_END)
+    block = "\n".join(lines) + "\n"
+
+    existing = rc_path.read_text() if rc_path.exists() else ""
+    if ENV_BLOCK_START in existing and ENV_BLOCK_END in existing:
+        before = existing.split(ENV_BLOCK_START)[0]
+        after = existing.split(ENV_BLOCK_END)[1]
+        updated = before + block + after
+    else:
+        separator = "\n" if existing and not existing.endswith("\n") else ""
+        updated = existing + separator + ("\n" if existing else "") + block
+
+    rc_path.write_text(updated)
+    print(f"Wrote {', '.join(values)} to {rc_path}")
+    print("Open a new shell (or `source` that file) before configuring, so these are in your environment.")
+
+
+def persist_env_vars_windows(values):
+    for name, value in values.items():
+        run(["setx", name, value])
+    print("setx persists these for NEW terminals/processes only -- open a new one before configuring.")
+
+
+def persist_env_vars(values):
+    if platform.system() == "Windows":
+        persist_env_vars_windows(values)
+    else:
+        persist_env_vars_posix(values)
 
 
 def resolve_default_deps_dir():
@@ -170,7 +202,7 @@ def main():
     else:
         sys.exit(f"Unsupported platform: {system}")
 
-    write_cmake_user_env(cc_path, cxx_path)
+    persist_env_vars({"DECKCAD_CC_PATH": cc_path, "DECKCAD_CXX_PATH": cxx_path})
 
     deps_dir = resolve_default_deps_dir()
     deps_dir.mkdir(parents=True, exist_ok=True)
@@ -178,7 +210,7 @@ def main():
 
     ensure_compiler_cache_installed()
 
-    print("\nDone. Next:")
+    print("\nDone. Next: open a new shell, then:")
     print("  cmake --preset Debug")
     print("  cmake --build --preset Debug")
 
