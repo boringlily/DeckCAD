@@ -26,6 +26,7 @@
 // If platform is MacOS
 #if defined(PLATFORM_DARWIN)
 #include "mach-o/dyld.h"
+#include "sys/syslimits.h"
 #define LIB_PREFIX "lib"
 #define LIB_FILE_EXT ".dylib"
 
