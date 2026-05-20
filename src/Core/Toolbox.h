@@ -42,4 +42,3 @@ struct Toolbox {
 };
 
 } // namespace Core
-// TODO: panel layout
