@@ -60,3 +60,4 @@ void HotReloadCore::buildFrame(Core::FrameContext& frame_ref)
         build_frame_func_ptr_(&frame_ref, ImGui::GetCurrentContext());
     }
 }
+// TODO: icon cache
