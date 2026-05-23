@@ -1,7 +1,13 @@
-set(gtest_force_shared_crt ON CACHE BOOL "" FORCE)
-set(BUILD_GMOCK OFF CACHE BOOL "" FORCE)
-set(INSTALL_GTEST OFF CACHE BOOL "" FORCE)
-add_subdirectory(${SUBMODULES_DIR}/googletest ${CMAKE_BINARY_DIR}/submodules/googletest EXCLUDE_FROM_ALL)
+deckcad_build_external_dependency(
+    NAME googletest
+    SOURCE_DIR ${SUBMODULES_DIR}/googletest
+    OUT_INSTALL_DIR googletest_install_dir
+    CMAKE_ARGS
+        -Dgtest_force_shared_crt=ON
+        -DBUILD_GMOCK=OFF
+        -DINSTALL_GTEST=ON
+)
+find_package(GTest CONFIG REQUIRED PATHS ${googletest_install_dir} NO_DEFAULT_PATH)
 
 add_executable(deckcad_tests
     ${CMAKE_CURRENT_SOURCE_DIR}/MathTests.cpp
@@ -31,7 +37,7 @@ target_compile_definitions(deckcad_tests PRIVATE
 )
 
 target_link_libraries(deckcad_tests PRIVATE
-    gtest_main
+    GTest::gtest_main
     msdfgen::msdfgen-core
     msdfgen::msdfgen-ext
 )
