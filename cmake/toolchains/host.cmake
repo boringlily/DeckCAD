@@ -26,3 +26,4 @@ if(NOT DEFINED ENV{DECKCAD_CC_PATH} OR NOT DEFINED ENV{DECKCAD_CXX_PATH})
         "scripts/setup_dev_env.py, then open a new shell (or `source` your "
         "shell rc file) before configuring.")
 endif()
+# TODO: debug logging
