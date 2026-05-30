@@ -39,12 +39,21 @@ Dawn pulls its own third-party tree at CMake configure time
 ## 3) Compiler paths
 
 Run the setup script, which installs the pinned compiler for your platform
-(Homebrew on macOS, `apt`/`dnf` on Linux, `winget` on Windows) and writes
-`CMakeUserEnv.json` for you:
+(Homebrew on macOS, `apt`/`dnf` on Linux, `winget` on Windows) and exports its
+resolved path as real, persistent environment variables --
+`DECKCAD_CC_PATH` / `DECKCAD_CXX_PATH`, appended to your shell rc file on
+macOS/Linux, via `setx` on Windows:
 
 ```
 python3 scripts/setup_dev_env.py
 ```
+
+`cmake/toolchains/host.cmake` reads those two variables and is wired in as
+`CMakePresets.json`'s toolchain file, so there's no per-clone preset file to
+author or keep in sync -- once the script has run on a machine, every
+worktree on it picks up the same compiler automatically. Open a new shell
+(or `source` your rc file) after running the script, so the variables are
+actually in your environment before you configure.
 
 It reads `DECKCAD_TOOLCHAIN` to decide which compiler to install (format
 `<compiler>-<version>`, e.g. `clang-20`; defaults to `clang-20` if unset).
@@ -61,26 +70,19 @@ packages, so the version there is best-effort -- the script installs latest
 LLVM and reports what it actually got.
 
 The script also installs `ccache` if it isn't already on `PATH` (see
-[Shared build cache](#shared-build-cache) below), and creates
+[Compiler cache](#compiler-cache) below), and creates
 `DECKCAD_DEPS_DIR`.
 
-If you'd rather do this by hand, create `CMakeUserEnv.json` in the project
-root yourself (git-ignored):
+If you'd rather do this by hand, just export the two variables yourself,
+however you normally manage your shell environment:
 
-```json
-{
-  "version": 9,
-  "configurePresets": [
-    {
-      "name": "user_toolchain",
-      "environment": {
-        "DECKCAD_CC_PATH": "/path/to/clang",
-        "DECKCAD_CXX_PATH": "/path/to/clang++"
-      }
-    }
-  ]
-}
 ```
+export DECKCAD_CC_PATH=/path/to/clang
+export DECKCAD_CXX_PATH=/path/to/clang++
+```
+
+If neither is set, `host.cmake` warns and falls back to CMake's default
+compiler detection rather than failing the configure.
 
 ## 4) Build
 
@@ -89,8 +91,13 @@ cmake --preset Debug
 cmake --build --preset Debug
 ```
 
-The first build compiles Dawn and takes roughly 10-20 minutes. Later builds
-are incremental and fast.
+The first time this runs *on a machine* -- not per clone, per worktree, or
+per wiped `build/` directory -- it builds and installs SDL, Dawn, FreeType,
+msdfgen and googletest into a shared cache directory, which is where the
+10-20 minutes (mostly Dawn) goes. Every subsequent `cmake --preset Debug` on
+that machine, from any worktree, for that same submodule commit, just
+`find_package()`s the already-installed result: no reconfigure, no rebuild.
+See [External dependencies](#external-dependencies) below for how.
 
 Run the app:
 
@@ -131,32 +138,67 @@ This also switches SDL3 to a shared library, so both the executable and
 statically-linked one, which would otherwise register macOS's Objective-C
 classes twice and crash.
 
-### Shared build cache
+### External dependencies
 
-The first build compiles Dawn and takes 10-20 minutes, and that cost repeats
-for every new `build/` directory -- a fresh worktree, a wiped build dir, a
-CI runner -- even though the source and flags haven't changed. A compiler
-cache (`ccache`, or `sccache` if you prefer it) fixes this: `cmake/DeckCADDeps.cmake`
-detects one on `PATH` and routes every compile through it automatically, with
-its cache directory pinned under `DECKCAD_DEPS_DIR` rather than the ambient
-environment, so it applies consistently regardless of how `ninja`/
-`cmake --build` ends up invoked later.
+SDL, Dawn, FreeType, msdfgen and googletest each build as an independent,
+installed CMake project in a shared cache directory (`DECKCAD_DEPS_DIR`, see
+below) instead of being compiled straight into DeckCAD's own `build/`
+directory the way `imgui` and `nanosvg` still are. `cmake/DeckCADDeps.cmake`'s
+`deckcad_build_external_dependency()` does this for each one: it works out
+the submodule's currently-checked-out commit, and if
+`<DECKCAD_DEPS_DIR>/<name>-<build-type>-<commit>/.deckcad-installed` doesn't exist yet, it
+configures, builds and installs that submodule as its own `cmake -S/-B`
+project (synchronously, as part of *this* project's own configure step --
+not CMake's `ExternalProject_Add`, which only runs at build time and can't
+finish before `find_package()` needs the result). Either way, the surrounding
+`CMakeLists.txt` then just does an ordinary `find_package(... CONFIG REQUIRED
+PATHS <that install dir> NO_DEFAULT_PATH)` and links the same target names as
+before (`SDL3::SDL3`, `dawn::webgpu_dawn`, `msdfgen::msdfgen-core`, ...).
+
+This is genuinely a different, separate build from DeckCAD's own -- worth
+knowing two consequences of that:
+
+- **A cold start on a new machine is slower in wall-clock time than the old
+  single-Ninja-graph build was**, not faster: SDL, Dawn, FreeType and msdfgen
+  now build one after another (each is its own sequential `execute_process`
+  during configure) instead of all four sharing every CPU core at once the
+  way one unified `add_subdirectory()` graph let them. The payoff is that
+  this cost is paid once per (machine, submodule commit) instead of once per
+  worktree/build-dir -- which is the actual goal, cold start aside.
+- **Two worktrees racing to build the same not-yet-cached commit at the same
+  time will corrupt each other's build** -- there's no lock file, just a
+  stamp written at the end. In practice this only matters the very first time
+  a submodule commit is ever built on a machine; avoid kicking off two clean
+  builds simultaneously on a brand new machine/CI image.
 
 `DECKCAD_DEPS_DIR` defaults to a per-OS cache location
 (`~/Library/Caches/DeckCAD/deps` on macOS, `~/.cache/deckcad/deps` on Linux,
 `%LOCALAPPDATA%\DeckCAD\deps` on Windows) and can be overridden with the
-`DECKCAD_DEPS_DIR` environment variable. `scripts/setup_dev_env.py` installs
-`ccache` and creates this directory for you; without it, builds still work,
-just without the cross-worktree win. Disable it with
-`-DDECKCAD_USE_COMPILER_CACHE=OFF` if it ever gets in the way.
+`DECKCAD_DEPS_DIR` environment variable. To force a clean rebuild of one
+dependency, delete its directory under there (e.g.
+`rm -rf $DECKCAD_DEPS_DIR/dawn-debug-<commit>`) and reconfigure.
 
-**Known limitation:** this only shares *compiled objects*, not CMake's own
-configure-time checks (Dawn and SDL each run a few dozen `try_compile`
-probes on every fresh `build/` directory, adding tens of seconds regardless
-of the compiler cache) or Dawn's dependency-fetch step. It also doesn't
-attempt to synchronize two worktrees compiling the same file at the exact
-same moment -- that's a normal, low-stakes cache race, not a correctness
-issue.
+Two things are keyed into the cache path beyond just name + commit, because
+they change what actually gets built: SDL is cached as `sdl-static-<build-type>-<commit>`
+or `sdl-shared-<build-type>-<commit>` depending on `DECKCAD_HOT_RELOAD` (see below) --
+otherwise toggling that option on a machine that already built the other
+linkage would silently reuse a wrongly-linked install.
+
+`imgui` and `nanosvg` stay compiled directly into `build/` rather than
+externalized: neither ships its own CMake project with install support
+(`cmake/imgui/CMakeLists.txt` is ours, not upstream's), and both are fast
+enough to compile that there's no real cold-start cost to share.
+
+### Compiler cache
+
+On top of the above, this project's *own* code (plus in-tree `imgui`) also
+routes through a compiler cache (`ccache`, or `sccache` if you prefer it) when
+one is on `PATH`, cache directory pinned under `DECKCAD_DEPS_DIR/compiler-cache`.
+`scripts/setup_dev_env.py` installs `ccache` for you. Disable it with
+`-DDECKCAD_USE_COMPILER_CACHE=OFF` if it ever gets in the way. This is a much
+smaller win than the external-dependency installs above -- it just makes
+recompiling DeckCAD's own sources across build directories faster, the same
+way it would for any project.
 
 ## 5) Assets
 
