@@ -1,0 +1,46 @@
+name: Set up DeckCAD toolchain
+description: >
+  Installs the system packages and LLVM/Clang toolchain DeckCAD needs to
+  configure and build (same package list as Docker/Dockerfile's `linux`
+  stage -- keep the two in sync if either changes), and exports
+  DECKCAD_CC_PATH/DECKCAD_CXX_PATH for cmake/toolchains/host.cmake to pick
+  up.
+inputs:
+  extra-clang-tools:
+    description: Also install clang-format/clang-tidy/clang-tools for this version
+    required: false
+    default: "false"
+runs:
+  using: composite
+  steps:
+    - name: Install system packages
+      shell: bash
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y --no-install-recommends \
+          cmake ninja-build git ccache python3 python3-pip pkg-config \
+          libx11-dev libxext-dev libxrandr-dev libxinerama-dev libxcursor-dev \
+          libxi-dev libxfixes-dev libxss-dev libxkbcommon-dev \
+          libwayland-dev wayland-protocols libegl1-mesa-dev libgl1-mesa-dev \
+          libvulkan-dev vulkan-utility-libraries-dev
+
+    - name: Install LLVM/Clang ${{ env.DECKCAD_TOOLCHAIN }}
+      shell: bash
+      run: |
+        version=${DECKCAD_TOOLCHAIN#clang-}
+        wget -qO- https://apt.llvm.org/llvm.sh | sudo bash -s -- "$version"
+        if [ "${{ inputs.extra-clang-tools }}" = "true" ]; then
+          sudo apt-get install -y --no-install-recommends "clang-format-$version" "clang-tidy-$version" "clang-tools-$version"
+        fi
+        echo "DECKCAD_CC_PATH=/usr/bin/clang-$version" >> "$GITHUB_ENV"
+        echo "DECKCAD_CXX_PATH=/usr/bin/clang++-$version" >> "$GITHUB_ENV"
+        echo "/usr/lib/llvm-$version/bin" >> "$GITHUB_PATH"
+
+    - name: Compute dependency cache key
+      shell: bash
+      run: git submodule status > .ci-submodule-status
+
+    - uses: actions/cache@v4
+      with:
+        path: ${{ env.DECKCAD_DEPS_DIR }}
+        key: deckcad-deps-${{ runner.os }}-${{ hashFiles('.ci-submodule-status') }}
