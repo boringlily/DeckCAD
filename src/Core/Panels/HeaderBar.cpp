@@ -135,4 +135,3 @@ void DrawHomePage(FrameContext& context_ref)
 }
 
 } // namespace Core
-// TODO: input trace
