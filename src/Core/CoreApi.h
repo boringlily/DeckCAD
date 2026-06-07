@@ -31,4 +31,3 @@ DECKCAD_CORE_API void CoreAppInit(Core::AppState* app_ptr, ImGuiContext* imgui_c
 DECKCAD_CORE_API void CoreBuildFrame(Core::FrameContext* frame_ptr, ImGuiContext* imgui_context_ptr);
 
 } // extern "C"
-// TODO: surface trace
