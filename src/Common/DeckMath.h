@@ -2,14 +2,15 @@
 #include "Types.h"
 #include <cmath>
 
-// Minimal linear algebra for the DeckCAD viewport.
-//
-// Conventions (chosen to match WebGPU, NOT OpenGL):
-//   * Right-handed world space, camera looks down its local -Z.
-//   * Clip space depth maps to [0, 1]. OpenGL/raylib used [-1, 1]; every
-//     projection here maps near->0 and far->1 instead.
-//   * Matrices are column-major and stored as four columns, which is the
-//     layout WGSL's mat4x4<f32> expects, so they upload without transposing.
+/**
+ * @brief Minimal linear algebra for the DeckCAD viewport.
+ * @note Conventions are chosen to match WebGPU, not OpenGL:
+ * - Right-handed world space; the camera looks down its local -Z.
+ * - Clip space depth maps to [0, 1]. OpenGL/raylib used [-1, 1]; every
+ *   projection here maps near->0 and far->1 instead.
+ * - Matrices are column-major and stored as four columns, matching the
+ *   layout WGSL's mat4x4<f32> expects; they upload without transposing.
+ */
 
 namespace DeckMath {
 
@@ -68,8 +69,7 @@ inline f32 Distance(Vector3 from, Vector3 to) { return Length(to - from); }
 inline Vector3 Normalize(Vector3 vector)
 {
     f32 length = Length(vector);
-    // Degenerate input would divide by zero; hand back the zero vector so
-    // callers get a harmless result instead of NaNs propagating into a matrix.
+    // degenerate input divides by zero, return zero vector not NaN
     return length > 0.0f ? vector / length : Vector3 {};
 }
 
@@ -85,7 +85,7 @@ inline Vector3 RotateAxisAngle(Vector3 vector, Vector3 axis, f32 radians)
 
 // --- Matrix4 ----------------------------------------------------------------
 
-/// Column-major 4x4 matrix. `columns[i]` is the i-th *column*, so `columns[3]`
+/// Column-major 4x4 matrix; `columns[i]` is the i-th *column* and `columns[3]`
 /// holds the translation of an affine transform.
 struct Matrix4 {
     Vector4 columns[4] {};
@@ -161,7 +161,7 @@ inline Matrix4 MatrixLookAt(Vector3 eye, Vector3 target, Vector3 up)
 inline Matrix4 MatrixPerspective(f32 fov_y_radians, f32 aspect, f32 near_z, f32 far_z)
 {
     f32 focal_length = 1.0f / std::tan(fov_y_radians * 0.5f);
-    Matrix4 result {}; // deliberately all-zero: this is not an affine matrix
+    Matrix4 result {}; // deliberately zero-initialized, not an affine matrix
     result.columns[0].x = focal_length / aspect;
     result.columns[1].y = focal_length;
     result.columns[2].z = far_z / (near_z - far_z);
@@ -184,7 +184,7 @@ inline Matrix4 MatrixOrthographic(f32 left, f32 right, f32 bottom, f32 top, f32 
 }
 
 /// General 4x4 inverse via cofactor expansion. Returns identity for a singular
-/// matrix so a bad camera state degrades visibly rather than producing NaNs.
+/// matrix: a bad camera state degrades visibly instead of producing NaNs.
 inline Matrix4 Inverse(const Matrix4& matrix_ref)
 {
     const f32* source_ptr = &matrix_ref.columns[0].x; // column-major, source_ptr[column * 4 + row]
