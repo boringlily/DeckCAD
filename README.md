@@ -26,3 +26,4 @@ To build the project follow the instructions in [BUILD.md](BUILD.md).
 ## Contribution
 This project will be kept as Open Source and Closed Commit.
 - A friend of mine is joining me on this endeavor in a "I want to work on something, give me a task please" way. 
+<!-- TODO: hot reload probe -->
