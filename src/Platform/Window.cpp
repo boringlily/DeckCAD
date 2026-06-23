@@ -20,8 +20,8 @@ bool Window::createWindow(const std::string& title_ref, u32 width, u32 height)
     }
     sdl_initialized_ = true;
 
-    // HIGH_PIXEL_DENSITY makes SDL report a backing store at full device
-    // resolution, which is what the WebGPU surface is configured against.
+    // HIGH_PIXEL_DENSITY: backing store at full device resolution, matching
+    // what the WebGPU surface expects
     SDL_WindowFlags flags = SDL_WINDOW_RESIZABLE | SDL_WINDOW_HIGH_PIXEL_DENSITY;
 
     window_ptr_ = SDL_CreateWindow(title_ref.c_str(), static_cast<int>(width), static_cast<int>(height), flags);
@@ -106,8 +106,8 @@ const char* Window::getNativeSystem() const
 #elif defined(SDL_PLATFORM_WIN32)
     return "win32";
 #elif defined(SDL_PLATFORM_LINUX)
-    // A Linux build can be running under either compositor, so this is decided
-    // at runtime from the driver SDL actually selected.
+    // Linux can run under either compositor; decided at runtime from
+    // the driver SDL actually selected
     {
         const char* driver_ptr = SDL_GetCurrentVideoDriver();
         if (driver_ptr && SDL_strcmp(driver_ptr, "wayland") == 0) {
