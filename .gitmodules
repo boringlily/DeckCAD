@@ -7,3 +7,6 @@
 [submodule "submodules/nanosvg"]
 	path = submodules/nanosvg
 	url = https://github.com/memononen/nanosvg.git
+[submodule "submodules/tracy"]
+	path = submodules/tracy
+	url = https://github.com/wolfpld/tracy.git
