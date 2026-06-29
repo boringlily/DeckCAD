@@ -1,6 +1,9 @@
 cmake_minimum_required(VERSION 3.15)
 project(DeckCAD)
 
+# Custom UI Settings.
+set(BUILD_UI_DEMO ON)
+
 # Require C11 and Cpp23
 set(CMAKE_C_STANDARD 11) 
 set(CMAKE_CXX_STANDARD 23)
@@ -51,6 +54,7 @@ set(SRC_DIR "${CMAKE_SOURCE_DIR}/src")
 
 set(COMMON_DIR "${SRC_DIR}/Common")
 set(GRAPHICS_DIR "${SRC_DIR}/Graphics")
+set(UI_DIR "${SRC_DIR}/Ui")
 set(APP_DIR "${SRC_DIR}/App")
 
 set(APP_INC_DIRS "")
@@ -79,5 +83,6 @@ endmacro()
 add_subdirectory(${RAYLIB_DIR}/projects/CMake)
 add_subdirectory(${COMMON_DIR})
 add_subdirectory(${GRAPHICS_DIR})
+add_subdirectory(${UI_DIR})
 add_subdirectory(${APP_DIR})
 add_subdirectory(${MAIN_DIR})

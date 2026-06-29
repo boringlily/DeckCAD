@@ -17,7 +17,7 @@ GRAPHICS
 
 if(NOT HOT_RELOAD)
     list(APPEND LIBS_TO_LINK
-        APP
+        App
     )
 else()
     list(APPEND MAIN_SRC_FILES
