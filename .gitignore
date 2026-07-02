@@ -11,3 +11,4 @@ build-profile/
 .DS_Store
 
 *.export.h
+profiling/
