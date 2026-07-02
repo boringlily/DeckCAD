@@ -17,10 +17,11 @@ enum class AlignVertical : u8 { Baseline,
     Middle,
     Top };
 
-/// Draws MSDF text anchored to world-space positions inside the 3D viewport.
-///
-/// Glyphs are batched into a single vertex buffer per frame and issued as one
-/// draw call, so a viewport full of dimension labels stays cheap.
+/**
+ * @brief Draws MSDF text anchored to world-space positions inside the 3D viewport.
+ * @note Glyphs are batched into a single vertex buffer per frame and issued
+ * as one draw call, keeping a viewport full of dimension labels cheap.
+ */
 class TextRenderer {
 public:
     bool initializeResources(const Gpu::Context& gpu_ref,
@@ -34,9 +35,11 @@ public:
     /// Discards anything queued by the previous frame.
     void beginBatch();
 
-    /// Queues a single-line label anchored at @p world_position.
-    /// @p pixel_size is the em height in screen pixels; the label keeps that
-    /// size regardless of camera distance.
+    /**
+     * @brief Queues a single-line label anchored at world_position.
+     * @param pixel_size Em height in screen pixels; the label keeps that size
+     * regardless of camera distance.
+     */
     void addLabel(const std::string& text_ref,
         DeckMath::Vector3 world_position,
         f32 pixel_size,

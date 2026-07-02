@@ -10,7 +10,7 @@ namespace TextRendererInternal {
 
     struct TextUniforms {
         f32 view_projection[16];
-        f32 viewport_size[4]; // xy = pixels, z = px range
+        f32 viewport_size[4]; // xy = pixels, z = pixel range
     };
 
 } // namespace TextRendererInternal
@@ -43,8 +43,8 @@ bool TextRenderer::initializeResources(const Gpu::Context& gpu_ref,
     texture_descriptor.label = "MSDF Atlas";
     texture_descriptor.dimension = wgpu::TextureDimension::e2D;
     texture_descriptor.size = { atlas_ref.getWidth(), atlas_ref.getHeight(), 1 };
-    // Deliberately linear (not Srgb): the channels hold distances, not colour,
-    // so gamma conversion would corrupt the field.
+    // deliberately linear, not Srgb: channels hold distances, not colour;
+    // gamma conversion would corrupt the field
     texture_descriptor.format = wgpu::TextureFormat::RGBA8Unorm;
     texture_descriptor.mipLevelCount = 1;
     texture_descriptor.sampleCount = 1;
@@ -71,8 +71,8 @@ bool TextRenderer::initializeResources(const Gpu::Context& gpu_ref,
     wgpu::Extent3D write_size { atlas_ref.getWidth(), atlas_ref.getHeight(), 1 };
     gpu_ref.getQueue().WriteTexture(&destination, atlas_ref.getPixels().data(), atlas_ref.getPixels().size(), &layout, &write_size);
 
-    // Bilinear, clamped: the shader reconstructs sharp edges from the field, so
-    // smooth interpolation between texels is exactly what it wants.
+    // bilinear, clamped: shader reconstructs sharp edges from the field;
+    // smooth interpolation between texels is what it needs
     wgpu::SamplerDescriptor sampler_descriptor {};
     sampler_descriptor.label = "MSDF Sampler";
     sampler_descriptor.addressModeU = wgpu::AddressMode::ClampToEdge;
@@ -135,16 +135,16 @@ bool TextRenderer::initializeResources(const Gpu::Context& gpu_ref,
     wgpu::PipelineLayout pipeline_layout = gpu_ref.getDevice().CreatePipelineLayout(&pipeline_layout_descriptor);
 
     wgpu::VertexAttribute attributes[4] {};
-    attributes[0].format = wgpu::VertexFormat::Float32x3; // anchor
+    attributes[0].format = wgpu::VertexFormat::Float32x3;
     attributes[0].offset = offsetof(Vertex, anchor);
     attributes[0].shaderLocation = 0;
-    attributes[1].format = wgpu::VertexFormat::Float32x2; // offset
+    attributes[1].format = wgpu::VertexFormat::Float32x2;
     attributes[1].offset = offsetof(Vertex, offset);
     attributes[1].shaderLocation = 1;
-    attributes[2].format = wgpu::VertexFormat::Float32x2; // uv
+    attributes[2].format = wgpu::VertexFormat::Float32x2;
     attributes[2].offset = offsetof(Vertex, uv);
     attributes[2].shaderLocation = 2;
-    attributes[3].format = wgpu::VertexFormat::Float32x4; // color
+    attributes[3].format = wgpu::VertexFormat::Float32x4;
     attributes[3].offset = offsetof(Vertex, color);
     attributes[3].shaderLocation = 3;
 
@@ -174,8 +174,8 @@ bool TextRenderer::initializeResources(const Gpu::Context& gpu_ref,
     fragment.targetCount = 1;
     fragment.targets = &color_target;
 
-    // Test against the scene so geometry can occlude labels, but do not write
-    // depth: overlapping translucent glyphs would otherwise clip each other.
+    // depth-tested against the scene, letting geometry occlude labels; not
+    // depth-written, or overlapping translucent glyphs would clip each other
     wgpu::DepthStencilState depth_stencil {};
     depth_stencil.format = depth_format;
     depth_stencil.depthWriteEnabled = wgpu::OptionalBool::False;
@@ -242,8 +242,8 @@ void TextRenderer::addLabel(const std::string& text_ref,
         origin_x = (align_horizontal == AlignHorizontal::Center) ? -width * 0.5f : -width;
     }
 
-    // Vertical pivot, in pixels. Screen Y grows downward, font Y grows upward,
-    // so a shift "up" on screen is a negative offset.
+    // Vertical pivot, in pixels. Screen Y grows downward, font Y grows
+    // upward: a shift "up" on screen is a negative offset.
     f32 origin_y = 0.0f;
     switch (align_vertical) {
     case AlignVertical::Baseline:
@@ -318,8 +318,8 @@ void TextRenderer::ensureVertexCapacity(const Gpu::Context& gpu_ref, size_t vert
         return;
     }
 
-    // Grow geometrically so a viewport that gains labels frame by frame does
-    // not reallocate every frame.
+    // grows geometrically: a viewport that gains labels frame by frame does
+    // not reallocate every frame
     size_t capacity = std::max<size_t>(vertex_capacity_ * 2, 1024);
     while (capacity < vertex_count) {
         capacity *= 2;

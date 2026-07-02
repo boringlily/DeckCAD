@@ -52,10 +52,12 @@ struct AtlasConfiguration {
     u32 max_atlas_size { 4096 };
 };
 
-/// Bakes a font into a multi-channel signed distance field atlas.
-///
-/// FreeType supplies the outlines, msdfgen turns each into an MSDF bitmap, and
-/// a shelf packer arranges them into a single RGBA8 texture ready for upload.
+/**
+ * @brief Bakes a font into a multi-channel signed distance field atlas.
+ * @note FreeType supplies the outlines, msdfgen turns each into an MSDF
+ * bitmap, and a shelf packer arranges them into a single RGBA8 texture ready
+ * for upload.
+ */
 class MsdfAtlas {
 public:
     bool buildAtlas(const std::string& font_path_ref, const AtlasConfiguration& configuration_ref, std::string& out_error_ref);
