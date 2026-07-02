@@ -74,6 +74,9 @@ add_library(${PROJECT_NAME} ${LIB_BUILD_OPTION} ${APP_SRC_FILES} ${APP_INC_DIRS}
 
 target_include_directories(${PROJECT_NAME} PUBLIC ${APP_INC_DIRS})
 target_link_libraries(${PROJECT_NAME} ${LIBS_TO_LINK})
+# Tracy profiler client (inert unless TRACY_ENABLE=ON). Plain signature to match
+# the call above (CMake forbids mixing plain and keyword forms on one target).
+target_link_libraries(${PROJECT_NAME} TracyClient)
 
 if(HOT_RELOAD)
     RANDOMIZE_PDB_NAME(${PROJECT_NAME})

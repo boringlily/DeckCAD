@@ -19,11 +19,11 @@ public:
 
     // Gui data
     CanvasCamera camera {};
-    Toolbox toolbox;
+    Toolbox toolbox {};
     RenderTexture& canvas_texture;
 
     // CommandToolbox command_toolbox;
-    CommandToolbox command_toolbox;
+    CommandToolbox command_toolbox {};
 
     std::vector<Geometry::Sketch> geometry;
 

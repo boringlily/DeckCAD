@@ -51,6 +51,9 @@ endif()
 add_library(GRAPHICS ${LIB_BUILD_OPTION} ${SRC_FILES} ${HEADER_FILES})
 target_include_directories(GRAPHICS PUBLIC ${HEADER_FILES})
 target_link_libraries(GRAPHICS PUBLIC ${LIBS_TO_LINK})
+# Tracy profiler client (inert unless TRACY_ENABLE=ON); PUBLIC so consumers of
+# GRAPHICS inherit the <tracy/Tracy.hpp> include path.
+target_link_libraries(GRAPHICS PUBLIC TracyClient)
 
 include(GenerateExportHeader)
 generate_export_header(GRAPHICS

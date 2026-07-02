@@ -2,6 +2,8 @@ CMakeUserPresets.json
 CMakeUserEnv.json
 
 build/
+build-profile/
+.cpm-cache/
 
 .worktrees
 .vscode

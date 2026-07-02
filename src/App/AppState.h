@@ -102,6 +102,6 @@ private:
 
     AppLayer active_layer { AppLayer::Home_Layer };
 
-    RenderTexture canvas_texture;
+    RenderTexture canvas_texture {};
     SceneList scenes {};
 };

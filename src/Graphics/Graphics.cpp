@@ -18,6 +18,8 @@
 #include "Graphics.h"
 #include "Components.cpp"
 
+#include <tracy/Tracy.hpp>
+
 #define ASSETS_PATH "../assets/"
 #define ICONS_PATH ASSETS_PATH "Icon/"
 #define FONTS_PATH ASSETS_PATH "fonts/Nunito/static/"
@@ -196,6 +198,8 @@ void Graphics::Deactivate()
 GRAPHICS_API
 void Graphics::BeginFrame()
 {
+    ZoneScoped;
+
     Clay_Dimensions newScreenSize = GetScreenSize();
     auto screenSize = newScreenSize;
 
@@ -212,12 +216,17 @@ void Graphics::BeginFrame()
 GRAPHICS_API
 void Graphics::EndFrame()
 {
+    ZoneScoped;
+
     Clay_RenderCommandArray renderCommands = Clay_EndLayout();
     BeginDrawing();
     ClearBackground(BLACK);
 
     Render(renderCommands);
     EndDrawing();
+
+    // Frame boundary: marks one rendered frame for Tracy's frame-time graph.
+    FrameMark;
 }
 
 #ifdef __cplusplus
@@ -226,6 +235,8 @@ void Graphics::EndFrame()
 
 void Graphics::Render(Clay_RenderCommandArray renderCommands)
 {
+    ZoneScoped;
+
     static std::vector<char> tempRenderBuffer(128u);
 
     for (int j = 0; j < renderCommands.length; j++) {

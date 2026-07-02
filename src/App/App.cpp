@@ -4,6 +4,8 @@
 #include "Gui/AppHeader.cpp"
 #include <print>
 
+#include <tracy/Tracy.hpp>
+
 #ifdef __cplusplus
 extern "C" {
 #endif
@@ -11,6 +13,8 @@ extern "C" {
 APP_API
 void AppUpdate(AppState& app)
 {
+    ZoneScoped;
+
     Graphics::BeginFrame();
 
     CLAY(

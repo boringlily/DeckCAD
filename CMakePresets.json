@@ -19,10 +19,28 @@
       "name": "HotReload",
       "hidden": false,
       "generator": "Ninja",
-      "description": "Build with Hot Reload enabled",
+      "description": "Default dev build: hot reload + Tracy (shared TracyClient.dll)",
       "cacheVariables": {
         "CMAKE_BUILD_TYPE": "Debug",
-        "HOT_RELOAD": "ON"
+        "HOT_RELOAD": "ON",
+        "TRACY_ENABLE": "ON",
+        "TRACY_ON_DEMAND": "ON",
+        "TRACY_BUILD_SERVER": "ON"
+      }
+    },
+    {
+      "inherits": [ "Default" ],
+      "name": "Profile",
+      "hidden": false,
+      "generator": "Ninja",
+      "description": "Static build with Tracy profiler instrumentation enabled",
+      "binaryDir": "${sourceDir}/build-profile/",
+      "cacheVariables": {
+        "CMAKE_BUILD_TYPE": "RelWithDebInfo",
+        "HOT_RELOAD": "OFF",
+        "TRACY_ENABLE": "ON",
+        "TRACY_ON_DEMAND": "ON",
+        "TRACY_BUILD_SERVER": "ON"
       }
     }
   ],
@@ -34,6 +52,10 @@
     {
       "name": "HotReload",
       "configurePreset": "HotReload"
+    },
+    {
+      "name": "Profile",
+      "configurePreset": "Profile"
     }
   ],
   "testPresets": [
