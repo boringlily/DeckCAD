@@ -43,8 +43,7 @@ bool Context::initializeResources(const ContextDescriptor& descriptor_ref)
         return false;
     }
 
-    // Order matters: the adapter is picked to be compatible with the surface we
-    // are actually going to render into, so the surface must exist first.
+    // surface must exist first: the adapter is picked to match it
     if (!createSurface(descriptor_ref)) {
         return false;
     }
@@ -65,9 +64,8 @@ bool Context::initializeResources(const ContextDescriptor& descriptor_ref)
 
 bool Context::createSurface(const ContextDescriptor& descriptor_ref)
 {
-    // Dear ImGui's WebGPU backend already carries the per-platform chained
-    // struct plumbing (Metal layer / HWND / xlib / wayland), so we reuse it
-    // rather than maintaining an Objective-C++ file of our own.
+    // reuses Dear ImGui's WebGPU backend for the per-platform surface plumbing
+    // (Metal layer / HWND / xlib / wayland) instead of a separate Objective-C++ file
     ImGui_ImplWGPU_CreateSurfaceInfo surface_information {};
     surface_information.Instance = instance_.Get();
     surface_information.System = descriptor_ref.native_system_ptr;
@@ -91,8 +89,7 @@ bool Context::requestAdapterAndDevice()
     adapter_options.powerPreference = wgpu::PowerPreference::HighPerformance;
 
     bool adapter_done = false;
-    // AllowProcessEvents keeps this portable: no instance features required,
-    // we just pump until the callback lands.
+    // AllowProcessEvents needs no extra instance features; pump until the callback lands
     instance_.RequestAdapter(
         &adapter_options, wgpu::CallbackMode::AllowProcessEvents,
         [&](wgpu::RequestAdapterStatus status, wgpu::Adapter adapter, wgpu::StringView message) {
@@ -121,7 +118,7 @@ bool Context::requestAdapterAndDevice()
     device_descriptor.SetDeviceLostCallback(
         wgpu::CallbackMode::AllowProcessEvents,
         [](const wgpu::Device&, wgpu::DeviceLostReason reason, wgpu::StringView message) {
-            // Destroyed is the normal path during shutdown, so it is not an error.
+            // Destroyed is the normal shutdown path, not an error
             if (reason == wgpu::DeviceLostReason::Destroyed) {
                 return;
             }
@@ -187,8 +184,8 @@ bool Context::beginFrame()
     surface_.GetCurrentTexture(&surface_texture);
 
     if (ImGui_ImplWGPU_IsSurfaceStatusError(static_cast<WGPUSurfaceGetCurrentTextureStatus>(surface_texture.status))) {
-        // Typically the surface went stale behind a resize. Reconfigure and let
-        // the caller skip this frame; the next one will pick up the new size.
+        // surface likely went stale from a resize: reconfigure and skip this
+        // frame, the next one picks up the new size
         configureSurface();
         return false;
     }
