@@ -27,6 +27,10 @@ public:
     static CameraOrientation OrientationForSketchPlane(Geometry::SketchPlane plane);
 
     Camera3D raylib_camera {};
+
+    // Pan mode toggle (Space). A member (not a function-local static) so App.dll
+    // hot-reloads don't reset it mid-session.
+    bool move_in_world_plane { true };
 };
 
 inline CanvasCamera::CanvasCamera()
@@ -92,9 +96,8 @@ inline void CanvasCamera::ProcessPanTilt()
             pitch));
 
     } else if (pan) {
-        static bool moveInWorldPlane { true };
         if (IsKeyPressed(KEY_SPACE))
-            moveInWorldPlane = !moveInWorldPlane;
+            move_in_world_plane = !move_in_world_plane;
 
         float distance = Vector3Distance(raylib_camera.position, { 0, 0, 0 });
         float cameraMoveSpeed = CAMERA_MOUSE_PAN_SENSITIVITY * distance;
@@ -105,7 +108,7 @@ inline void CanvasCamera::ProcessPanTilt()
         if (mouseDelta.y != 0)
             CameraMoveUp(&raylib_camera, moveUp);
         if (mouseDelta.x != 0)
-            CameraMoveRight(&raylib_camera, -moveRight, moveInWorldPlane);
+            CameraMoveRight(&raylib_camera, -moveRight, move_in_world_plane);
     }
     float zoom = raylib_camera.projection == CAMERA_PERSPECTIVE ? -GetMouseWheelMove() : 0;
     CameraMoveToTarget(&raylib_camera, zoom);

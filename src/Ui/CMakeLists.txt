@@ -33,9 +33,30 @@ else()
     set(UI_ENABLE_SVG OFF)
 endif()
 
-add_library(UI STATIC ${UI_SRC})
+# Under HOT_RELOAD the app is split across Main.exe + GRAPHICS.dll + App.dll, and
+# both DLLs call into the framework. UI must then be a single shared DLL so there
+# is exactly ONE g_current / context: if it were static, each DLL would carry its
+# own copy of the framework's internal state (same multi-instance hazard as
+# TracyClient). Mirrors the GRAPHICS pattern.
+if(HOT_RELOAD)
+    set(LIB_BUILD_OPTION SHARED)
+else()
+    set(LIB_BUILD_OPTION STATIC)
+endif()
+
+add_library(UI ${LIB_BUILD_OPTION} ${UI_SRC})
 target_include_directories(UI PUBLIC ${UI_INC})
 target_link_libraries(UI PUBLIC raylib)
+
+include(GenerateExportHeader)
+generate_export_header(UI
+    EXPORT_FILE_NAME "${CMAKE_CURRENT_SOURCE_DIR}/Ui.export.h"
+    INCLUDE_GUARD_NAME "UI_API_H"
+    EXPORT_MACRO_NAME "UI_API"
+    NO_EXPORT_MACRO_NAME "UI_NO_API"
+    DEPRECATED_MACRO_NAME "UI_API_DEPRECATED"
+    NO_DEPRECATED_MACRO_NAME "UI_API_NO_DEPRECATED"
+)
 
 if(UI_ENABLE_SVG)
     target_compile_definitions(UI PRIVATE UI_ENABLE_SVG)

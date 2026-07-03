@@ -113,11 +113,8 @@ static std::optional<Geometry::SketchPlane> ComputeHoveredOriginPlane(Ray ray, f
 }
 
 // ──────────────────────────────────────────────────────────────────────────────
-// Per-frame state
-
-static bool s_was_sketch_active { false };
-static bool s_was_sketch_valid { false };
-static std::optional<Geometry::SketchPlane> s_hovered_plane;
+// Per-frame interaction state lives on the Scene (was_sketch_active /
+// was_sketch_valid / hovered_plane) so App.dll hot-reloads don't reset it.
 
 // ──────────────────────────────────────────────────────────────────────────────
 
@@ -138,13 +135,13 @@ static void CanvasRenderToTexture(Scene& scene)
     bool pointer_over = Clay_PointerOver(canvasId);
 
     // Camera snap to the confirmed sketch plane; restore when sketch exits.
-    if (sketch_valid && !s_was_sketch_valid)
+    if (sketch_valid && !scene.was_sketch_valid)
         scene.camera.SetOrientation(CanvasCamera::OrientationForSketchPlane(*active_plane));
-    if (!is_sketch_active && s_was_sketch_active)
+    if (!is_sketch_active && scene.was_sketch_active)
         scene.camera.SetOrientation(CanvasCamera::CameraOrientation::Isometric_XYZ);
 
-    s_was_sketch_active = is_sketch_active;
-    s_was_sketch_valid = sketch_valid;
+    scene.was_sketch_active = is_sketch_active;
+    scene.was_sketch_valid = sketch_valid;
 
     // Camera input: 2D lock only once the sketch plane is confirmed.
     if (pointer_over) {
@@ -155,16 +152,16 @@ static void CanvasRenderToTexture(Scene& scene)
     }
 
     // ── Plane selection: hover detection + click-to-confirm ──────────────────
-    s_hovered_plane = std::nullopt;
+    scene.hovered_plane = std::nullopt;
     if (is_sketch_active && !sketch_valid && pointer_over) {
         Ray ray = GetScreenToWorldRay(GetMousePosition(), scene.camera.raylib_camera);
-        s_hovered_plane = ComputeHoveredOriginPlane(ray, ORIGIN_PLANE_EXTENT);
+        scene.hovered_plane = ComputeHoveredOriginPlane(ray, ORIGIN_PLANE_EXTENT);
 
-        if (s_hovered_plane.has_value() && IsMouseButtonPressed(MOUSE_BUTTON_LEFT)) {
+        if (scene.hovered_plane.has_value() && IsMouseButtonPressed(MOUSE_BUTTON_LEFT)) {
             auto& part_opt = scene.command_toolbox.GetActivePartCommand();
             if (part_opt.has_value()) {
                 if (auto* cmd = part_opt.value().As<CreateSketchCommand>())
-                    cmd->plane = *s_hovered_plane;
+                    cmd->plane = *scene.hovered_plane;
             }
         }
     }
@@ -246,11 +243,11 @@ static void CanvasRenderToTexture(Scene& scene)
         // Plane selection mode: all three origin planes visible and clickable.
         // The hovered plane is highlighted; others are dimmed.
         UI::DrawOriginPlane(UI::OriginPlane::XY, { 0, 0, 0 }, ORIGIN_PLANE_SIZE,
-            s_hovered_plane == Geometry::SketchPlane::XY ? PLANE_COLOR_HOVER : PLANE_COLOR_XY_DIM);
+            scene.hovered_plane == Geometry::SketchPlane::XY ? PLANE_COLOR_HOVER : PLANE_COLOR_XY_DIM);
         UI::DrawOriginPlane(UI::OriginPlane::XZ, { 0, 0, 0 }, ORIGIN_PLANE_SIZE,
-            s_hovered_plane == Geometry::SketchPlane::XZ ? PLANE_COLOR_HOVER : PLANE_COLOR_XZ_DIM);
+            scene.hovered_plane == Geometry::SketchPlane::XZ ? PLANE_COLOR_HOVER : PLANE_COLOR_XZ_DIM);
         UI::DrawOriginPlane(UI::OriginPlane::YZ, { 0, 0, 0 }, ORIGIN_PLANE_SIZE,
-            s_hovered_plane == Geometry::SketchPlane::YZ ? PLANE_COLOR_HOVER : PLANE_COLOR_YZ_DIM);
+            scene.hovered_plane == Geometry::SketchPlane::YZ ? PLANE_COLOR_HOVER : PLANE_COLOR_YZ_DIM);
         UI::DrawGrid(UI::OriginPlane::XZ, 100, 1.0f);
 
     } else {

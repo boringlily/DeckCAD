@@ -113,8 +113,9 @@ else()
 endif()
 add_subdirectory(${TRACY_DIR})
 add_subdirectory(${COMMON_DIR})
-add_subdirectory(${GRAPHICS_DIR})
+# UI before GRAPHICS/APP: both link against it (dual Clay/Ui path during the migration).
 add_subdirectory(${UI_DIR})
+add_subdirectory(${GRAPHICS_DIR})
 add_subdirectory(${APP_DIR})
 add_subdirectory(${MAIN_DIR})
 

@@ -8,7 +8,7 @@
       "inherits": [ "user_clang_paths" ],
       "generator": "Ninja",
       "description": "Default staticly build",
-      "binaryDir": "${sourceDir}/build/",
+      "binaryDir": "${sourceDir}/build/${presetName}",
       "cacheVariables": {
         "CMAKE_C_COMPILER": "$env{USER_CLANG_20_PATH}",
         "CMAKE_CXX_COMPILER": "$env{USER_CLANG++_20_PATH}"
@@ -23,9 +23,9 @@
       "cacheVariables": {
         "CMAKE_BUILD_TYPE": "Debug",
         "HOT_RELOAD": "ON",
-        "TRACY_ENABLE": "ON",
-        "TRACY_ON_DEMAND": "ON",
-        "TRACY_BUILD_SERVER": "ON"
+        "TRACY_ENABLE": "OFF",
+        "TRACY_ON_DEMAND": "OFF",
+        "TRACY_BUILD_SERVER": "OFF"
       }
     },
     {

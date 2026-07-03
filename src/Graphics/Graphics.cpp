@@ -20,6 +20,8 @@
 
 #include <tracy/Tracy.hpp>
 
+#include "Ui.h"
+
 #define ASSETS_PATH "../assets/"
 #define ICONS_PATH ASSETS_PATH "Icon/"
 #define FONTS_PATH ASSETS_PATH "fonts/Nunito/static/"
@@ -86,6 +88,55 @@ void LoadAppIcons()
 Texture& GetIcon(IconId icon_id)
 {
     return LoadedIcons[icon_id];
+}
+
+// ─── src/Ui migration runtime ─────────────────────────────────────────────────
+// The Ui context, its backing buffer, the backend state (fonts/icons), and the
+// path flag are owned by the Graphics module so they survive App.dll hot-reloads
+// (same reason Clay's arena lives here). Fonts are shared with the Clay path;
+// icons load separately because the Ui backend prefers the SVG assets.
+static std::array<u8, 1u << 22> uiMemory; // 4 MB caller-owned arena buffer.
+static Ui::Context uiContext;
+static Ui::Raylib::State uiBackendState;
+static std::array<Texture2D, IconNames.size()> uiIcons;
+static bool uiPathActive { false };
+static bool uiReady { false };
+
+static void LoadUiIcons()
+{
+    u8 index { 0 };
+    for (auto& name : IconNames) {
+        static std::array<char, 60> iconPath;
+        // Base path without extension: LoadIcon tries <base>.svg then <base>.png.
+        snprintf(iconPath.data(), iconPath.size(), ICONS_PATH "%s", name.data());
+        uiIcons[index] = Ui::Raylib::LoadIcon(iconPath.data(), 48);
+        index++;
+    }
+}
+
+static Ui::UiColor ToUiColor(StyleColor c)
+{
+    return Ui::UiColor { c.red, c.green, c.blue, c.alpha };
+}
+
+// Translate the Clay-era GuiTheme into the Ui backend's ColorScheme so both
+// paths render with identical colors during the migration.
+static Ui::ColorScheme MakeUiColorScheme()
+{
+    Ui::ColorScheme s {};
+    s.bgDark = ToUiColor(GuiTheme.BgDark);
+    s.bgBase = ToUiColor(GuiTheme.BgBase);
+    s.bgLight = ToUiColor(GuiTheme.BgLight);
+    s.textBase = ToUiColor(GuiTheme.TextBase);
+    s.textMuted = ToUiColor(GuiTheme.TextMuted);
+    s.accentPrimary = ToUiColor(GuiTheme.AccentPrimary);
+    s.accentSecondary = ToUiColor(GuiTheme.AccentSecondary);
+    s.borderBase = ToUiColor(GuiTheme.BorderBase);
+    s.alertDanger = ToUiColor(GuiTheme.AlertDanger);
+    s.alertWarning = ToUiColor(GuiTheme.AlertWarning);
+    s.alertSuccess = ToUiColor(GuiTheme.AlertSuccess);
+    s.alertInfo = ToUiColor(GuiTheme.AlertInfo);
+    return s;
 }
 
 #define CLAY_RECTANGLE_TO_RAYLIB_RECTANGLE(rectangle) \
@@ -168,6 +219,7 @@ void Graphics::Initialize()
     SetConfigFlags(
         FLAG_WINDOW_RESIZABLE
         | FLAG_WINDOW_HIGHDPI
+        | FLAG_WINDOW_HIGHDPI
         | FLAG_MSAA_4X_HINT
         | FLAG_VSYNC_HINT);
 
@@ -187,6 +239,26 @@ void Graphics::Initialize()
     LoadAppFonts();
     LoadAppIcons();
     Clay_SetMeasureTextFunction(Raylib_MeasureText, loadedFonts.data());
+
+    // src/Ui runtime (migration dual path). Reuses the fonts loaded above.
+    LoadUiIcons();
+    uiBackendState = Ui::Raylib::State {
+        loadedFonts.data(), static_cast<u32>(loadedFonts.size()),
+        uiIcons.data(), static_cast<u32>(uiIcons.size())
+    };
+    Ui::UiInitDesc uiDesc {};
+    uiDesc.buffer = uiMemory.data();
+    uiDesc.bufferBytes = uiMemory.size();
+    uiDesc.maxNodes = 4096;
+    uiDesc.maxCommands = 8192;
+    uiDesc.maxScrollStates = 256;
+    uiDesc.backend = Ui::Raylib::MakeBackend(&uiBackendState, MakeUiColorScheme());
+    uiReady = uiContext.Init(uiDesc);
+    if (uiReady) {
+        Ui::SetCurrent(&uiContext);
+    } else {
+        printf("Ui context init failed (buffer too small?); staying on the Clay path.\n");
+    }
 }
 
 GRAPHICS_API
@@ -199,6 +271,24 @@ GRAPHICS_API
 void Graphics::BeginFrame()
 {
     ZoneScoped;
+
+    // Migration dev toggle: F12 flips between the Clay tree and the src/Ui tree.
+    if (uiReady && IsKeyPressed(KEY_F12)) {
+        uiPathActive = !uiPathActive;
+    }
+
+    if (uiPathActive) {
+        Vector2 mouse = GetMousePosition();
+        Vector2 wheel = GetMouseWheelMoveV();
+        Ui::PointerState pointer {};
+        pointer.pos = { mouse.x, mouse.y };
+        pointer.wheel = { wheel.x, wheel.y };
+        pointer.down = IsMouseButtonDown(MOUSE_BUTTON_LEFT);
+        pointer.pressed = IsMouseButtonPressed(MOUSE_BUTTON_LEFT);
+        pointer.released = IsMouseButtonReleased(MOUSE_BUTTON_LEFT);
+        Ui::BeginFrame({ static_cast<f32>(GetScreenWidth()), static_cast<f32>(GetScreenHeight()) }, pointer);
+        return;
+    }
 
     Clay_Dimensions newScreenSize = GetScreenSize();
     auto screenSize = newScreenSize;
@@ -218,6 +308,19 @@ void Graphics::EndFrame()
 {
     ZoneScoped;
 
+    if (uiPathActive) {
+        // Ui::EndFrame dispatches draw calls immediately, so it must run inside
+        // the raylib frame. Zones/FrameMark stay identical to the Clay path so
+        // Tracy comparisons against the baseline stay apples-to-apples.
+        BeginDrawing();
+        ClearBackground(BLACK);
+        Ui::EndFrame(); // solve -> resolve input -> emit -> dispatch.
+        EndDrawing();
+
+        FrameMark;
+        return;
+    }
+
     Clay_RenderCommandArray renderCommands = Clay_EndLayout();
     BeginDrawing();
     ClearBackground(BLACK);
@@ -227,6 +330,22 @@ void Graphics::EndFrame()
 
     // Frame boundary: marks one rendered frame for Tracy's frame-time graph.
     FrameMark;
+}
+
+GRAPHICS_API
+bool Graphics::IsUiPathActive()
+{
+    return uiPathActive;
+}
+
+GRAPHICS_API
+void Graphics::OnAppReloaded()
+{
+    // Ids can churn across a reload until every element uses content-stable
+    // NameIds; drop stale per-id scroll offsets so the table can't silently fill.
+    if (uiReady) {
+        Ui::ClearScrollStates(uiContext);
+    }
 }
 
 #ifdef __cplusplus

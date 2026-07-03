@@ -20,6 +20,7 @@ ${CLAY_DIR}
 
 set(LIBS_TO_LINK
 raylib
+UI
 )
 
 if(WIN32)

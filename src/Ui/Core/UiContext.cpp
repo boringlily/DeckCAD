@@ -356,4 +356,9 @@ ScrollState* AcquireScrollState(Context& ctx, UiId id)
     return nullptr;
 }
 
+void ClearScrollStates(Context& ctx)
+{
+    ctx.scrollCount = 0;
+}
+
 } // namespace Ui

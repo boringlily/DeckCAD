@@ -17,6 +17,7 @@ void Update(AppState& app_memory)
 #ifdef __HOT_RELOAD_ENABLED__
     if (AppLib.TryReload()) {
         std::println("----- Hot Reload {} -----", AppLib.reload_count);
+        Graphics::OnAppReloaded();
     }
 
     AppUpdateFunction(app_memory);
