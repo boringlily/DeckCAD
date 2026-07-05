@@ -3,41 +3,27 @@
   "include": ["CMakeUserEnv.json"],
   "configurePresets": [
     {
-      "name": "Default",
+      "name": "static",
       "hidden": false,
       "inherits": [ "user_clang_paths" ],
       "generator": "Ninja",
       "description": "Default staticly build",
       "binaryDir": "${sourceDir}/build/${presetName}",
       "cacheVariables": {
+        "CMAKE_BUILD_TYPE": "Release",
         "CMAKE_C_COMPILER": "$env{USER_CLANG_20_PATH}",
         "CMAKE_CXX_COMPILER": "$env{USER_CLANG++_20_PATH}"
       }
     },
     {
-      "inherits": [ "Default" ],
-      "name": "HotReload",
+      "inherits": [ "static" ],
+      "name": "hotreload",
       "hidden": false,
       "generator": "Ninja",
       "description": "Default dev build: hot reload + Tracy (shared TracyClient.dll)",
       "cacheVariables": {
         "CMAKE_BUILD_TYPE": "Debug",
         "HOT_RELOAD": "ON",
-        "TRACY_ENABLE": "OFF",
-        "TRACY_ON_DEMAND": "OFF",
-        "TRACY_BUILD_SERVER": "OFF"
-      }
-    },
-    {
-      "inherits": [ "Default" ],
-      "name": "Profile",
-      "hidden": false,
-      "generator": "Ninja",
-      "description": "Static build with Tracy profiler instrumentation enabled",
-      "binaryDir": "${sourceDir}/build-profile/",
-      "cacheVariables": {
-        "CMAKE_BUILD_TYPE": "RelWithDebInfo",
-        "HOT_RELOAD": "OFF",
         "TRACY_ENABLE": "ON",
         "TRACY_ON_DEMAND": "ON",
         "TRACY_BUILD_SERVER": "ON"
@@ -46,22 +32,19 @@
   ],
   "buildPresets": [
     {
-      "name": "Default",
-      "configurePreset": "Default"
+      "name": "static",
+      "configurePreset": "static"
     },
     {
-      "name": "HotReload",
-      "configurePreset": "HotReload"
-    },
-    {
-      "name": "Profile",
-      "configurePreset": "Profile"
+      "name": "hotreload",
+      "configurePreset": "hotreload"
     }
+    
   ],
   "testPresets": [
     {
       "name": "Test",
-      "configurePreset": "Default"
+      "configurePreset": "static"
     }
   ]
 }

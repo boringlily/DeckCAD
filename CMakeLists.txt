@@ -36,6 +36,16 @@ option(HOT_RELOAD "Enable a dynamic build with Runtime loading of the applicatio
 # full speed when nobody is profiling.
 option(TRACY_ENABLE "Enable Tracy profiler instrumentation" ON)
 option(TRACY_ON_DEMAND "Tracy: only collect data while a server is connected" ON)
+# CRITICAL on Windows: disable Tracy's ETW system tracing (CPU sampling / context
+# switches / GPU VSync capture). It needs admin and, when the app is force-killed
+# instead of exiting cleanly, LEAKS a kernel ETW session ("NT Kernel Logger" +
+# "TracyVsync") that keeps tracing the GPU driver's present path (DxgKrnl VSync)
+# with a dead consumer — wedging the GPU for EVERY app (even non-Tracy builds,
+# raylib's example.exe, etc.) until the session is stopped or the machine reboots.
+# We only need zones/FrameMark, so keep systrace off. FORCEd (not option()) so a
+# stale cache value from Tracy's own set_option can't silently re-enable the wedge.
+# See TracySysTrace.cpp: StartSingletonKernelLoggerSession + "TracyVsync".
+set(TRACY_NO_SYSTEM_TRACING ON CACHE BOOL "Disable Tracy ETW system tracing (avoids the force-kill GPU wedge)" FORCE)
 # Builds the Tracy profiler GUI (the "server") from source as the `tracy-server`
 # target. Heavy (pulls glfw/freetype/capstone/imgui/... via CPM) so it is OFF by
 # default and EXCLUDE_FROM_ALL even when ON — build it explicitly with
