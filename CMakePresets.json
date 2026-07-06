@@ -10,9 +10,13 @@
       "description": "Default staticly build",
       "binaryDir": "${sourceDir}/build/${presetName}",
       "cacheVariables": {
-        "CMAKE_BUILD_TYPE": "Release",
         "CMAKE_C_COMPILER": "$env{USER_CLANG_20_PATH}",
-        "CMAKE_CXX_COMPILER": "$env{USER_CLANG++_20_PATH}"
+        "CMAKE_CXX_COMPILER": "$env{USER_CLANG++_20_PATH}",
+        "CMAKE_BUILD_TYPE": "Release",
+        "HOT_RELOAD": "OFF",
+        "TRACY_ENABLE": "OFF",
+        "TRACY_ON_DEMAND": "OFF",
+        "TRACY_BUILD_SERVER": "OFF"
       }
     },
     {

@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.15)
-project(DeckCAD)
+project("DeckCAD")
 
 # Custom UI Settings.
 set(BUILD_UI_DEMO ON)
@@ -60,6 +60,20 @@ set(WITH_PIC OFF)
 set(BUILD_SHARED_LIBS OFF)
 set(SUPPORT_MODULE_RAUDIO OFF)
 set(SUPPORT_FILEFORMAT_BMP ON)
+# raylib's own CMakeCache entries for these are STICKY: once a build directory's
+# cache is first populated (e.g. an old configure, or an old raylib release tag
+# fetched via projects/CMake's FetchContent), later reconfigures never reset them
+# even after CMakeLists.txt/the raylib pin changes — only a deleted build dir
+# would. A build directory (`build/hotreload`) was found with SUPPORT_CUSTOM_
+# FRAME_CONTROL stuck ON from stale cache: raylib's EndDrawing() then skips BOTH
+# SwapScreenBuffer() AND PollInputEvents() entirely (see rcore.c), so the app
+# renders (Tracy zones/FrameMark keep firing, GPU 3D engine stays busy) but never
+# presents a frame or pumps its window messages — Windows shows a white "Not
+# Responding" ghost window while everything looks fine in a profiler. Setting
+# these as plain (non-CACHE) variables here, like the options above, shadows any
+# stale cached value so raylib's own option() calls can't silently disagree.
+set(SUPPORT_CUSTOM_FRAME_CONTROL OFF)
+set(SUPPORT_BUSY_WAIT_LOOP OFF)
 
 
 if(HOT_RELOAD)

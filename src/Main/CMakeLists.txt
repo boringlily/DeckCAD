@@ -1,7 +1,5 @@
 cmake_minimum_required(VERSION 3.15)
 
-project("Main")
-
 set(MAIN_SRC_FILES
 ${SRC_DIR}/Main/Main.cpp
 )
