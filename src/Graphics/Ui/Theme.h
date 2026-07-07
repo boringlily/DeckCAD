@@ -4,8 +4,11 @@
 
 namespace Ui {
 
-/// Colour token for the UI. Authored as 0-255 sRGB bytes to keep the palette
-/// readable, converted to the 0-1 floats ImGui wants at use sites.
+/**
+ * @brief Colour token for the UI.
+ * @note Authored as 0-255 sRGB bytes to keep the palette readable; converted to
+ * 0-1 floats where ImGui needs them.
+ */
 struct Color {
     u8 r { 255 }, g { 255 }, b { 255 }, a { 255 };
 
@@ -17,7 +20,7 @@ struct Color {
         , a { alpha }
     {
     }
-    /// Grey shorthand.
+    /// Constructs an opaque grey from a single intensity value.
     constexpr explicit Color(u8 value)
         : r { value }
         , g { value }
@@ -34,8 +37,11 @@ struct Color {
     constexpr Color withAlpha(u8 alpha) const { return Color { r, g, b, alpha }; }
 };
 
-/// Semantic palette. Carried over from the original Clay theme so the app keeps
-/// its identity through the renderer change.
+/**
+ * @brief Semantic color palette for the UI.
+ * @note Carried over from the original Clay theme; keeps the app's visual identity
+ * through the renderer change.
+ */
 struct Palette {
     Color background_dark;
     Color background_base;
@@ -87,7 +93,7 @@ inline constexpr Palette DARK_THEME {
     .viewport_background = Color { 41, 42, 48 },
 };
 
-/// The palette currently in effect. Mutable so a settings panel can swap it.
+/// The palette currently in effect. A settings panel can mutate it at runtime.
 inline Palette gui_theme = DARK_THEME;
 
 } // namespace Ui

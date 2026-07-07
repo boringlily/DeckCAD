@@ -6,7 +6,10 @@
 
 namespace Ui {
 
-// Kept as an X-macro so the enum and the filename table can never drift apart.
+// X-macro keeps the enum and the filename table in sync. Names are PascalCase,
+// not the usual CAPITAL_SNAKE, because Icons.cpp stringifies them directly into
+// SVG filenames — renaming an enumerator without renaming its .svg breaks icon
+// loading.
 #define DECKCAD_ICON_LIST(DO) \
     DO(Check)                 \
     DO(Exit)                  \
@@ -27,22 +30,30 @@ enum class IconId : u8 {
 
 inline constexpr size_t ICON_COUNT = static_cast<size_t>(IconId::Count);
 
-/// Rasterizes the SVG icon set into a single GPU atlas.
-///
-/// Vector sources are rasterized at the display's real pixel density, so icons
-/// stay crisp on HiDPI screens instead of being an upscaled bitmap.
+/**
+ * @brief Rasterizes the SVG icon set into a single GPU atlas.
+ * @note Vector sources are rasterized at the display's real pixel density, so icons
+ * stay crisp on HiDPI screens instead of being an upscaled bitmap.
+ */
 class IconSet {
 public:
-    /// @param display_scale physical pixels per logical point (2.0 on Retina).
-    /// @param logical_size  icon edge length in logical points.
+    /**
+     * @brief Rasterizes the SVG icon set into the GPU atlas texture.
+     * @param display_scale Physical pixels per logical point (2.0 on Retina).
+     * @param logical_size Icon edge length in logical points.
+     */
     bool initializeResources(const Gpu::Context& gpu_ref, f32 display_scale, u32 logical_size, std::string& out_error_ref);
     void shutdownResources();
 
-    /// Raw WebGPU texture view, which is what ImGui's WebGPU backend uses as
-    /// its texture identifier. Cast through intptr_t at the call site.
+    /**
+     * @brief Returns the icon atlas's texture view, for ImGui to bind as a texture.
+     * @note This is the raw WebGPU texture view ImGui's WebGPU backend expects as a
+     * texture identifier. Cast it through intptr_t at the call site, not
+     * reinterpret_cast — see Ui::ToImTextureID.
+     */
     void* getTextureHandle() const;
 
-    /// UV rectangle of one icon within the atlas.
+    /// Returns the icon's UV rectangle within the atlas.
     void getUvRange(IconId icon, f32 out_uv0[2], f32 out_uv1[2]) const;
 
     u32 getLogicalSize() const { return logical_size_; }
