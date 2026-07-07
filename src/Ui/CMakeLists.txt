@@ -49,8 +49,14 @@ target_include_directories(UI PUBLIC ${UI_INC})
 target_link_libraries(UI PUBLIC raylib)
 
 include(GenerateExportHeader)
+# The generated Ui.export.h goes in this build's ${CMAKE_BINARY_DIR}/generated dir
+# (put on every target's include path globally in the root CMakeLists), NOT the
+# source tree: its contents differ between a SHARED build (dllexport/dllimport) and
+# a STATIC build (empty UI_API), so a single source-tree copy let build/hotreload
+# and build/static clobber each other's exports and break the app link. Per-build
+# generated dirs keep the two configurations independent.
 generate_export_header(UI
-    EXPORT_FILE_NAME "${CMAKE_CURRENT_SOURCE_DIR}/Ui.export.h"
+    EXPORT_FILE_NAME "${CMAKE_BINARY_DIR}/generated/Ui.export.h"
     INCLUDE_GUARD_NAME "UI_API_H"
     EXPORT_MACRO_NAME "UI_API"
     NO_EXPORT_MACRO_NAME "UI_NO_API"
@@ -85,4 +91,6 @@ if(BUILD_UI_DEMO)
 
   add_executable(UiDemo ${UI_DIR}/Demo/UiDemo.cpp)
   target_link_libraries(UiDemo PRIVATE ${UI_DEMO_LIBS})
+  # --shot screenshots go to a dedicated dir under the build tree, not the CWD.
+  target_compile_definitions(UiDemo PRIVATE UIDEMO_SHOT_DIR="${CMAKE_BINARY_DIR}/screenshots")
 endif()

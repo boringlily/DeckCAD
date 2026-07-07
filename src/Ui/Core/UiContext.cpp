@@ -244,6 +244,30 @@ bool IsHovered(UiId id)
     return ctx && id != kNullId && ctx->input.hotId == id;
 }
 
+// True when the hot node is `id` OR any structural ancestor of it. Lets a
+// container report hovered while the pointer is over one of its own child
+// controls, so revealing a hit-testable child (e.g. a row's delete button) never
+// steals the container's hover and triggers a show/hide flip-flop. Clicks stay
+// exact (IsClicked), so this only broadens the visual/hover query, not input
+// dispatch. Consults the ancestor-id snapshot captured by ResolveInput (see
+// InputState::hotPath) rather than the per-frame node array.
+bool IsHoverWithin(UiId id)
+{
+    Context* ctx = g_current;
+    if (!ctx || id == kNullId) {
+        return false;
+    }
+    if (ctx->input.hotId == id) {
+        return true; // fast path: pointer directly over the container.
+    }
+    for (u32 k = 0; k < ctx->input.hotPathCount; ++k) {
+        if (ctx->input.hotPath[k] == id) {
+            return true;
+        }
+    }
+    return false;
+}
+
 bool IsClicked(UiId id)
 {
     Context* ctx = g_current;

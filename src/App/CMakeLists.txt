@@ -84,8 +84,11 @@ if(HOT_RELOAD)
 endif()
 
 include(GenerateExportHeader)
+# Emit into this build's ${CMAKE_BINARY_DIR}/generated dir (globally on the include
+# path), not the source tree, so SHARED and STATIC builds don't clobber each other's
+# export macros. See the UI CMakeLists for the full rationale.
 generate_export_header("${PROJECT_NAME}"
-    EXPORT_FILE_NAME "${CMAKE_CURRENT_SOURCE_DIR}/App.export.h"
+    EXPORT_FILE_NAME "${CMAKE_BINARY_DIR}/generated/App.export.h"
     INCLUDE_GUARD_NAME "APP_API_H"
     EXPORT_MACRO_NAME "APP_API"
     NO_EXPORT_MACRO_NAME "APP_NO_API"

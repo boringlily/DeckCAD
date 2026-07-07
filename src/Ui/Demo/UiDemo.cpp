@@ -8,9 +8,31 @@
 #include <array>
 #include <cstdio>
 #include <cstring>
+#include <filesystem>
+#include <string>
 #include <string_view>
+#include <system_error>
 
 using namespace Ui;
+
+// Directory for --shot screenshots, injected by CMake to a path under the build
+// tree. Fallback to the working directory if built without the define.
+#ifndef UIDEMO_SHOT_DIR
+#define UIDEMO_SHOT_DIR "."
+#endif
+
+// Write the current frame to UIDEMO_SHOT_DIR/<name>, creating the directory if
+// needed. Bypasses raylib's TakeScreenshot, which writes relative to the process
+// working directory (so shots would otherwise land wherever the exe was launched).
+static void SaveShot(const char* name)
+{
+    std::error_code ec;
+    std::filesystem::create_directories(UIDEMO_SHOT_DIR, ec);
+    std::string path = std::string(UIDEMO_SHOT_DIR) + "/" + name;
+    Image img = LoadImageFromScreen();
+    ExportImage(img, path.c_str());
+    UnloadImage(img);
+}
 
 // ----- App-side icon ids (order matches the textures loaded below) -----------
 enum DemoIcon : s32 { Icon_Home = 0,
@@ -443,10 +465,10 @@ int main(int argc, char** argv)
                 static_cast<unsigned long long>(ctx.transient.highWater));
         }
         if (shotMode && frame == 3) {
-            TakeScreenshot("ui_demo_widgets.png");
+            SaveShot("ui_demo_widgets.png");
         }
         if (shotMode && frame == 7) {
-            TakeScreenshot("ui_demo_modal.png");
+            SaveShot("ui_demo_modal.png");
         }
         if (shotMode && frame == 11) {
             std::printf("[checkbox] snap = %s (expected ON)\n", state.snap ? "ON" : "OFF");
@@ -459,11 +481,11 @@ int main(int argc, char** argv)
         }
         if (shotMode && frame == 34) {
             std::printf("[selection] name = \"%s\", first 6 chars highlighted\n", state.name);
-            TakeScreenshot("ui_demo_selection.png");
+            SaveShot("ui_demo_selection.png");
         }
         if (shotMode && frame == 38) {
             std::printf("[clipboard] name = \"%s\" (expected to end with \"%.6s\")\n", state.name, state.name);
-            TakeScreenshot("ui_demo_clipboard.png");
+            SaveShot("ui_demo_clipboard.png");
             break;
         }
         frame++;

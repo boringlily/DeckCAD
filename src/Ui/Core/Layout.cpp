@@ -147,16 +147,42 @@ namespace {
             used += n.cfg.gap * static_cast<f32>(count - 1);
         }
 
-        // Distribute leftover main space equally among Grow children.
+        // Distribute leftover main space to Grow children. When a child clamps at
+        // its max, its unused share returns to the pool and is redistributed to the
+        // still-flexible children (iterative flexbox grow) — so an unbounded sibling
+        // absorbs a maxed sibling's overflow instead of leaving a gap. Bounded by
+        // growCount rounds: each round clamps >=1 child or exhausts the free space.
         f32 free = innerMain - used;
         if (free > 0.0f && growCount > 0) {
-            f32 each = free / static_cast<f32>(growCount);
-            for (u32 c = n.firstChild; c != kNullIndex; c = ctx.nodes[c].nextSibling) {
-                UiNode& child = ctx.nodes[c];
-                const SizeAxis& childMain = (n.cfg.direction == Direction::LeftToRight) ? child.cfg.sizing.w : child.cfg.sizing.h;
-                if (childMain.kind == SizeKind::Grow) {
-                    f32 m = Clamp(MainOf(n, child.measured) + each, childMain.min, childMain.max);
+            for (u32 round = 0; round < growCount && free > 0.5f; ++round) {
+                // Count children that can still grow (Grow, not yet at max).
+                u32 flex = 0;
+                for (u32 c = n.firstChild; c != kNullIndex; c = ctx.nodes[c].nextSibling) {
+                    UiNode& child = ctx.nodes[c];
+                    const SizeAxis& cm = (n.cfg.direction == Direction::LeftToRight) ? child.cfg.sizing.w : child.cfg.sizing.h;
+                    if (cm.kind == SizeKind::Grow && (cm.max <= 0.0f || MainOf(n, child.measured) < cm.max)) {
+                        flex++;
+                    }
+                }
+                if (flex == 0) {
+                    break;
+                }
+                f32 each = free / static_cast<f32>(flex);
+                f32 progressed = 0;
+                for (u32 c = n.firstChild; c != kNullIndex; c = ctx.nodes[c].nextSibling) {
+                    UiNode& child = ctx.nodes[c];
+                    const SizeAxis& cm = (n.cfg.direction == Direction::LeftToRight) ? child.cfg.sizing.w : child.cfg.sizing.h;
+                    if (cm.kind != SizeKind::Grow || (cm.max > 0.0f && MainOf(n, child.measured) >= cm.max)) {
+                        continue; // fixed/fit, or already clamped at max.
+                    }
+                    f32 cur = MainOf(n, child.measured);
+                    f32 m = Clamp(cur + each, cm.min, cm.max);
                     child.measured = FromMainCross(n, m, CrossOf(n, child.measured));
+                    progressed += m - cur;
+                }
+                free -= progressed;
+                if (progressed < 0.5f) {
+                    break; // rounding stall — avoid spinning.
                 }
             }
         }

@@ -57,8 +57,11 @@ target_link_libraries(GRAPHICS PUBLIC ${LIBS_TO_LINK})
 target_link_libraries(GRAPHICS PUBLIC TracyClient)
 
 include(GenerateExportHeader)
+# Emit into this build's ${CMAKE_BINARY_DIR}/generated dir (globally on the include
+# path), not the source tree, so SHARED and STATIC builds don't clobber each other's
+# export macros. See the UI CMakeLists for the full rationale.
 generate_export_header(GRAPHICS
-    EXPORT_FILE_NAME "${CMAKE_CURRENT_SOURCE_DIR}/Graphics.export.h"
+    EXPORT_FILE_NAME "${CMAKE_BINARY_DIR}/generated/Graphics.export.h"
     INCLUDE_GUARD_NAME "GRAPHICS_API_H"
     EXPORT_MACRO_NAME "GRAPHICS_API"
     NO_EXPORT_MACRO_NAME "GRAPHICS_NO_API"

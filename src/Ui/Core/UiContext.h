@@ -58,6 +58,16 @@ struct InputState {
     UiId hotId { kNullId }; // element under the pointer (resolved at EndFrame).
     u16 hotLayer { 0 }; // layer of the hovered element.
     Rect hotRect {}; // rect of the hovered element (for click-to-position in inputs).
+    // Snapshot of the hot element's ancestor ids (nearest-first), captured at
+    // ResolveInput while the tree is complete. IsHoverWithin consults this instead
+    // of walking the node array by index: the array is reset (nodeCount = 0) every
+    // BeginFrame and is only partially built when hover is queried mid-build, so a
+    // stored index would be meaningless. Ids are stable across frames, so this is
+    // safe. Depth cap covers any real tree; deeper ancestors are root containers
+    // that are not queried for subtree hover (and are simply omitted if exceeded).
+    static constexpr u32 kMaxHoverDepth = 64;
+    UiId hotPath[kMaxHoverDepth] {}; // ancestor ids of hotId, nearest-first.
+    u32 hotPathCount { 0 };
     UiId activeId { kNullId }; // element holding the press.
     UiId focusedId { kNullId }; // element with keyboard focus.
     u32 caret { 0 }; // caret byte index within the focused text field.
@@ -134,7 +144,13 @@ template <typename T>
 inline T* AllocFrameArray(u32 count) { return static_cast<T*>(AllocFrame(static_cast<u64>(sizeof(T)) * count, alignof(T))); }
 
 // Hover/active queries for a given id (read last frame's resolved hit-test).
+// IsHovered is EXACT: true only when the pointer is directly over `id` (the single
+// resolved hot node). IsHoverWithin is SUBTREE: true when the hot node is `id` or a
+// structural descendant of it — use it for a container that should stay "hovered"
+// while the pointer is over one of its own child controls (e.g. a list row that
+// reveals a delete button), so the child's presence never steals the row's hover.
 UI_API bool IsHovered(UiId id);
+UI_API bool IsHoverWithin(UiId id);
 UI_API bool IsClicked(UiId id);
 
 // Keyboard focus.

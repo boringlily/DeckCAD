@@ -312,6 +312,7 @@ inline bool InputLabel(char* buf, u32& len, u32 cap, std::string_view placeholde
     box.border = { 1, 1, 1, 1 };
     box.borderColor = hasError ? col.alertDanger : (focused ? col.accentPrimary : col.borderBase);
     box.clip = true;
+    box.gap = 6; // space between the text and the error indicator (parser fields).
     OpenElement(box, fid);
 
     LayoutConfig tc {};
@@ -334,16 +335,61 @@ inline bool InputLabel(char* buf, u32& len, u32 cap, std::string_view placeholde
         }
     }
     CloseElement();
+
+    // Error indicator: a fixed-size slot INSIDE the box, reserved for every
+    // parser-backed field (empty until an error occurs). Because the space is
+    // always held, toggling an error only fills the badge in - the box height and
+    // everything below it never move, so no layout reallocation. On error it shows
+    // a red "!" badge; the full diagnostic is a floating tooltip (built after the
+    // box) revealed on hover, so the message never grows the field either.
+    const bool hasParser = parser.Parse != nullptr;
+    UiId errId = HashChild(fid, 4);
+    if (hasParser) {
+        LayoutConfig ind {};
+        ind.sizing = { Fixed(16), Fixed(16) };
+        ind.justify = Justify::Center;
+        ind.align = AlignCross::Center;
+        ind.hitTestable = hasError; // only a hover target when there is an error
+        if (hasError) {
+            ind.background = col.alertDanger;
+            ind.cornerRadius = 8; // circular badge
+        }
+        OpenElement(ind, errId);
+        if (hasError) {
+            LayoutConfig ex {};
+            ex.hitTestable = false;
+            u32 exn = OpenElement(ex, HashChild(fid, 5));
+            ConfigureText(exn, "!", 1, 0, 13, UiColor { 255, 255, 255, 255 });
+            CloseElement();
+        }
+        CloseElement(); // ind
+    }
     CloseElement(); // box
 
-    if (message) {
-        LayoutConfig mc {};
-        mc.hitTestable = false;
-        mc.sizing = { Grow(), Fit() };
-        u32 m = OpenElement(mc, HashChild(fid, 3));
-        ConfigureText(m, message, static_cast<u32>(std::strlen(message)), 0, 13,
-            hasError ? col.alertDanger : col.textMuted, /*wrap*/ true);
+    // Floating diagnostic: shown below the box while the field is focused (so it is
+    // visible as you type) or the "!" badge is hovered. Floating -> drawn on its own
+    // layer, lifted out of flow, so it never resizes the field or shifts the layout.
+    if (hasParser && hasError && message && (focused || IsHovered(errId))) {
+        LayoutConfig tip {};
+        tip.floating.enabled = true;
+        tip.floating.placement = FloatPlacement::BelowAnchor;
+        tip.floating.offset = { 0, 4 };
+        tip.direction = Direction::TopToBottom;
+        tip.padding = { 8, 8, 6, 6 };
+        tip.sizing = { Fixed(240), Fit() };
+        tip.background = col.bgDark;
+        tip.cornerRadius = 4;
+        tip.border = { 1, 1, 1, 1 };
+        tip.borderColor = col.alertDanger;
+        OpenElement(tip, HashChild(fid, 6));
+        LayoutConfig mt {};
+        mt.hitTestable = false;
+        mt.sizing = { Grow(), Fit() };
+        u32 mm = OpenElement(mt, HashChild(fid, 7));
+        ConfigureText(mm, message, static_cast<u32>(std::strlen(message)), 0, 13,
+            col.alertDanger, /*wrap*/ true);
         CloseElement();
+        CloseElement(); // tip
     }
     CloseElement(); // column
 

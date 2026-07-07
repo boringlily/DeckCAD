@@ -137,11 +137,30 @@ else()
 endif()
 add_subdirectory(${TRACY_DIR})
 add_subdirectory(${COMMON_DIR})
+
+# generate_export_header (UI/GRAPHICS/App) emits *.export.h into this per-build dir.
+# Made visible to every target so any source can #include "<Name>.export.h" even when
+# it uses another module's header without linking it (e.g. Main -> App.h under hot
+# reload, App.cpp -> Graphics.h in the static build). Keeping the generated headers
+# per-build (not in the source tree) stops build/static and build/hotreload from
+# clobbering each other's export macros. Must precede the module subdirectories.
+file(MAKE_DIRECTORY ${CMAKE_BINARY_DIR}/generated)
+include_directories(${CMAKE_BINARY_DIR}/generated)
+
 # UI before GRAPHICS/APP: both link against it (dual Clay/Ui path during the migration).
 add_subdirectory(${UI_DIR})
 add_subdirectory(${GRAPHICS_DIR})
 add_subdirectory(${APP_DIR})
 add_subdirectory(${MAIN_DIR})
+
+# ---- Unit tests (Google Test) ------------------------------------------------
+# Built by default; runs via CTest (the "Test" test preset, or `ctest` in the
+# build dir). Turn off with -DBUILD_TESTS=OFF to skip building googletest.
+option(BUILD_TESTS "Build the unit tests (Google Test)" ON)
+if(BUILD_TESTS)
+    enable_testing()
+    add_subdirectory(test)
+endif()
 
 # ---- Tracy profiler GUI / server ---------------------------------------------
 # The server is a standalone CMake project that uses C++ exceptions and pulls a

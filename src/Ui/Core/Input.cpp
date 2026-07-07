@@ -33,6 +33,7 @@ void ResolveInput(Context& ctx)
     UiId hot = kNullId;
     u16 hotLayer = 0;
     Rect hotRect {};
+    u32 hotIndex = kNullIndex;
     bool found = false;
 
     for (u32 i = 0; i < ctx.nodeCount; ++i) {
@@ -46,12 +47,26 @@ void ResolveInput(Context& ctx)
             hot = n.id;
             hotLayer = n.layer;
             hotRect = n.rect;
+            hotIndex = i;
             found = true;
         }
     }
     ctx.input.hotId = hot;
     ctx.input.hotLayer = hotLayer;
     ctx.input.hotRect = hotRect;
+
+    // Snapshot the hot node's ancestor ids now, while the tree is fully built, so
+    // IsHoverWithin can answer "is `id` an ancestor of the hovered element?" next
+    // frame without touching the node array (which is rebuilt each frame). parent
+    // index is strictly less than its child's, so this walk always terminates.
+    ctx.input.hotPathCount = 0;
+    if (hotIndex != kNullIndex) {
+        for (u32 a = ctx.nodes[hotIndex].parent;
+             a != kNullIndex && ctx.input.hotPathCount < InputState::kMaxHoverDepth;
+             a = ctx.nodes[a].parent) {
+            ctx.input.hotPath[ctx.input.hotPathCount++] = ctx.nodes[a].id;
+        }
+    }
 
     if (ctx.input.pointer.pressed) {
         ctx.input.activeId = hot;

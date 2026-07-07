@@ -85,49 +85,60 @@ inline void DrawIcon(IconId icon, Ui::UiColor tint, f32 size = 24)
     Ui::CloseElement();
 }
 
-// ── icon + label button (the app's dominant widget) ──────────────────────────
-struct IconButtonStyle {
-    bool active { false }; // force the highlighted background (current layer/tab/tool).
-    f32 cornerRadius { 8 };
+// Non-hit-testable text leaf (decorative): lets a parent button/tab capture the
+// click instead of the text stealing it. `font` is the app-side FontId enum.
+inline void DecorText(std::string_view s, ::FontId font, u16 size, Ui::UiColor color, Ui::UiId id = Ui::kNullId)
+{
+    Ui::LayoutConfig c {};
+    c.hitTestable = false;
+    u32 n = Ui::OpenElement(c, id);
+    Ui::ConfigureText(n, s.data(), static_cast<u32>(s.size()), static_cast<u16>(font), size, color);
+    Ui::CloseElement();
+}
+
+// ── button (the app's dominant widget) ───────────────────────────────────────
+// One flexible primitive covering the header/tab/tool buttons: optional leading
+// icon + optional label, per-state background, optional border, returns clicked.
+// Colors with alpha==0 fall back to a theme default. The id MUST be content-stable
+// (NameId / HashId) so hover/click state survives hot-reloads.
+struct ButtonStyle {
+    int icon { -1 }; // an IconId to draw before the label, or -1 for none.
+    Ui::Sizing sizing { Ui::Fit(), Ui::Fit() };
+    Ui::Justify justify { Ui::Justify::Start }; // Start = left-align icon+label.
+    Ui::Edges padding { 4, 4, 4, 4 };
     f32 gap { 8 };
-    Ui::Edges border {}; // optional border widths (e.g. active tool outline).
-    // Base/hover backgrounds; alpha==0 means "use the theme default" (bgDark/bgLight).
-    Ui::UiColor bg { 0, 0, 0, 0 };
-    Ui::UiColor bgHover { 0, 0, 0, 0 };
+    f32 cornerRadius { 8 };
+    Ui::Edges border {};
+    Ui::UiColor borderColor { 0, 0, 0, 0 }; // a==0 -> colors.borderBase
+    bool active { false }; // force the highlighted (hover) background.
+    Ui::UiColor bg { 0, 0, 0, 0 }; // resting bg;  a==0 -> colors.bgBase
+    Ui::UiColor bgHover { 0, 0, 0, 0 }; // hover/active bg; a==0 -> colors.bgLight
+    Ui::UiColor labelColor { 0, 0, 0, 0 }; // a==0 -> colors.textBase
 };
 
-// Icon + left-aligned label; returns true on the frame it is clicked. The id must
-// be content-stable (NameId) so hover/click state survives hot-reloads.
-inline bool IconButton(IconId icon, std::string_view label, Ui::UiId id, const IconButtonStyle& style = {})
+inline bool Button(std::string_view label, Ui::UiId id, const ButtonStyle& s = {})
 {
     const Ui::ColorScheme& colors = Ui::Colors();
-    const Ui::UiColor base = style.bg.a ? style.bg : colors.bgDark;
-    const Ui::UiColor hover = style.bgHover.a ? style.bgHover : colors.bgLight;
-
     Ui::LayoutConfig c {};
-    c.sizing = { Ui::Fit(), Ui::Fit() };
-    c.padding = PaddingAll(4);
-    c.gap = style.gap;
-    c.justify = Ui::Justify::Start;
+    c.sizing = s.sizing;
+    c.padding = s.padding;
+    c.gap = s.gap;
+    c.justify = s.justify;
     c.align = Ui::AlignCross::Center;
-    c.background = (style.active || Ui::IsHovered(id)) ? hover : base;
-    c.cornerRadius = style.cornerRadius;
-    c.border = style.border;
-    c.borderColor = colors.borderBase;
+    c.cornerRadius = s.cornerRadius;
+    c.border = s.border;
+    c.borderColor = s.borderColor.a ? s.borderColor : colors.borderBase;
+    c.background = (s.active || Ui::IsHovered(id))
+        ? (s.bgHover.a ? s.bgHover : colors.bgLight)
+        : (s.bg.a ? s.bg : colors.bgBase);
     Ui::OpenElement(c, id);
-
-    DrawIcon(icon, colors.textBase);
-
-    if (!label.empty()) {
-        // Label child is decorative; the button itself captures the click.
-        Ui::LayoutConfig textCfg {};
-        textCfg.hitTestable = false;
-        u32 n = Ui::OpenElement(textCfg, Ui::HashChild(id, 1));
-        Ui::ConfigureText(n, label.data(), static_cast<u32>(label.size()),
-            static_cast<u16>(::FontId::Regular), 16, colors.textBase);
-        Ui::CloseElement();
+    if (s.icon >= 0) {
+        DrawIcon(static_cast<IconId>(s.icon), colors.textBase);
     }
-
+    if (!label.empty()) {
+        // Decorative children — the button element itself captures the click.
+        DecorText(label, ::FontId::Regular, 16, s.labelColor.a ? s.labelColor : colors.textBase, Ui::HashChild(id, 1));
+    }
     Ui::CloseElement();
     return Ui::IsClicked(id);
 }
