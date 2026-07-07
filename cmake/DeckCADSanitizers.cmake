@@ -35,4 +35,3 @@ function(deckcad_enable_sanitizers)
 
     message(STATUS "Sanitizers enabled for DeckCAD's own targets: ${sanitizer_flag_value}")
 endfunction()
-# TODO: shader reload
