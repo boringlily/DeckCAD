@@ -12,7 +12,6 @@ set(APP_INC_DIRS
 "${COMMON_DIR}"
 "${GRAPHICS_DIR}"
 "${RAYLIB_DIR}/src"
-"${CLAY_DIR}"
 "${APP_DIR}"
 "${APP_DIR}/Gui/Toolbox"
 "${APP_DIR}/Gui/Canvas"

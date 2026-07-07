@@ -1,6 +1,5 @@
 #pragma once
 #include "DTL.h"
-#include "clay.h"
 #include "raylib.h"
 #include <array>
 
@@ -21,18 +20,6 @@ struct StyleColor {
         , blue { sameValue }
         , alpha { 255u } {};
     constexpr StyleColor() {};
-
-    constexpr operator Clay_Color() const { return ToClayColor(); }
-
-    inline Clay_Color ToClayColor() const
-    {
-        return (Clay_Color) {
-            .r = static_cast<float>(red),
-            .g = static_cast<float>(green),
-            .b = static_cast<float>(blue),
-            .a = static_cast<float>(alpha)
-        };
-    }
 };
 
 struct CanvasColorTheme {
@@ -79,24 +66,6 @@ enum class FontId : u8 {
     MediumItalic,
     Semibold,
 };
-struct ClayTextStyles {
-    Clay_TextElementConfig title;
-    Clay_TextElementConfig subtitle;
-    Clay_TextElementConfig body;
-    Clay_TextElementConfig caption;
-    Clay_TextElementConfig buttonActive;
-    Clay_TextElementConfig buttonMuted;
-};
-
-static inline ClayTextStyles TextStyle = {
-    .title = { .textColor = GuiTheme.TextBase, .fontId = static_cast<u8>(FontId::Semibold), .fontSize = 24, .wrapMode = CLAY_TEXT_WRAP_NONE },
-    .subtitle = { .textColor = GuiTheme.TextBase, .fontId = static_cast<u8>(FontId::Semibold), .fontSize = 16, .wrapMode = CLAY_TEXT_WRAP_NONE },
-    .body = { .textColor = GuiTheme.TextBase, .fontId = static_cast<u8>(FontId::Regular), .fontSize = 16 },
-    .caption = { .textColor = GuiTheme.TextBase, .fontId = static_cast<u8>(FontId::MediumItalic), .fontSize = 16 },
-    .buttonActive = { .textColor = GuiTheme.TextBase, .fontId = static_cast<u8>(FontId::Regular), .fontSize = 16, .wrapMode = CLAY_TEXT_WRAP_NONE },
-    .buttonMuted = { .textColor = GuiTheme.TextMuted, .fontId = static_cast<u8>(FontId::Regular), .fontSize = 16, .wrapMode = CLAY_TEXT_WRAP_NONE, .textAlignment = CLAY_TEXT_ALIGN_CENTER },
-};
-
 #define Make_Icons(DO)  \
     DO(Check)           \
     DO(Exit)            \

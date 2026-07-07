@@ -1,17 +1,18 @@
 #include "App.h"
 #include "Graphics.h"
-#include "Gui/Workbench.cpp"
-#include "Gui/AppHeader.cpp"
+#include "Gui/Workbench.cpp" // unity hub: shared Canvas helpers + toolset registry.
 #include "Gui/UiStyles.h"
+#include "GeometryEngine.h" // UiSketchToolset evaluates sketches on Finish.
 #include <print>
+#include <string>
+#include <vector>
 
 #include <tracy/Tracy.hpp>
 
-// ── src/Ui tree (migration in progress) ───────────────────────────────────────
-// Views are ported here one by one; F12 flips between this and the Clay tree at
-// runtime (see Graphics::BeginFrame). Structure mirrors the Clay tree below so the
-// two are A/B-diffable. Ported so far: shell (Home/Settings), Explorer, Workbench
-// frame + footer. Stubbed: AppHeader (Phase 4), Toolbox (Phase 5), Canvas (Phase 6).
+// ── src/Ui tree ───────────────────────────────────────────────────────────────
+// DeckCAD's entire UI, built with the in-repo src/Ui flexbox framework (Clay was
+// removed in the Phase 7 teardown — this is now the only UI path). BuildUiTree is
+// declared unconditionally each frame from AppUpdate.
 namespace {
 
 // A centered single-title page — the Home/Settings placeholders (App.cpp Clay side).
@@ -742,67 +743,7 @@ void AppUpdate(AppState& app)
     ZoneScoped;
 
     Graphics::BeginFrame();
-
-    if (Graphics::IsUiPathActive()) {
-        BuildUiTree(app);
-        Graphics::EndFrame();
-        return;
-    }
-
-    CLAY(
-        {
-            .id = CLAY_ID("OuterContainer"),
-            .layout = { .sizing = LAYOUT_EXPAND,
-                .layoutDirection = CLAY_TOP_TO_BOTTOM },
-        })
-    {
-        LayoutAppHeader(app);
-
-        switch (app.GetActiveLayer()) {
-        case AppLayer::Home_Layer:
-            CLAY(
-                { .id = CLAY_ID("HomePage"),
-                    .layout = {
-                        .sizing = LAYOUT_EXPAND,
-                        .padding = CLAY_PADDING_ALL(8),
-                        .childGap = 8,
-                        .childAlignment = ALIGN_CENTER,
-                        .layoutDirection = CLAY_LEFT_TO_RIGHT,
-                    },
-                    .backgroundColor = GuiTheme.BgBase })
-            {
-                CLAY_TEXT(CLAY_STRING("This is going to be the homepage."), &TextStyle.title);
-            };
-
-            break;
-        case AppLayer::Settings_Layer:
-
-            CLAY(
-                { .id = CLAY_ID("SettingsPage"),
-                    .layout = {
-                        .sizing = LAYOUT_EXPAND,
-                        .padding = CLAY_PADDING_ALL(8),
-                        .childGap = 8,
-                        .childAlignment = ALIGN_CENTER,
-                        .layoutDirection = CLAY_LEFT_TO_RIGHT,
-                    },
-                    .backgroundColor = GuiTheme.BgBase })
-            {
-                CLAY_TEXT(CLAY_STRING("This is going to be the global settings page."), &TextStyle.title);
-            };
-
-            break;
-        case AppLayer::Scene_Layer:
-
-            Scene* scene_ptr = app.GetActiveScene();
-            if (scene_ptr != nullptr) {
-                DrawWorkbench(*scene_ptr);
-            }
-
-            break;
-        }
-    };
-
+    BuildUiTree(app);
     Graphics::EndFrame();
 }
 

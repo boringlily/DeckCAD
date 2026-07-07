@@ -25,7 +25,7 @@ public:
     void CreateNewScene()
     {
         u32 new_scene_id { static_cast<u32>(scenes.size()) };
-        scenes.push_back(Scene { std::format("Untitled {}", new_scene_id), canvas_texture });
+        scenes.push_back(Scene { std::format("Untitled {}", new_scene_id) });
         active_scene_id = new_scene_id;
         active_layer = AppLayer::Scene_Layer;
     }
@@ -102,6 +102,5 @@ private:
 
     AppLayer active_layer { AppLayer::Home_Layer };
 
-    RenderTexture canvas_texture {};
     SceneList scenes {};
 };

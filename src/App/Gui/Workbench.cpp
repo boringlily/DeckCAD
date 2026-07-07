@@ -1,43 +1,6 @@
-#include "Scene.h"
-#include "Components.h"
-#include "Explorer/Explorer.cpp"
+// Unity include hub for App.cpp: brings the shared 3D canvas helpers (Canvas.cpp)
+// and the toolset registry (Toolbox.cpp) into App.cpp's translation unit so the Ui
+// tree (UiCanvas / UiToolbox) can reach them. The Clay DrawWorkbench / DrawExplorer
+// were removed with the Clay teardown.
 #include "Canvas/Canvas.cpp"
 #include "Toolbox/Toolbox.cpp"
-#include "AppState.h"
-
-inline void DrawWorkbench(Scene& scene)
-{
-    /// Workbench components
-    CLAY({ .id = CLAY_ID("Workbench"),
-        .layout = {
-            .sizing = LAYOUT_EXPAND,
-            .childAlignment = { .y = CLAY_ALIGN_Y_CENTER },
-            .layoutDirection = CLAY_TOP_TO_BOTTOM,
-        } })
-    {
-        CLAY(
-            { .id = CLAY_ID("WorkbenchInner"),
-                .layout = { .sizing = LAYOUT_EXPAND,
-                    .layoutDirection = CLAY_LEFT_TO_RIGHT } })
-        {
-            DrawExplorer(scene);
-
-            LayoutCanvas(scene);
-
-            DrawToolbox(scene);
-        };
-
-        CLAY(
-            { .id = CLAY_ID("WorkbenchFooter"),
-                .layout = {
-                    .sizing = { .width = CLAY_SIZING_GROW(), .height = CLAY_SIZING_FIT() },
-                    .padding = CLAY_PADDING_ALL(8),
-                    .childAlignment = { .y = CLAY_ALIGN_Y_CENTER },
-                    .layoutDirection = CLAY_LEFT_TO_RIGHT,
-                },
-                .backgroundColor = GuiTheme.BgDark })
-        {
-            CLAY_TEXT(CLAY_STRING("Active Mode: {UNKNOWN}"), &TextStyle.body);
-        };
-    };
-}

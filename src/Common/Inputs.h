@@ -1,7 +1,6 @@
 #pragma once
 #include "DTL.h"
 #include "raylib.h"
-#include "clay.h"
 
 namespace Inputs {
 enum class Mouse : u32 {
@@ -18,15 +17,5 @@ inline bool MousePressed(Mouse button)
 inline bool MouseHeld(Mouse button)
 {
     return IsMouseButtonDown(static_cast<s32>(button));
-}
-
-inline bool MouseHoveredAndPressed(Mouse button)
-{
-    return Clay_Hovered() && MousePressed(button);
-}
-
-inline bool MouseHoveredAndHeld(Mouse button)
-{
-    return Clay_Hovered() && MouseHeld(button);
 }
 }

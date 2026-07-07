@@ -1,9 +1,6 @@
 [submodule "submodules/raylib"]
 	path = submodules/raylib
 	url = https://github.com/raysan5/raylib.git
-[submodule "submodules/clay"]
-	path = submodules/clay
-	url = https://github.com/boringlily/clay.git
 [submodule "submodules/nanosvg"]
 	path = submodules/nanosvg
 	url = https://github.com/memononen/nanosvg.git

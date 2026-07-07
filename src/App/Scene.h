@@ -21,7 +21,6 @@ public:
     // Gui data
     CanvasCamera camera {};
     Toolbox toolbox {};
-    RenderTexture& canvas_texture;
 
     // CommandToolbox command_toolbox;
     CommandToolbox command_toolbox {};
@@ -35,9 +34,8 @@ public:
     std::optional<Geometry::SketchPlane> hovered_plane {};
 
 private:
-    Scene(std::string name, RenderTexture& canvas_texture)
-        : filename { name }
-        , canvas_texture { canvas_texture } {};
+    Scene(std::string name)
+        : filename { name } {};
 
     friend class AppState;
 };

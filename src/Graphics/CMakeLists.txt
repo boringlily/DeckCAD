@@ -15,7 +15,6 @@ ${GRAPHICS_DIR}/Graphics.cpp
 set(HEADER_FILES
 ${COMMON_DIR}
 ${GRAPHICS_DIR}
-${CLAY_DIR}
 )
 
 set(LIBS_TO_LINK

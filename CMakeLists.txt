@@ -78,16 +78,12 @@ set(SUPPORT_BUSY_WAIT_LOOP OFF)
 
 if(HOT_RELOAD)
 add_compile_definitions(__HOT_RELOAD_ENABLED__)
-if(WIN32)
-    add_compile_definitions(CLAY_DLL)
-endif()
 set(WITH_PIC ON)
 set(BUILD_SHARED_LIBS ON)
 endif()
 
 
 set(RAYLIB_DIR "${CMAKE_SOURCE_DIR}/submodules/raylib")
-set(CLAY_DIR "${CMAKE_SOURCE_DIR}/submodules/clay")
 set(TRACY_DIR "${CMAKE_SOURCE_DIR}/submodules/tracy")
 
 set(SRC_DIR "${CMAKE_SOURCE_DIR}/src")
@@ -147,7 +143,7 @@ add_subdirectory(${COMMON_DIR})
 file(MAKE_DIRECTORY ${CMAKE_BINARY_DIR}/generated)
 include_directories(${CMAKE_BINARY_DIR}/generated)
 
-# UI before GRAPHICS/APP: both link against it (dual Clay/Ui path during the migration).
+# UI before GRAPHICS/APP: both link against it (the sole UI layer since the Clay teardown).
 add_subdirectory(${UI_DIR})
 add_subdirectory(${GRAPHICS_DIR})
 add_subdirectory(${APP_DIR})
