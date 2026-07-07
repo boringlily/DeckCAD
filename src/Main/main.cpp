@@ -9,7 +9,8 @@
 #include "LibLoaderClass.h"
 
 LibraryFunction<void, AppState&> AppUpdateFunction("AppUpdate");
-LibraryLoader AppLib("App", "./", { &AppUpdateFunction });
+LibraryFunction<void> AppShutdownFunction("AppShutdown");
+LibraryLoader AppLib("App", "./", { &AppUpdateFunction, &AppShutdownFunction });
 #endif
 
 void Update(AppState& app_memory)
@@ -35,6 +36,14 @@ int main(void)
     while (!WindowShouldClose()) {
         Update(app_memory);
     }
+
+    // Free App-owned GPU resources while the GL context is still live, before
+    // CloseWindow (Graphics::Deactivate). See App.h AppShutdown.
+#ifdef __HOT_RELOAD_ENABLED__
+    AppShutdownFunction();
+#else
+    AppShutdown();
+#endif
 
     Graphics::Deactivate();
 }

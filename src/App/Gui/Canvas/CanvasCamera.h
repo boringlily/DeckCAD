@@ -15,6 +15,10 @@ public:
     void ProcessPan2D();
     Vector3 GetMouseScreenPosition();
     Geometry::Point2 GetMouseOnSketchPlane(Geometry::SketchPlane plane);
+    // Project a caller-supplied ray onto the plane. The Ui canvas builds this ray
+    // from the canvas sub-viewport rect (GetScreenToWorldRayEx) so picking is correct
+    // when the 3D view does not fill the whole window.
+    Geometry::Point2 GetMouseOnSketchPlane(Geometry::SketchPlane plane, Ray ray);
 
     enum class CameraOrientation {
         Isometric_XYZ,
@@ -163,7 +167,11 @@ inline void CanvasCamera::ProcessPan2D()
 
 inline Geometry::Point2 CanvasCamera::GetMouseOnSketchPlane(Geometry::SketchPlane plane)
 {
-    Ray ray = GetScreenToWorldRay(GetMousePosition(), raylib_camera);
+    return GetMouseOnSketchPlane(plane, GetScreenToWorldRay(GetMousePosition(), raylib_camera));
+}
+
+inline Geometry::Point2 CanvasCamera::GetMouseOnSketchPlane(Geometry::SketchPlane plane, Ray ray)
+{
     switch (plane) {
     case Geometry::SketchPlane::XY: {
         float t = (ray.direction.z != 0.0f) ? -ray.position.z / ray.direction.z : 0.0f;

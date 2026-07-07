@@ -125,21 +125,6 @@ void UiExplorer(Scene& scene)
     Ui::CloseElement();
 }
 
-// A labelled grow panel standing in for a not-yet-ported workbench column.
-void UiColumnStub(Ui::UiId id, Ui::Sizing sizing, std::string_view label)
-{
-    Ui::LayoutConfig c {};
-    c.sizing = sizing;
-    c.padding = UiStyle::PaddingAll(8);
-    c.direction = Ui::Direction::TopToBottom;
-    c.justify = Ui::Justify::Center;
-    c.align = Ui::AlignCross::Center;
-    c.background = Ui::Colors().bgLight;
-    Ui::OpenElement(c, id);
-    UiStyle::Muted(label, Ui::HashChild(id, 1));
-    Ui::CloseElement();
-}
-
 // ── Phase 5: Toolbox + toolsets ───────────────────────────────────────────────
 
 // A full-width tool button (icon + left-aligned label) — the ToolSelectButton idiom.
@@ -482,8 +467,195 @@ void UiToolbox(Scene& scene)
     Ui::CloseElement(); // Toolbox
 }
 
-// Phase 3: the Workbench frame — inner three-sibling grow row + footer. Explorer is
-// real; Canvas (min 500) is a stub until Phase 6; Toolbox is now real (Phase 5).
+// ── Phase 6: Canvas (3D viewport via Ui::Raylib::Canvas3D) ────────────────────
+// The 3D scene renders at DISPATCH — Canvas3D composites into the final layout rect
+// with no frame lag. All interaction runs here at BUILD time, gated on the viewport
+// being hovered (IsHovered, last frame) and ray-picking through canvas.lastRect (the
+// canvas sub-viewport, so picking is correct even though the 3D view doesn't fill the
+// window — the Clay path used full-window coords and was imprecise). Right/middle mouse
+// + wheel are read raw from raylib (the Ui PointerState only tracks the left button).
+// Reuses the Clay canvas helpers (ComputeHoveredOriginPlane / SketchPointToWorld /
+// UI::DrawGrid / plane colors) — same translation unit via Workbench.cpp -> Canvas.cpp.
+class SceneViewport : public Ui::Raylib::Canvas3D {
+public:
+    Scene* scene { nullptr };
+    bool sketchValid { false };
+    bool sketchActive { false };
+    std::optional<Geometry::SketchPlane> activePlane {};
+    std::optional<Geometry::SketchPlane> hoveredPlane {};
+    Geometry::Point2 cursorOnPlane {};
+
+    // Rendering half of the Clay CanvasRenderToTexture, reading state cached at build.
+    void Draw3D(Ui::Rect) override
+    {
+        if (sketchValid && activePlane.has_value()) {
+            Geometry::SketchPlane sp = *activePlane;
+            UI::DrawGrid(SketchPlaneToOriginPlane(sp), 100, 1.0f);
+
+            auto& part_opt = scene->command_toolbox.GetActivePartCommand();
+            auto* create_sketch = part_opt.has_value() ? part_opt.value().As<CreateSketchCommand>() : nullptr;
+            if (create_sketch) {
+                for (auto& feature : create_sketch->history) {
+                    if (!feature.IsType(SketchCommandType::Line))
+                        continue;
+                    auto* line = feature.As<SketchLineCommand>();
+                    if (!line || !line->start.has_value() || !line->end.has_value())
+                        continue;
+                    DrawLine3D(SketchPointToWorld(*line->start, sp), SketchPointToWorld(*line->end, sp), BLACK);
+                }
+
+                // Preview: sphere at placed start, rubber-band line, sphere at cursor.
+                auto& active_sketch = scene->command_toolbox.GetActiveSketchCommand();
+                if (active_sketch.has_value() && active_sketch.value().IsType(SketchCommandType::Line)) {
+                    if (auto* line_cmd = active_sketch.value().As<SketchLineCommand>()) {
+                        Vector3 cursor_world = SketchPointToWorld(cursorOnPlane, sp);
+                        if (line_cmd->start.has_value()) {
+                            Vector3 start_world = SketchPointToWorld(*line_cmd->start, sp);
+                            DrawSphereEx(start_world, 0.1f, 6, 8, BLUE);
+                            DrawLine3D(start_world, cursor_world, GRAY);
+                        }
+                        DrawSphereEx(cursor_world, 0.07f, 6, 8, SKYBLUE);
+                    }
+                }
+            }
+        } else if (sketchActive) {
+            // Plane-selection: all three origin planes; hovered highlighted, rest dimmed.
+            UI::DrawOriginPlane(UI::OriginPlane::XY, { 0, 0, 0 }, ORIGIN_PLANE_SIZE,
+                hoveredPlane == Geometry::SketchPlane::XY ? PLANE_COLOR_HOVER : PLANE_COLOR_XY_DIM);
+            UI::DrawOriginPlane(UI::OriginPlane::XZ, { 0, 0, 0 }, ORIGIN_PLANE_SIZE,
+                hoveredPlane == Geometry::SketchPlane::XZ ? PLANE_COLOR_HOVER : PLANE_COLOR_XZ_DIM);
+            UI::DrawOriginPlane(UI::OriginPlane::YZ, { 0, 0, 0 }, ORIGIN_PLANE_SIZE,
+                hoveredPlane == Geometry::SketchPlane::YZ ? PLANE_COLOR_HOVER : PLANE_COLOR_YZ_DIM);
+            UI::DrawGrid(UI::OriginPlane::XZ, 100, 1.0f);
+        } else {
+            UI::DrawGrid(UI::OriginPlane::XZ, 100, 1.0f);
+            for (auto& sketch : scene->geometry) {
+                for (auto& line : sketch.lines) {
+                    DrawLine3D(SketchPointToWorld(line.start, sketch.plane),
+                        SketchPointToWorld(line.end, sketch.plane), BLACK);
+                }
+            }
+        }
+    }
+};
+
+// Ray through the mouse, corrected for the canvas sub-viewport (local mouse + canvas
+// dims). Falls back to the window ray on the first frame before lastRect is known.
+Ray CanvasRayFromMouse(const Camera3D& cam, Ui::Rect rect)
+{
+    Vector2 m = GetMousePosition();
+    if (rect.w < 1.0f || rect.h < 1.0f) {
+        return GetScreenToWorldRay(m, cam);
+    }
+    Vector2 local { m.x - rect.x, m.y - rect.y };
+    return GetScreenToWorldRayEx(local, cam, static_cast<int>(rect.w + 0.5f), static_cast<int>(rect.h + 0.5f));
+}
+
+// The single canvas viewport (one canvas at a time). Held here so AppShutdown() can
+// free its RenderTexture while the GL context is still live (see AppShutdown).
+SceneViewport* g_viewport { nullptr };
+
+// Phase 6: the Canvas. Interaction (camera / plane pick / line placement) at build
+// time; the 3D render is deferred to dispatch by Canvas3D. Mirrors the Clay
+// CanvasRenderToTexture + LayoutCanvas.
+//
+// Timing note: both the hover gate (viewport.Hovered()) and the pick rect
+// (viewport.lastRect) reflect the PREVIOUS frame's layout/hit-test — the standard
+// 1-frame lag of this immediate-mode framework (every IsHovered is last-frame). It
+// differs slightly from the Clay path, which gated on the current-frame pointer
+// position: on the single frame the cursor crosses the canvas edge with a button
+// down-edge, a click may be honored/ignored one frame later, and during a live
+// window resize the preview cursor can sit one frame stale. Both are self-correcting
+// and consistent with the rest of the Ui path; Hovered() is also occlusion-aware
+// (a floating panel over the canvas correctly suppresses interaction), which a raw
+// rect test would not be — so the lag is kept deliberately.
+void UiCanvas(Scene& scene)
+{
+    static SceneViewport viewport;
+    g_viewport = &viewport; // let AppShutdown() reach it for GL-live teardown.
+    viewport.scene = &scene;
+
+    bool is_sketch_active = scene.command_toolbox.IsSketchContext();
+    auto active_plane = scene.command_toolbox.GetActiveSketchPlane();
+    bool sketch_valid = active_plane.has_value();
+    bool hovered = viewport.Hovered();
+
+    // Camera snap to the confirmed sketch plane; restore isometric when sketch exits.
+    if (sketch_valid && !scene.was_sketch_valid) {
+        scene.camera.SetOrientation(CanvasCamera::OrientationForSketchPlane(*active_plane));
+    }
+    if (!is_sketch_active && scene.was_sketch_active) {
+        scene.camera.SetOrientation(CanvasCamera::CameraOrientation::Isometric_XYZ);
+    }
+    scene.was_sketch_active = is_sketch_active;
+    scene.was_sketch_valid = sketch_valid;
+
+    // Camera input (deltas + wheel, viewport-independent): 2D lock once the plane is set.
+    if (hovered) {
+        if (sketch_valid) {
+            scene.camera.ProcessPan2D();
+        } else {
+            scene.camera.ProcessPanTilt();
+        }
+    }
+
+    Ray ray = CanvasRayFromMouse(scene.camera.raylib_camera, viewport.lastRect);
+
+    // Plane selection: hover highlight + click-to-confirm.
+    scene.hovered_plane = std::nullopt;
+    if (is_sketch_active && !sketch_valid && hovered) {
+        scene.hovered_plane = ComputeHoveredOriginPlane(ray, ORIGIN_PLANE_EXTENT);
+        if (scene.hovered_plane.has_value() && IsMouseButtonPressed(MOUSE_BUTTON_LEFT)) {
+            auto& part_opt = scene.command_toolbox.GetActivePartCommand();
+            if (part_opt.has_value()) {
+                if (auto* cmd = part_opt.value().As<CreateSketchCommand>()) {
+                    cmd->plane = *scene.hovered_plane;
+                }
+            }
+        }
+    }
+
+    // Line placement: right-click resets the start; left-click places (with chaining).
+    if (sketch_valid && hovered && scene.command_toolbox.IsSketchCommandActive()) {
+        auto& sketch_opt = scene.command_toolbox.GetActiveSketchCommand();
+        if (sketch_opt.has_value() && sketch_opt.value().IsType(SketchCommandType::Line)) {
+            auto* line_cmd = sketch_opt.value().As<SketchLineCommand>();
+            if (line_cmd && IsMouseButtonPressed(MOUSE_BUTTON_RIGHT)) {
+                line_cmd->start = std::nullopt;
+            } else if (line_cmd && IsMouseButtonPressed(MOUSE_BUTTON_LEFT)) {
+                auto hit = scene.camera.GetMouseOnSketchPlane(*active_plane, ray);
+                if (!line_cmd->start.has_value()) {
+                    line_cmd->start = hit;
+                } else {
+                    line_cmd->end = hit;
+                    Geometry::Point2 chain_start = hit;
+                    scene.command_toolbox.FinishSketchCommand();
+                    scene.command_toolbox.StartSketchCommand(SketchCommandType::Line);
+                    auto& next_opt = scene.command_toolbox.GetActiveSketchCommand();
+                    if (next_opt.has_value() && next_opt.value().IsType(SketchCommandType::Line)) {
+                        if (auto* next_line = next_opt.value().As<SketchLineCommand>()) {
+                            next_line->start = chain_start;
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    // Cache state for Draw3D (dispatch) and hand the live camera to the viewport.
+    viewport.camera = scene.camera.raylib_camera;
+    viewport.background = Ui::UiColor { 255, 255, 255, 255 }; // white canvas (matches Clay)
+    viewport.sketchValid = sketch_valid;
+    viewport.sketchActive = is_sketch_active;
+    viewport.activePlane = active_plane;
+    viewport.hoveredPlane = scene.hovered_plane;
+    viewport.cursorOnPlane = sketch_valid ? scene.camera.GetMouseOnSketchPlane(*active_plane, ray) : Geometry::Point2 {};
+
+    viewport.Render(Ui::NameId("CanvasPanel"), UiStyle::ExpandMinMaxWidth(500));
+}
+
+// Phase 3: the Workbench frame — inner three-sibling grow row + footer. Explorer,
+// Canvas (Phase 6, real), and Toolbox (Phase 5, real) are all ported.
 void UiWorkbench(Scene& scene)
 {
     Ui::LayoutConfig wb {};
@@ -499,7 +671,7 @@ void UiWorkbench(Scene& scene)
     Ui::OpenElement(inner, Ui::NameId("WorkbenchInner"));
 
     UiExplorer(scene);
-    UiColumnStub(Ui::NameId("CanvasPanel"), UiStyle::ExpandMinMaxWidth(500), "Canvas (3D) — Phase 6");
+    UiCanvas(scene);
     UiToolbox(scene);
 
     Ui::CloseElement(); // WorkbenchInner
@@ -551,6 +723,18 @@ void BuildUiTree(AppState& app)
 #ifdef __cplusplus
 extern "C" {
 #endif
+
+// Free App-owned GPU resources before the window/GL context is torn down. Called
+// from main() after the loop, before CloseWindow. Idempotent: Canvas3D::Unload
+// zeroes the texture id, so the later ~SceneViewport (at DLL detach / atexit, after
+// the context is gone) becomes a no-op instead of a context-less GL delete.
+APP_API
+void AppShutdown()
+{
+    if (g_viewport != nullptr) {
+        g_viewport->Unload();
+    }
+}
 
 APP_API
 void AppUpdate(AppState& app)
