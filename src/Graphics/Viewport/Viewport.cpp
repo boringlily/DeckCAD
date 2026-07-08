@@ -23,8 +23,8 @@ bool Viewport::initializeResources(const Gpu::Context& gpu_ref, const Text::Msdf
     if (!solids_.initializeResources(gpu_ref, COLOR_FORMAT, DEPTH_FORMAT, out_error_ref)) {
         return false;
     }
-    // Text is optional: a missing or unbakeable font must not stop the viewport
-    // from rendering, it just means no in-viewport labels.
+    // text is optional: a missing or unbakeable font must not stop the
+    // viewport from rendering, it just disables in-viewport labels
     if (atlas_ref.isValid() && !text_.initializeResources(gpu_ref, atlas_ref, COLOR_FORMAT, DEPTH_FORMAT, out_error_ref)) {
         return false;
     }
@@ -62,7 +62,7 @@ void Viewport::allocateTargets(const Gpu::Context& gpu_ref, u32 width, u32 heigh
     color_descriptor.format = COLOR_FORMAT;
     color_descriptor.mipLevelCount = 1;
     color_descriptor.sampleCount = 1;
-    // TextureBinding so ImGui can sample it back as an image.
+    // TextureBinding lets ImGui sample it back as an image
     color_descriptor.usage = wgpu::TextureUsage::RenderAttachment | wgpu::TextureUsage::TextureBinding;
     color_texture_ = gpu_ref.getDevice().CreateTexture(&color_descriptor);
     color_view_ = color_texture_.CreateView();
@@ -97,15 +97,15 @@ void Viewport::resizeTarget(const Gpu::Context& gpu_ref, u32 width, u32 height)
     }
 
     const bool too_small = required_width > texture_width_ || required_height > texture_height_;
-    // Only hand memory back once the panel has shrunk well past the current
-    // allocation, so nudging a splitter back and forth does not thrash.
+    // hand memory back only once the panel has shrunk well past the current
+    // allocation, to avoid thrashing when nudging a splitter back and forth
     const bool much_too_large = texture_width_ >= required_width * 2 && texture_height_ >= required_height * 2;
 
     if (much_too_large) {
         allocateTargets(gpu_ref, required_width, required_height);
     } else if (too_small) {
-        // Grow on the axis that needs it and keep the other, so resizing in one
-        // direction does not repeatedly reallocate the whole target.
+        // grow only the axis that needs it and keep the other: resizing in
+        // one direction won't repeatedly reallocate the whole target
         allocateTargets(gpu_ref,
             std::max(required_width, texture_width_),
             std::max(required_height, texture_height_));
@@ -140,7 +140,7 @@ void Viewport::renderFrame(const Gpu::Context& gpu_ref, const Camera& camera_ref
     depth_attachment.view = depth_view_;
     depth_attachment.depthLoadOp = wgpu::LoadOp::Clear;
     depth_attachment.depthStoreOp = wgpu::StoreOp::Store;
-    // 1.0 is the far plane under WebGPU's [0, 1] depth range.
+    // 1.0 is the far plane under WebGPU's [0, 1] depth range
     depth_attachment.depthClearValue = 1.0f;
 
     wgpu::RenderPassDescriptor pass_descriptor {};
@@ -151,16 +151,16 @@ void Viewport::renderFrame(const Gpu::Context& gpu_ref, const Camera& camera_ref
 
     wgpu::RenderPassEncoder pass_ref = gpu_ref.getEncoder().BeginRenderPass(&pass_descriptor);
 
-    // Confine drawing to the live sub-rect; the rest of the texture is padding
-    // that the shader-side full-screen triangle must not touch.
+    // confine drawing to the live sub-rectangle; the rest of the texture is
+    // padding that the shader-side full-screen triangle must not touch
     pass_ref.SetViewport(0.0f, 0.0f, static_cast<f32>(width_), static_cast<f32>(height_), 0.0f, 1.0f);
     pass_ref.SetScissorRect(0, 0, width_, height_);
 
     const DeckMath::Matrix4 view = camera_ref.getViewMatrix();
     const DeckMath::Matrix4 projection = camera_ref.getProjectionMatrix(getAspectRatio());
 
-    // Order matters: the grid writes depth first so translucent planes and
-    // labels behind it are correctly occluded.
+    // order matters: the grid writes depth first, keeping translucent planes
+    // and labels behind it correctly occluded
     grid_.drawGrid(gpu_ref, pass_ref, view, projection, camera_ref.getPosition());
     solids_.flushBatch(gpu_ref, pass_ref, view, projection);
     text_.flushBatch(gpu_ref, pass_ref, projection * view,

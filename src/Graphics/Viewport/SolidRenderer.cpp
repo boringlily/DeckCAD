@@ -98,8 +98,8 @@ bool SolidRenderer::initializeResources(const Gpu::Context& gpu_ref,
     fragment.targetCount = 1;
     fragment.targets = &color_target;
 
-    // Translucent planes read depth but must not write it, so two overlapping
-    // planes both stay visible where they cross.
+    // translucent planes read depth but don't write it: overlapping planes
+    // both stay visible where they cross
     wgpu::DepthStencilState depth_stencil {};
     depth_stencil.format = depth_format;
     depth_stencil.depthWriteEnabled = wgpu::OptionalBool::False;
@@ -113,7 +113,7 @@ bool SolidRenderer::initializeResources(const Gpu::Context& gpu_ref,
     pipeline_descriptor.vertex.bufferCount = 1;
     pipeline_descriptor.vertex.buffers = &vertex_layout;
     pipeline_descriptor.primitive.topology = wgpu::PrimitiveTopology::TriangleList;
-    // Planes are viewed from both sides, so culling stays off.
+    // planes are viewed from both sides: culling stays off
     pipeline_descriptor.primitive.cullMode = wgpu::CullMode::None;
     pipeline_descriptor.depthStencil = &depth_stencil;
     pipeline_descriptor.multisample.count = 1;

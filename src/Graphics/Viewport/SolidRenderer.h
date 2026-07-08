@@ -11,11 +11,12 @@ enum class OriginPlane : u8 { XY,
     XZ,
     YZ };
 
-/// Batched flat-shaded triangle renderer.
-///
-/// Currently draws the translucent origin planes; it is the seam where solid
-/// modelling geometry will plug in, since it already handles batching, blending
-/// and depth for arbitrary triangles.
+/**
+ * @brief Batched flat-shaded triangle renderer.
+ * @note Currently draws only the translucent origin planes. It is the seam
+ * where solid modelling geometry will plug in, since it already handles
+ * batching, blending, and depth for arbitrary triangles.
+ */
 class SolidRenderer {
 public:
     bool initializeResources(const Gpu::Context& gpu_ref,
