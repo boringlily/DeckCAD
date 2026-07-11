@@ -90,7 +90,6 @@ set(SRC_DIR "${CMAKE_SOURCE_DIR}/src")
 
 set(COMMON_DIR "${SRC_DIR}/Common")
 set(GRAPHICS_DIR "${SRC_DIR}/Graphics")
-set(UI_DIR "${SRC_DIR}/Ui")
 set(APP_DIR "${SRC_DIR}/App")
 
 set(APP_INC_DIRS "")
@@ -143,8 +142,8 @@ add_subdirectory(${COMMON_DIR})
 file(MAKE_DIRECTORY ${CMAKE_BINARY_DIR}/generated)
 include_directories(${CMAKE_BINARY_DIR}/generated)
 
-# UI before GRAPHICS/APP: both link against it (the sole UI layer since the Clay teardown).
-add_subdirectory(${UI_DIR})
+# GRAPHICS contains the Ui framework too (merged into one library/directory -
+# see src/Graphics/CMakeLists.txt); APP links against it for both.
 add_subdirectory(${GRAPHICS_DIR})
 add_subdirectory(${APP_DIR})
 add_subdirectory(${MAIN_DIR})

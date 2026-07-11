@@ -1,13 +1,16 @@
 #pragma once
-#include "Style.h" // FontId / IconId enums (shared with the Clay path during migration).
+#include "Style.h" // FontId / IconId asset-id enums Graphics loads at boot.
 #include "Ui.h"
 #include <string_view>
 
-// App-side styling layer over src/Ui: text presets mirroring Style.h's TextStyle
-// table, sizing shorthands replacing the Clay helper macros in Components.h, and
-// the DrawIcon / IconButton composites the views are built from. Header-only;
-// every function bottoms out in exported Ui primitives, so it is hot-reload-safe
-// to include from App.dll.
+// The app's style toolbox: everything App.cpp reaches for to draw themed UI.
+// Composes Graphics' asset ids (FontId/IconId, Style.h) and Ui's single palette
+// (Ui::ColorScheme, read live via Ui::Colors()) into text presets, sizing
+// shorthands, and the Button/icon primitives the views are built from. This is
+// the one place to add more of either — a new text preset, a new ButtonStyle
+// variant, a new named ColorScheme for a future theme. Header-only; every
+// function bottoms out in exported Ui primitives, so it is hot-reload-safe to
+// include from App.dll.
 namespace UiStyle {
 
 // ── sizing shorthands (Clay Components.h equivalents) ────────────────────────

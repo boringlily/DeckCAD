@@ -63,7 +63,7 @@ const std::array<std::array<u8, 20>, 9> IconNames = {
     Make_Icons(MAKE_STRINGS)
 };
 
-// ─── src/Ui migration runtime ─────────────────────────────────────────────────
+// ─── Ui runtime ────────────────────────────────────────────────────────────────
 // The Ui context, its backing buffer, the backend state (fonts/icons), and the
 // path flag are owned by the Graphics module so they survive App.dll hot-reloads
 // (same reason Clay's arena lives here). Fonts are shared with the Clay path;
@@ -84,31 +84,6 @@ static void LoadUiIcons()
         uiIcons[index] = Ui::Raylib::LoadIcon(iconPath.data(), 48);
         index++;
     }
-}
-
-static Ui::UiColor ToUiColor(StyleColor c)
-{
-    return Ui::UiColor { c.red, c.green, c.blue, c.alpha };
-}
-
-// Translate the Clay-era GuiTheme into the Ui backend's ColorScheme so both
-// paths render with identical colors during the migration.
-static Ui::ColorScheme MakeUiColorScheme()
-{
-    Ui::ColorScheme s {};
-    s.bgDark = ToUiColor(GuiTheme.BgDark);
-    s.bgBase = ToUiColor(GuiTheme.BgBase);
-    s.bgLight = ToUiColor(GuiTheme.BgLight);
-    s.textBase = ToUiColor(GuiTheme.TextBase);
-    s.textMuted = ToUiColor(GuiTheme.TextMuted);
-    s.accentPrimary = ToUiColor(GuiTheme.AccentPrimary);
-    s.accentSecondary = ToUiColor(GuiTheme.AccentSecondary);
-    s.borderBase = ToUiColor(GuiTheme.BorderBase);
-    s.alertDanger = ToUiColor(GuiTheme.AlertDanger);
-    s.alertWarning = ToUiColor(GuiTheme.AlertWarning);
-    s.alertSuccess = ToUiColor(GuiTheme.AlertSuccess);
-    s.alertInfo = ToUiColor(GuiTheme.AlertInfo);
-    return s;
 }
 
 #ifdef __cplusplus
@@ -135,7 +110,7 @@ void Graphics::Initialize()
 
     LoadAppFonts();
 
-    // src/Ui runtime — the sole UI layer. Reuses the fonts loaded above.
+    // Ui runtime — the sole UI layer. Reuses the fonts loaded above.
     LoadUiIcons();
     uiBackendState = Ui::Raylib::State {
         loadedFonts.data(), static_cast<u32>(loadedFonts.size()),
@@ -147,7 +122,10 @@ void Graphics::Initialize()
     uiDesc.maxNodes = 4096;
     uiDesc.maxCommands = 8192;
     uiDesc.maxScrollStates = 256;
-    uiDesc.backend = Ui::Raylib::MakeBackend(&uiBackendState, MakeUiColorScheme());
+    // No explicit ColorScheme: MakeBackend's default is Ui::ColorScheme{}, the
+    // app's single theme (Ui/Backend/IBackend.h) — every component reads the same
+    // instance via Ui::Colors(), so there is nothing to keep in sync here anymore.
+    uiDesc.backend = Ui::Raylib::MakeBackend(&uiBackendState);
     uiReady = uiContext.Init(uiDesc);
     if (uiReady) {
         Ui::SetCurrent(&uiContext);

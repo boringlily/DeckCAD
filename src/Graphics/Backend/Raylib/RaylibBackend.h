@@ -1,7 +1,7 @@
 #pragma once
 #include "DTL.h"
 #include "IBackend.h"
-#include "Ui.export.h"
+#include "Graphics.export.h"
 #include "raylib.h"
 
 // Default backend: binds the Ui vtable to raylib draw/text calls. Designed so a
@@ -17,11 +17,11 @@ struct State {
     u32 iconCount { 0 };
 };
 
-UI_API UiBackend MakeBackend(State* state, ColorScheme colors = {});
+GRAPHICS_API UiBackend MakeBackend(State* state, ColorScheme colors = {});
 
 // Load an icon texture, preferring `<basePathNoExt>.svg` (rasterized at pixelSize,
 // requires the UI_ENABLE_SVG build option + the nanosvg submodule) over
 // `<basePathNoExt>.png`. Returns a texture with .id == 0 if neither file exists.
-UI_API Texture2D LoadIcon(const char* basePathNoExt, int pixelSize);
+GRAPHICS_API Texture2D LoadIcon(const char* basePathNoExt, int pixelSize);
 
 } // namespace Ui::Raylib

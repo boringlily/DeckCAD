@@ -21,7 +21,8 @@ struct Rect {
 // with the element's final rect. The `user` pointer is supplied alongside it.
 using CustomDrawFn = void (*)(void* user, Rect rect);
 
-// Mirrors the layout of Graphics' StyleColor so themes translate 1:1.
+// The single color type used throughout the Ui framework and its theme (see
+// ColorScheme in Backend/IBackend.h — the one palette every component reads).
 struct UiColor {
     u8 r { 255 };
     u8 g { 255 };

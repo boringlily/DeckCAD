@@ -9,10 +9,10 @@
 
 #include <tracy/Tracy.hpp>
 
-// ── src/Ui tree ───────────────────────────────────────────────────────────────
-// DeckCAD's entire UI, built with the in-repo src/Ui flexbox framework (Clay was
-// removed in the Phase 7 teardown — this is now the only UI path). BuildUiTree is
-// declared unconditionally each frame from AppUpdate.
+// ── Ui tree ───────────────────────────────────────────────────────────────────
+// DeckCAD's entire UI, built with the in-repo Ui flexbox framework (part of the
+// GRAPHICS module; Clay was removed in the Phase 7 teardown — this is now the
+// only UI path). BuildUiTree is declared unconditionally each frame from AppUpdate.
 namespace {
 
 // A centered single-title page — the Home/Settings placeholders (App.cpp Clay side).

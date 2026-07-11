@@ -22,11 +22,11 @@ public:
     }
     UiColor Color() const override
     {
-        return Hovered() ? UiColor { 172, 153, 255, 255 } : UiColor { 210, 210, 210, 255 };
+        return Hovered() ? Colors().accentPrimary : Colors().bgDark;
     }
     virtual u16 FontId() const { return 0; }
     virtual u16 FontSize() const { return 16; }
-    virtual UiColor LabelColor() const { return UiColor { 13, 13, 13, 255 }; }
+    virtual UiColor LabelColor() const { return Colors().textBase; }
 
     template <typename Fn>
     void Draw(std::string_view label, Fn&& onClick, UiId id = kNullId)

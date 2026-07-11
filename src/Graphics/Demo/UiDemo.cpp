@@ -1,6 +1,7 @@
 // Standalone showcase for the Ui framework: borders, a checkbox, a text field,
-// a floating dropdown, a floating modal dialog, and icons - all drawn by src/Ui
-// (no Clay). Run with --shot to capture verification screenshots.
+// a floating dropdown, a floating modal dialog, and icons - all drawn by the
+// Ui framework in src/Graphics (no Clay). Run with --shot to capture
+// verification screenshots.
 
 #include "Ui.h"
 #include "raylib.h"
@@ -206,8 +207,8 @@ static void BuildShowcase(DemoState& s)
     Checkbox(s.snap, "Snap to grid", HashId("cb", 1));
 
     // Wrapping paragraph (reflows to the card width).
-    Paragraph("This panel is laid out and drawn entirely by src/Ui - a flexbox immediate-mode "
-              "GUI with floating panels, scrolling, and word-wrapped text. No Clay.",
+    Paragraph("This panel is laid out and drawn entirely by the Ui framework - a flexbox "
+              "immediate-mode GUI with floating panels, scrolling, and word-wrapped text. No Clay.",
         14, col.textMuted, HashId("para", 0));
 
     // Single-line text field.

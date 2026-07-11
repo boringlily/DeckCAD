@@ -15,7 +15,6 @@ set(APP_INC_DIRS
 "${APP_DIR}"
 "${APP_DIR}/Gui/Toolbox"
 "${APP_DIR}/Gui/Canvas"
-"${APP_DIR}/Gui/Explorer"
 "${APP_DIR}/Core"
 "${APP_DIR}/Core/Kernel"
 "${APP_DIR}/Core/Command"
@@ -28,20 +27,13 @@ set(APP_INC_DIRS
 set(APP_INC_DIRS "${APP_INC_DIRS}" PARENT_SCOPE)
 
 set(LIBS_TO_LINK
-UI
+GRAPHICS
 )
 
 if(HOT_RELOAD)
     set(LIB_BUILD_OPTION SHARED)
-    
-    list(APPEND LIBS_TO_LINK 
-        GRAPHICS
-    )
-
 else()
-
     set(LIB_BUILD_OPTION STATIC)
-
 endif()
 
 if(WIN32)
@@ -85,7 +77,7 @@ endif()
 include(GenerateExportHeader)
 # Emit into this build's ${CMAKE_BINARY_DIR}/generated dir (globally on the include
 # path), not the source tree, so SHARED and STATIC builds don't clobber each other's
-# export macros. See the UI CMakeLists for the full rationale.
+# export macros. See the GRAPHICS CMakeLists for the full rationale.
 generate_export_header("${PROJECT_NAME}"
     EXPORT_FILE_NAME "${CMAKE_BINARY_DIR}/generated/App.export.h"
     INCLUDE_GUARD_NAME "APP_API_H"

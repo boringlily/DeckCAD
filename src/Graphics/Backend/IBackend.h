@@ -62,7 +62,13 @@ struct DrawBackend {
     void (*ScissorEnd)(void* user) { nullptr };
 };
 
-// Named theme colors handed to the framework / components.
+// The app's single theme/palette: the one place color values live. Every themed
+// component reads it via Ui::Colors(), and Graphics::Initialize() hands it to
+// MakeBackend() as-is (there used to be a second, Clay-era palette in
+// Graphics/Style.h kept in sync by a hand-written translation at startup; that
+// shim is gone, and these defaults are now the single, non-drifting source of
+// truth — swap them, or add a named alternate ColorScheme constant, to add a
+// new theme).
 struct ColorScheme {
     UiColor bgDark { 210, 210, 210, 255 };
     UiColor bgBase { 239, 239, 239, 255 };
@@ -72,10 +78,10 @@ struct ColorScheme {
     UiColor accentPrimary { 172, 153, 255, 255 };
     UiColor accentSecondary { 151, 71, 255, 255 };
     UiColor borderBase { 102, 102, 102, 255 };
-    UiColor alertDanger { 220, 64, 64, 255 };
-    UiColor alertWarning { 230, 180, 60, 255 };
-    UiColor alertSuccess { 90, 190, 110, 255 };
-    UiColor alertInfo { 90, 160, 230, 255 };
+    UiColor alertDanger { 255, 127, 127, 255 };
+    UiColor alertWarning { 255, 225, 127, 255 };
+    UiColor alertSuccess { 149, 255, 127, 255 };
+    UiColor alertInfo { 127, 212, 255, 255 };
     UiColor selection { 172, 153, 255, 110 }; // text-selection highlight (semi-transparent).
 };
 

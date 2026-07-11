@@ -136,7 +136,13 @@ namespace {
         memcpy(stackBuf, text, n);
         stackBuf[n] = '\0';
 
-        DrawTextEx(font, stackBuf, Vector2 { pos.x, pos.y }, static_cast<float>(fontSize), 0.0f, ToRaylib(color));
+        // Snap to the nearest integer pixel: the font atlas is bilinear-filtered
+        // (LoadAppFonts), so a glyph quad drawn at a fractional position - which
+        // the layout engine produces routinely (sub-pixel glyph advances, Grow
+        // division, *0.5f centering) - gets GPU-resampled against neighboring
+        // texels and reads as blurry. Every other primitive here (DrawRect,
+        // DrawBorder, icons) already snaps its position the same way.
+        DrawTextEx(font, stackBuf, Vector2 { roundf(pos.x), roundf(pos.y) }, static_cast<float>(fontSize), 0.0f, ToRaylib(color));
     }
 
     TextMetrics MeasureWrapped(void* user, const char* text, u32 len, u16 fontId, u16 fontSize, f32 maxWidth)
@@ -213,7 +219,7 @@ namespace {
             u32 nn = count < sizeof(buf) - 1 ? count : static_cast<u32>(sizeof(buf) - 1);
             memcpy(buf, text + start, nn);
             buf[nn] = '\0';
-            DrawTextEx(font, buf, Vector2 { box.x, ly }, lineH, 0.0f, c);
+            DrawTextEx(font, buf, Vector2 { roundf(box.x), roundf(ly) }, lineH, 0.0f, c); // pixel-snapped; see DrawText.
             // Locate the caret's wrapped line + x (first line whose range covers it).
             if (caretByte >= 0 && caretLine < 0 && cb >= start && cb <= start + count) {
                 caretLine = static_cast<int>(lineIdx);
@@ -277,7 +283,7 @@ namespace {
             for (u32 k = a; k < b; ++k) {
                 w += GlyphAdvance(font, text[k]) * scale;
             }
-            DrawTextEx(font, buf, Vector2 { x, y }, static_cast<float>(fontSize), 0.0f, ToRaylib(color));
+            DrawTextEx(font, buf, Vector2 { roundf(x), roundf(y) }, static_cast<float>(fontSize), 0.0f, ToRaylib(color)); // pixel-snapped; see DrawText.
             if (decoration != TextDecoration::None) {
                 int thickness = decoration == TextDecoration::Error ? 2 : 1;
                 DrawRectangle(static_cast<int>(x), static_cast<int>(y + fontSize - 2),
