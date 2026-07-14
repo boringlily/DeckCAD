@@ -13,7 +13,7 @@ namespace AppInternal {
     constexpr const char* TOOLBOX_PANEL = "Toolbox";
 
     /// Applied to the whole hierarchy: nothing can be undocked, split or
-    /// docked over, so the layout the app builds is the layout it keeps.
+    /// docked over. The layout the app builds is the layout it keeps.
     constexpr ImGuiDockNodeFlags DOCK_SPACE_FLAGS = static_cast<int>(ImGuiDockNodeFlags_NoUndocking)
         | ImGuiDockNodeFlags_NoDocking;
 
