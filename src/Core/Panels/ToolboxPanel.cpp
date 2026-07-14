@@ -12,7 +12,7 @@
 namespace Core {
 namespace ToolboxPanelInternal {
 
-    /// Stand-in for tools that are not implemented yet.
+    /// Displays a placeholder screen for a tool that has not been implemented yet.
     void ToolPlaceholder(FrameContext& context_ref)
     {
         Scene& scene_ref = context_ref.app_ref.getCurrentScene();
@@ -27,7 +27,10 @@ namespace ToolboxPanelInternal {
         }
     }
 
-    /// Full-width tool entry. Returns true when clicked.
+    /**
+     * @brief Draws a full-width selectable entry for one tool.
+     * @return True if the entry was clicked this frame.
+     */
     bool ToolSelectButton(FrameContext& context_ref, const char* name_ptr, Ui::IconId icon, Toolbox::ToolFunction tool)
     {
         const f32 icon_size = ImGui::GetFontSize();
@@ -94,7 +97,6 @@ namespace ToolboxPanelInternal {
             scene_ref.toolbox.context = in_sketch_context ? Toolbox::Solid : Toolbox::Sketch;
         }
 
-        // The drawing tools only make sense once a sketch is open.
         if (!in_sketch_context) {
             return;
         }
@@ -155,7 +157,7 @@ void DrawToolboxPanel(FrameContext& context_ref)
         return;
     }
 
-    // An active tool takes over the whole panel until it dismisses itself.
+    // active tool takes over the whole panel until it dismisses itself
     if (scene_ref.toolbox.hasActiveTool()) {
         scene_ref.toolbox.active_tool(context_ref);
         ImGui::End();

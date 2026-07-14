@@ -14,8 +14,7 @@ namespace ViewportPanelInternal {
 
         if (scene_ref.show_origin_planes) {
             constexpr f32 PLANE_HALF_SIZE = 5.0f;
-            // Tinted toward the axis pair each plane contains, kept faint so
-            // they read as construction geometry rather than solids.
+            // color matches each plane's axis pair, alpha kept low to read as construction geometry, not a solid
             context_ref.viewport_ref.getSolids().addOriginPlane(Viewport::OriginPlane::XZ, PLANE_HALF_SIZE,
                 { 0.35f, 0.65f, 0.35f, 0.10f });
             context_ref.viewport_ref.getSolids().addOriginPlane(Viewport::OriginPlane::XY, PLANE_HALF_SIZE,
@@ -38,8 +37,10 @@ namespace ViewportPanelInternal {
         }
     }
 
-    /// Applies mouse input to the camera. Mapping is carried over from the
-    /// original canvas: left+right together orbits, middle pans, wheel zooms.
+    /**
+     * @brief Applies mouse input to the camera.
+     * @note Mapping is carried over from the original canvas: left+right together orbits, middle pans, wheel zooms.
+     */
     void ApplyCameraInput(Scene& scene_ref, bool active, bool hovered)
     {
         const ImGuiIO& io_ref = ImGui::GetIO();
@@ -55,8 +56,7 @@ namespace ViewportPanelInternal {
             }
         }
 
-        // Wheel only applies while the cursor is actually over the viewport, so
-        // scrolling a docked panel never moves the camera.
+        // wheel gated on hover, keeps scrolling a docked panel from moving the camera
         if (hovered && io_ref.MouseWheel != 0.0f) {
             scene_ref.camera.zoomTowardTarget(io_ref.MouseWheel);
         }
@@ -98,15 +98,13 @@ void DrawViewportPanel(FrameContext& context_ref)
         return;
     }
 
-    // ImGui works in logical points; the render target must be sized in
-    // physical pixels or the viewport is soft on a HiDPI display.
+    // ImGui works in logical points, render target must be sized in physical pixels or the viewport is soft on HiDPI
     const u32 pixel_width = static_cast<u32>(available.x * context_ref.display_scale);
     const u32 pixel_height = static_cast<u32>(available.y * context_ref.display_scale);
     context_ref.viewport_ref.resizeTarget(context_ref.gpu_ref, pixel_width, pixel_height);
 
     QueueSceneContent(context_ref, scene_ref);
-    // Recorded into this frame's encoder, ahead of the ImGui pass that samples
-    // the result, so the texture is written before it is read.
+    // recorded into this frame's encoder, ahead of the ImGui pass that samples the result, texture write precedes the read
     context_ref.viewport_ref.renderFrame(context_ref.gpu_ref, scene_ref.camera);
 
     const ImVec2 image_top_left = ImGui::GetCursorScreenPos();
@@ -122,8 +120,7 @@ void DrawViewportPanel(FrameContext& context_ref)
         ImGui::Dummy(available);
     }
 
-    // An invisible button over the same rect gives proper drag capture, so an
-    // orbit keeps tracking even when the cursor leaves the panel.
+    // invisible button over the same rect gives proper drag capture, keeps an orbit tracking even off-panel
     ImGui::SetCursorScreenPos(image_top_left);
     ImGui::InvisibleButton("##viewport_input", available,
         ImGuiButtonFlags_MouseButtonLeft | ImGuiButtonFlags_MouseButtonRight | ImGuiButtonFlags_MouseButtonMiddle);

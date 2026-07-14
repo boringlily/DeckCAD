@@ -22,7 +22,7 @@ void DrawHeaderBar(FrameContext& context_ref)
         ImGui::SetTooltip("Home");
     }
 
-    // Scene tabs. Deletion is deferred so the vector is not mutated mid-iteration.
+    // close deferred to avoid mutating scenes mid-iteration
     size_t scene_to_close = static_cast<size_t>(-1);
 
     for (size_t index = 0; index < context_ref.app_ref.scenes.size(); ++index) {
@@ -37,8 +37,6 @@ void DrawHeaderBar(FrameContext& context_ref)
             context_ref.app_ref.active_tab = tab_id;
         }
 
-        // Only the focused tab offers a close affordance, matching the
-        // original header behaviour.
         if (active) {
             ImGui::SameLine(0.0f, 2.0f);
             if (Ui::IconButton(context_ref.icons_ref, Ui::IconId::Exit, "##close", icon_size * 0.75f, theme_ref.alert_danger)) {
@@ -60,7 +58,6 @@ void DrawHeaderBar(FrameContext& context_ref)
         ImGui::SetTooltip("New scene");
     }
 
-    // Right-aligned utility icons.
     const f32 utility_width = (icon_size + ImGui::GetStyle().FramePadding.x * 2.0f + ImGui::GetStyle().ItemSpacing.x) * 2.0f;
     ImGui::SameLine(ImGui::GetWindowWidth() - utility_width);
 
