@@ -10,6 +10,48 @@
 // newline handling), with the Clay string slice swapped for (chars, len).
 namespace Ui::Raylib {
 
+KeyboardState ReadKeyboard()
+{
+    KeyboardState kb {};
+    bool ctrl = IsKeyDown(KEY_LEFT_CONTROL) || IsKeyDown(KEY_RIGHT_CONTROL);
+    kb.shift = IsKeyDown(KEY_LEFT_SHIFT) || IsKeyDown(KEY_RIGHT_SHIFT);
+    if (!ctrl) { // Ctrl combos are actions, not typed text.
+        int cp;
+        while ((cp = GetCharPressed()) != 0 && kb.typedCount < 16) {
+            kb.typed[kb.typedCount++] = static_cast<u32>(cp);
+        }
+    }
+    kb.copy = ctrl && IsKeyPressed(KEY_C);
+    kb.cut = ctrl && IsKeyPressed(KEY_X);
+    kb.paste = ctrl && IsKeyPressed(KEY_V);
+    kb.selectAll = ctrl && IsKeyPressed(KEY_A);
+    kb.backspace = IsKeyPressed(KEY_BACKSPACE) || IsKeyPressedRepeat(KEY_BACKSPACE);
+    kb.del = IsKeyPressed(KEY_DELETE) || IsKeyPressedRepeat(KEY_DELETE);
+    kb.enter = IsKeyPressed(KEY_ENTER);
+    kb.escape = IsKeyPressed(KEY_ESCAPE);
+    kb.tab = IsKeyPressed(KEY_TAB);
+    kb.left = IsKeyPressed(KEY_LEFT) || IsKeyPressedRepeat(KEY_LEFT);
+    kb.right = IsKeyPressed(KEY_RIGHT) || IsKeyPressedRepeat(KEY_RIGHT);
+    kb.up = IsKeyPressed(KEY_UP) || IsKeyPressedRepeat(KEY_UP);
+    kb.down = IsKeyPressed(KEY_DOWN) || IsKeyPressedRepeat(KEY_DOWN);
+    kb.home = IsKeyPressed(KEY_HOME);
+    kb.end = IsKeyPressed(KEY_END);
+    return kb;
+}
+
+PointerState ReadPointer()
+{
+    Vector2 m = GetMousePosition();
+    Vector2 w = GetMouseWheelMoveV();
+    PointerState p {};
+    p.pos = { m.x, m.y };
+    p.wheel = { w.x, w.y };
+    p.down = IsMouseButtonDown(MOUSE_BUTTON_LEFT);
+    p.pressed = IsMouseButtonPressed(MOUSE_BUTTON_LEFT);
+    p.released = IsMouseButtonReleased(MOUSE_BUTTON_LEFT);
+    return p;
+}
+
 namespace {
 
     Color ToRaylib(UiColor c)

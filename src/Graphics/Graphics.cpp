@@ -145,15 +145,12 @@ void Graphics::BeginFrame()
 {
     ZoneScoped;
 
-    Vector2 mouse = GetMousePosition();
-    Vector2 wheel = GetMouseWheelMoveV();
-    Ui::PointerState pointer {};
-    pointer.pos = { mouse.x, mouse.y };
-    pointer.wheel = { wheel.x, wheel.y };
-    pointer.down = IsMouseButtonDown(MOUSE_BUTTON_LEFT);
-    pointer.pressed = IsMouseButtonPressed(MOUSE_BUTTON_LEFT);
-    pointer.released = IsMouseButtonReleased(MOUSE_BUTTON_LEFT);
-    Ui::BeginFrame({ static_cast<f32>(GetScreenWidth()), static_cast<f32>(GetScreenHeight()) }, pointer);
+    // Keyboard is sampled here, not just in the demo: without it KeyboardState stays
+    // default-constructed and every editable field (Ui::InputLabel / InputBox) renders
+    // and takes focus but can never receive a character.
+    Ui::PointerState pointer = Ui::Raylib::ReadPointer();
+    Ui::KeyboardState keyboard = Ui::Raylib::ReadKeyboard();
+    Ui::BeginFrame({ static_cast<f32>(GetScreenWidth()), static_cast<f32>(GetScreenHeight()) }, pointer, keyboard);
 }
 
 GRAPHICS_API

@@ -6,8 +6,6 @@
 #include <optional>
 
 #include "Geometry.h"
-#include "SketchFeature.h"
-#include "CreateSketchCommand.h"
 
 #include "CanvasPlanes.cpp"
 

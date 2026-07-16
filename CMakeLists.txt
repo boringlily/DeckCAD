@@ -85,6 +85,15 @@ endif()
 
 set(RAYLIB_DIR "${CMAKE_SOURCE_DIR}/submodules/raylib")
 set(TRACY_DIR "${CMAKE_SOURCE_DIR}/submodules/tracy")
+# glaze: header-only JSON (the .dcad format). C++23, no exceptions (returns an error
+# context). Only its include dir is needed - no build step, no link target.
+set(GLAZE_DIR "${CMAKE_SOURCE_DIR}/submodules/glaze")
+if(NOT EXISTS "${GLAZE_DIR}/include/glaze/glaze.hpp")
+    message(FATAL_ERROR
+        "glaze submodule is missing. Fetch it with:\n"
+        "  git submodule update --init submodules/glaze")
+endif()
+set(GLAZE_INC "${GLAZE_DIR}/include")
 
 set(SRC_DIR "${CMAKE_SOURCE_DIR}/src")
 

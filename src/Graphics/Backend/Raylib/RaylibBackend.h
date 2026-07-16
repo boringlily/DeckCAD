@@ -1,6 +1,7 @@
 #pragma once
 #include "DTL.h"
 #include "IBackend.h"
+#include "UiContext.h"
 #include "Graphics.export.h"
 #include "raylib.h"
 
@@ -18,6 +19,16 @@ struct State {
 };
 
 GRAPHICS_API UiBackend MakeBackend(State* state, ColorScheme colors = {});
+
+// Per-frame input sampling. These are the only place raylib's input API is read,
+// so every host (Graphics::BeginFrame, the standalone demo) feeds the framework
+// identical state. Call both immediately before Ui::BeginFrame.
+//
+// ReadKeyboard drains raylib's typed-character queue, so it must be called EXACTLY
+// ONCE per frame: a second call the same frame returns an empty queue and silently
+// eats the user's keystrokes.
+GRAPHICS_API KeyboardState ReadKeyboard();
+GRAPHICS_API PointerState ReadPointer();
 
 // Load an icon texture, preferring `<basePathNoExt>.svg` (rasterized at pixelSize,
 // requires the UI_ENABLE_SVG build option + the nanosvg submodule) over

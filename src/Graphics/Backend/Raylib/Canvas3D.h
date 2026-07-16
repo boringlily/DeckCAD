@@ -42,6 +42,18 @@ public:
     // BeginMode3D(camera) already set up for `rect`.
     virtual void Draw3D(Rect rect) = 0;
 
+    // Optional 2D overlay, drawn AFTER EndMode3D but still inside the render texture —
+    // so it composites with the 3D scene and needs no separate layout element.
+    //
+    // This is where screen-space annotation goes: text, in particular, which has no 3D
+    // primitive in raylib. Project with GetWorldToScreenEx(pos, camera, w, h) — pass the
+    // TEXTURE's size (rect.w/rect.h), not the window's — then draw in those coordinates.
+    //
+    // Coordinates are the texture's own top-left-origin space, the same space Draw3D's
+    // projection uses. The composite's vertical flip applies to the whole texture, so
+    // 2D and 3D content stay consistent with each other and both land upright.
+    virtual void Draw2D(Rect rect) { (void)rect; }
+
     // Reserve the region and register the deferred 3D render/composite.
     void Render(UiId id = kNullId, Sizing sizing = { Grow(), Grow() })
     {
@@ -103,6 +115,7 @@ private:
         BeginMode3D(camera); // BeginMode3D takes aspect from the current FBO (the RT).
         Draw3D(rect);
         EndMode3D();
+        Draw2D(rect); // screen-space overlay, still inside the render texture
         EndTextureMode();
 
         // Composite into the rect; flip vertically (FBO origin is bottom-left).

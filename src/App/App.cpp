@@ -1,8 +1,10 @@
 #include "App.h"
 #include "Graphics.h"
-#include "Gui/Workbench.cpp" // unity hub: shared Canvas helpers + toolset registry.
+#include "Gui/Workbench.cpp" // unity hub: shared Canvas helpers.
+#include "Gui/Explorer.h" // UiExplorer: the command tree + ParameterTable.
+#include "Gui/ExpressionField.h"
+#include "Gui/Storage.h" // save / load / auto-save (.dcad).
 #include "Gui/UiStyles.h"
-#include "GeometryEngine.h" // UiSketchToolset evaluates sketches on Finish.
 #include <print>
 #include <string>
 #include <vector>
@@ -110,373 +112,245 @@ void UiAppHeader(AppState& app)
     Ui::CloseElement(); // Header
 }
 
-// Phase 2: Explorer — the grow(min,max)-width panel the workbench row depends on.
-// Body is intentionally empty (matches the current Clay Explorer).
-void UiExplorer(Scene& scene)
-{
-    (void)scene;
-    Ui::LayoutConfig c {};
-    c.sizing = UiStyle::ExpandMinMaxWidth(100, 350);
-    c.padding = UiStyle::PaddingAll(4);
-    c.gap = 8;
-    c.direction = Ui::Direction::TopToBottom;
-    c.align = Ui::AlignCross::Center;
-    c.background = Ui::Colors().bgBase;
-    Ui::OpenElement(c, Ui::NameId("WorkbenchExplorer"));
-    Ui::CloseElement();
-}
+using AppUi::UiExplorer;
 
-// ── Phase 5: Toolbox + toolsets ───────────────────────────────────────────────
+// ── Toolbox ───────────────────────────────────────────────────────────────────
+// The right-hand panel. It renders exactly what the current context reports from
+// AvailableTools(), grouped by the ToolInfo table.
+//
+// There is no tab bar and no TabContext visibility enum any more, and — the point of
+// the exercise — no switch. "Only sketch tools are legal while sketching" is not
+// special-cased here; it falls out of which context is on top of the stack. Adding a
+// tool is a row in kToolTable plus its Finish() case, with nothing to change in the UI.
 
-// A full-width tool button (icon + left-aligned label) — the ToolSelectButton idiom.
-bool UiToolButton(std::string_view label, Ui::UiId id)
+// Draw one group box of tools, given the subset of `tools` belonging to it.
+void UiToolGroup(std::string_view group, const std::vector<ToolId>& tools, Scene& scene)
 {
-    return UiStyle::Button(label, id,
-        { .icon = IconId::Unknown, .sizing = { Ui::Grow(), Ui::Fit() }, .gap = 4 });
-}
+    Workbench& wb = scene.workbench;
 
-// A bordered, titled group of tools (BeginToolGroup/EndToolGroup). Must be balanced.
-void UiBeginToolGroup(std::string_view name, Ui::UiId id)
-{
     Ui::LayoutConfig g {};
     g.sizing = { Ui::Grow(), Ui::Fit() };
     g.padding = UiStyle::PaddingAll(8);
-    g.gap = 8;
+    g.gap = 6;
     g.direction = Ui::Direction::TopToBottom;
-    g.align = Ui::AlignCross::Stretch; // tool buttons fill the group width.
+    g.align = Ui::AlignCross::Stretch;
     g.cornerRadius = 10;
     g.border = { 2, 2, 2, 2 };
     g.borderColor = Ui::Colors().borderBase;
-    Ui::OpenElement(g, id);
-    UiStyle::Subtitle(name, Ui::HashChild(id, 1));
-}
-void UiEndToolGroup() { Ui::CloseElement(); }
+    Ui::OpenElement(g, Ui::NameId("ToolGroup", Ui::NameId(group.data(), static_cast<u32>(group.size()))));
 
-// The Line command view: a real scroll container of line rows (each with a
-// hover-only Del button) + a Finish Line button. Deferred delete after the loop.
-void UiLineToolView(Scene& scene, CreateSketchCommand* create_sketch)
+    UiStyle::Subtitle(group, Ui::NameId("ToolGroupTitle", Ui::NameId(group.data(), static_cast<u32>(group.size()))));
+
+    for (ToolId id : tools) {
+        const ToolInfo* info = FindTool(id);
+        if (!info || info->group != group) {
+            continue;
+        }
+        bool active = wb.ActiveTool().Active() && wb.ActiveTool().Id() == id;
+        if (UiStyle::Button(info->name, Ui::NameId("Tool", static_cast<u32>(id)),
+                { .icon = IconId::Unknown, .sizing = { Ui::Grow(), Ui::Fit() }, .gap = 4, .active = active })) {
+            wb.StartTool(id);
+            scene.toolbox.ClearValue();
+        }
+    }
+
+    Ui::CloseElement();
+}
+
+// The active gesture: what it still wants, its value field if it needs one, and Cancel.
+void UiActiveToolView(Scene& scene)
 {
+    Workbench& wb = scene.workbench;
+    Tool& tool = wb.ActiveTool();
+    const ToolInfo* info = tool.Info();
+    if (!info) {
+        return;
+    }
+
     const Ui::ColorScheme& colors = Ui::Colors();
 
-    // Per-row labels that must outlive the frame (drawn as string_view into these).
-    static std::vector<std::string> s_labels;
-    s_labels.clear();
-    if (create_sketch) {
-        size_t n = 1;
-        for (auto& f : create_sketch->history) {
-            if (f.IsType(SketchCommandType::Line))
-                s_labels.push_back("Line " + std::to_string(n++));
-            else
-                s_labels.emplace_back();
+    Ui::LayoutConfig box {};
+    box.sizing = { Ui::Grow(), Ui::Fit() };
+    box.padding = UiStyle::PaddingAll(8);
+    box.gap = 6;
+    box.direction = Ui::Direction::TopToBottom;
+    box.align = Ui::AlignCross::Stretch;
+    box.cornerRadius = 10;
+    box.border = { 2, 2, 2, 2 };
+    box.borderColor = colors.accentPrimary;
+    Ui::OpenElement(box, Ui::NameId("ActiveTool"));
+
+    UiStyle::Subtitle(info->name, Ui::NameId("ActiveTool::Name"));
+
+    // Progress hint, generated from the tool's declared inputs — no per-tool text.
+    static std::string hint;
+    hint.clear();
+    if (u32 remaining = tool.PointsRemaining()) {
+        hint = "Click " + std::to_string(remaining) + " more point" + (remaining > 1 ? "s" : "");
+    } else if (info->picks && tool.Picks().size() < info->picks) {
+        hint = "Select " + std::to_string(info->picks - tool.Picks().size()) + " more";
+    } else if (info->plane && !tool.Plane().has_value()) {
+        hint = "Pick a plane in the canvas";
+    } else if (info->value && tool.Value().empty()) {
+        hint = "Enter a value";
+    }
+    if (!hint.empty()) {
+        UiStyle::Muted(hint, Ui::NameId("ActiveTool::Hint"));
+    }
+
+    // The value field — the toolbox's first editable input. A dimension's value is an
+    // expression, so it gets the same parser-backed field as the ParameterTable.
+    if (info->value) {
+        static ExprField::ParserBinding binding {};
+        binding.engine = &wb.Params();
+        if (ExprField::Field(scene.toolbox.value, scene.toolbox.valueLen, kToolValueCap,
+                "e.g. 100mm or $w * 2", Ui::NameId("ActiveTool::Value"), binding)) {
+            tool.SetValue(std::string_view { scene.toolbox.value, scene.toolbox.valueLen });
+        }
+        // Keep the tool in sync even on frames the text didn't change (e.g. the field
+        // was filled before the pick landed).
+        tool.SetValue(std::string_view { scene.toolbox.value, scene.toolbox.valueLen });
+    }
+
+    if (tool.Ready()) {
+        if (UiStyle::Button("Apply", Ui::NameId("ActiveTool::Apply"),
+                { .sizing = { Ui::Grow(), Ui::Fit() }, .justify = Ui::Justify::Center, .border = { 2, 2, 2, 2 }, .borderColor = colors.accentPrimary })) {
+            wb.FinishTool();
+            scene.toolbox.ClearValue();
         }
     }
 
-    std::optional<CommandId> to_delete;
-
-    Ui::LayoutConfig outer {};
-    outer.sizing = UiStyle::Expand();
-    outer.gap = 4;
-    outer.direction = Ui::Direction::TopToBottom;
-    outer.align = Ui::AlignCross::Stretch; // list + finish button fill the width.
-    Ui::OpenElement(outer, Ui::NameId("LineToolView"));
-
-    // scroll=true delivers the real scrolling the Clay LineList never wired up.
-    Ui::LayoutConfig listCfg {};
-    listCfg.sizing = UiStyle::Expand();
-    listCfg.gap = 2;
-    listCfg.direction = Ui::Direction::TopToBottom;
-    listCfg.align = Ui::AlignCross::Stretch; // rows fill the width.
-    listCfg.scroll = true;
-    Ui::OpenElement(listCfg, Ui::NameId("LineList"));
-
-    if (create_sketch) {
-        for (size_t i = 0; i < create_sketch->history.size(); i++) {
-            if (!create_sketch->history[i].IsType(SketchCommandType::Line))
-                continue;
-
-            Ui::UiId rowId = Ui::NameId("LineItem", static_cast<u32>(i));
-            // Subtree hover: the row stays hovered while the pointer is over its own
-            // revealed Del button, so the button (a hit-testable child) doesn't steal
-            // the row's hover and flip-flop itself in/out of existence every frame.
-            bool row_hovered = Ui::IsHoverWithin(rowId);
-
-            Ui::LayoutConfig row {};
-            row.sizing = { Ui::Grow(), Ui::Fit() };
-            row.padding = UiStyle::PaddingAll(4);
-            row.gap = 4;
-            row.align = Ui::AlignCross::Center;
-            row.background = row_hovered ? colors.bgLight : colors.bgBase;
-            row.cornerRadius = 4;
-            Ui::OpenElement(row, rowId);
-
-            // Growing label cell (decorative — lets the row capture hover/click).
-            Ui::LayoutConfig cell {};
-            cell.sizing = { Ui::Grow(), Ui::Fit() };
-            cell.hitTestable = false;
-            Ui::OpenElement(cell, Ui::HashChild(rowId, 1));
-            UiStyle::DecorText(s_labels[i], FontId::Regular, 16, colors.textBase, Ui::HashChild(rowId, 2));
-            Ui::CloseElement();
-
-            if (row_hovered) {
-                Ui::UiId delId = Ui::NameId("LineDeleteBtn", static_cast<u32>(i));
-                bool delHover = Ui::IsHovered(delId);
-                Ui::LayoutConfig del {};
-                del.padding = { 6, 6, 2, 2 };
-                del.align = Ui::AlignCross::Center;
-                del.background = delHover ? Ui::UiColor { 200, 50, 50, 255 } : Ui::UiColor { 160, 40, 40, 255 };
-                del.cornerRadius = 4;
-                Ui::OpenElement(del, delId);
-                UiStyle::DecorText("Del", FontId::Regular, 16, colors.textBase, Ui::HashChild(delId, 1));
-                Ui::CloseElement();
-                if (!to_delete.has_value() && Ui::IsClicked(delId)) {
-                    to_delete = create_sketch->history[i].GetId();
-                }
-            }
-
-            Ui::CloseElement(); // row
-        }
+    if (UiStyle::Button("Cancel", Ui::NameId("ActiveTool::Cancel"),
+            { .sizing = { Ui::Grow(), Ui::Fit() }, .justify = Ui::Justify::Center, .border = { 2, 2, 2, 2 }, .borderColor = colors.bgDark })) {
+        wb.CancelTool();
+        scene.toolbox.ClearValue();
     }
 
-    Ui::CloseElement(); // LineList
-
-    if (to_delete.has_value()) {
-        scene.command_toolbox.DeleteSketchCommand(*to_delete);
-    }
-
-    if (UiStyle::Button("Finish Line", Ui::NameId("FinishLineButton"),
-            { .icon = IconId::Unknown, .sizing = { Ui::Grow(), Ui::Fit() }, .justify = Ui::Justify::Center, .gap = 4, .border = { 2, 2, 2, 2 }, .borderColor = colors.bgDark })) {
-        scene.command_toolbox.CancelSketchCommand();
-    }
-
-    Ui::CloseElement(); // LineToolView
+    Ui::CloseElement();
 }
 
-void UiPartToolset(Scene& scene)
-{
-    if (UiToolButton("Create Sketch", Ui::NameId("Tool::CreateSketch"))) {
-        scene.command_toolbox.StartCreateSketch();
-    }
-}
-
-void UiInspectToolset(Scene& scene)
-{
-    (void)scene;
-    UiStyle::Body("Inspector coming soon.", Ui::NameId("Inspect::soon"));
-}
-
-void UiSketchToolset(Scene& scene)
-{
-    const Ui::ColorScheme& colors = Ui::Colors();
-
-    // Finish Sketch: end the CreateSketch part command, evaluating valid geometry.
-    if (UiStyle::Button("Finish Sketch", Ui::NameId("SketchFinishButton"),
-            { .icon = IconId::Unknown, .sizing = { Ui::Grow(), Ui::Fit() }, .justify = Ui::Justify::Center, .gap = 4, .border = { 2, 2, 2, 2 }, .borderColor = colors.bgDark })) {
-        auto& part_opt = scene.command_toolbox.GetActivePartCommand();
-        if (part_opt.has_value()) {
-            if (auto* cs = part_opt.value().As<CreateSketchCommand>()) {
-                if (cs->IsValid())
-                    scene.geometry.push_back(GeometryEngine::Evaluate(*cs));
-            }
-        }
-        scene.command_toolbox.FinishPartCommand();
-    }
-
-    auto& part_opt = scene.command_toolbox.GetActivePartCommand();
-    auto* create_sketch = part_opt.has_value() ? part_opt.value().As<CreateSketchCommand>() : nullptr;
-
-    // Plane selection — shown until the CreateSketch command has a plane.
-    if (create_sketch && !create_sketch->plane.has_value()) {
-        Ui::LayoutConfig group {};
-        group.sizing = { Ui::Grow(), Ui::Fit() };
-        group.padding = UiStyle::PaddingAll(4);
-        group.gap = 6;
-        group.direction = Ui::Direction::TopToBottom;
-        group.align = Ui::AlignCross::Stretch; // plane buttons fill the width.
-        Ui::OpenElement(group, Ui::NameId("PlaneSelect"));
-
-        UiStyle::Body("Select Sketch Plane", Ui::NameId("PlaneSelect::title"));
-
-        UiStyle::ButtonStyle planeStyle {};
-        planeStyle.sizing = { Ui::Grow(), Ui::Fit() };
-        planeStyle.justify = Ui::Justify::Center;
-        planeStyle.padding = UiStyle::PaddingAll(6);
-        planeStyle.cornerRadius = 6;
-        planeStyle.border = { 1, 1, 1, 1 };
-        planeStyle.borderColor = colors.accentPrimary;
-
-        if (UiStyle::Button("XY Plane", Ui::NameId("PlaneXY"), planeStyle))
-            create_sketch->plane = Geometry::SketchPlane::XY;
-        if (UiStyle::Button("XZ Plane", Ui::NameId("PlaneXZ"), planeStyle))
-            create_sketch->plane = Geometry::SketchPlane::XZ;
-        if (UiStyle::Button("YZ Plane", Ui::NameId("PlaneYZ"), planeStyle))
-            create_sketch->plane = Geometry::SketchPlane::YZ;
-
-        Ui::CloseElement(); // PlaneSelect
-        return;
-    }
-
-    // Sketch tools (no active command) vs the active-command view.
-    if (!scene.command_toolbox.IsSketchCommandActive()) {
-        Ui::LayoutConfig list {};
-        list.sizing = { Ui::Grow(), Ui::Fit() };
-        list.gap = 4;
-        list.direction = Ui::Direction::TopToBottom;
-        list.align = Ui::AlignCross::Stretch; // tool groups fill the width.
-        Ui::OpenElement(list, Ui::NameId("SketchTools"));
-
-        UiBeginToolGroup("Draw", Ui::NameId("Group::Draw"));
-        if (UiToolButton("Line", Ui::NameId("Tool::Line")))
-            scene.command_toolbox.StartSketchCommand(SketchCommandType::Line);
-        if (UiToolButton("Arc", Ui::NameId("Tool::Arc")))
-            scene.command_toolbox.StartSketchCommand(SketchCommandType::Arc);
-        if (UiToolButton("Circle", Ui::NameId("Tool::Circle")))
-            scene.command_toolbox.StartSketchCommand(SketchCommandType::Circle);
-        UiEndToolGroup();
-
-        UiBeginToolGroup("Dimensions", Ui::NameId("Group::Dimensions"));
-        if (UiToolButton("Dimension", Ui::NameId("Tool::Dimension")))
-            scene.command_toolbox.StartSketchCommand(SketchCommandType::Dimension);
-        UiEndToolGroup();
-
-        UiBeginToolGroup("Constraints", Ui::NameId("Group::Constraints"));
-        UiToolButton("Coincident", Ui::NameId("Tool::Coincident"));
-        UiEndToolGroup();
-
-        Ui::CloseElement(); // SketchTools
-        return;
-    }
-
-    auto& cmd_opt = scene.command_toolbox.GetActiveSketchCommand();
-    if (!cmd_opt.has_value())
-        return;
-
-    if (cmd_opt.value().IsType(SketchCommandType::Line)) {
-        UiLineToolView(scene, create_sketch);
-    } else {
-        const char* name = "Unknown";
-        switch (cmd_opt.value().GetType()) {
-        case SketchCommandType::Line:
-            name = "Line";
-            break;
-        case SketchCommandType::Arc:
-            name = "Arc";
-            break;
-        case SketchCommandType::Circle:
-            name = "Circle";
-            break;
-        case SketchCommandType::Dimension:
-            name = "Dimension";
-            break;
-        }
-        UiStyle::Body(name, Ui::NameId("ActiveCmd::name"));
-        if (UiStyle::Button("Cancel", Ui::NameId("SketchCancelButton"),
-                { .icon = IconId::Unknown, .sizing = { Ui::Grow(), Ui::Fit() }, .justify = Ui::Justify::Center, .gap = 4, .border = { 2, 2, 2, 2 }, .borderColor = colors.bgDark })) {
-            scene.command_toolbox.CancelSketchCommand();
-        }
-    }
-}
-
-// The Toolbox panel: context-filtered tab bar (active tab gets a 2px border) + the
-// active toolset's content. Reuses the shared toolset_list for names/visibility.
 void UiToolbox(Scene& scene)
 {
     const Ui::ColorScheme& colors = Ui::Colors();
-    bool is_sketch = scene.command_toolbox.IsSketchContext();
-
-    auto tab_visible = [&](const Toolset& t) -> bool {
-        switch (t.visibility) {
-        case TabContext::Always:
-            return true;
-        case TabContext::PartOnly:
-            return !is_sketch;
-        case TabContext::SketchOnly:
-            return is_sketch;
-        }
-        return true;
-    };
-
-    // If the active tab is hidden in this context, clamp to the first visible one.
-    if (!tab_visible(toolset_list[scene.toolbox.active_toolset])) {
-        for (u32 i = 0; i < toolset_list.size(); ++i) {
-            if (tab_visible(toolset_list[i])) {
-                scene.toolbox.active_toolset = i;
-                break;
-            }
-        }
-    }
+    Workbench& wb = scene.workbench;
 
     Ui::LayoutConfig box {};
-    box.sizing = UiStyle::ExpandMinMaxWidth(200, 300);
+    box.sizing = UiStyle::ExpandMinMaxWidth(220, 320);
     box.direction = Ui::Direction::TopToBottom;
-    box.align = Ui::AlignCross::Stretch; // tab bar + content fill the toolbox width.
+    box.align = Ui::AlignCross::Stretch;
+    box.padding = UiStyle::PaddingAll(6);
+    box.gap = 8;
     box.background = colors.bgBase;
     Ui::OpenElement(box, Ui::NameId("Toolbox"));
 
-    Ui::LayoutConfig tabsCfg {};
-    tabsCfg.sizing = { Ui::Fit(), Ui::Fit() };
-    tabsCfg.padding = UiStyle::PaddingAll(4);
-    tabsCfg.gap = 8;
-    tabsCfg.background = colors.bgBase;
-    Ui::OpenElement(tabsCfg, Ui::NameId("ToolsetTabs"));
+    // Undo / redo.
+    Ui::LayoutConfig histRow {};
+    histRow.direction = Ui::Direction::LeftToRight;
+    histRow.sizing = { Ui::Grow(), Ui::Fit() };
+    histRow.gap = 6;
+    Ui::OpenElement(histRow, Ui::NameId("Toolbox::History"));
+    if (UiStyle::Button("Undo", Ui::NameId("Toolbox::Undo"),
+            { .sizing = { Ui::Grow(), Ui::Fit() }, .justify = Ui::Justify::Center, .labelColor = wb.CanUndo() ? colors.textBase : colors.textMuted })) {
+        wb.Undo();
+    }
+    if (UiStyle::Button("Redo", Ui::NameId("Toolbox::Redo"),
+            { .sizing = { Ui::Grow(), Ui::Fit() }, .justify = Ui::Justify::Center, .labelColor = wb.CanRedo() ? colors.textBase : colors.textMuted })) {
+        wb.Redo();
+    }
+    Ui::CloseElement();
 
-    for (u32 i = 0; i < toolset_list.size(); ++i) {
-        const Toolset& toolset = toolset_list[i];
-        if (!tab_visible(toolset))
+    // Explicit save / open. Save writes a durable <exeDir>/<name>.dcad (the auto-save
+    // cache under cache/ tracks history automatically); Open reloads that same file.
+    Ui::LayoutConfig fileRow {};
+    fileRow.direction = Ui::Direction::LeftToRight;
+    fileRow.sizing = { Ui::Grow(), Ui::Fit() };
+    fileRow.gap = 6;
+    Ui::OpenElement(fileRow, Ui::NameId("Toolbox::File"));
+    if (UiStyle::Button("Save", Ui::NameId("Toolbox::Save"),
+            { .sizing = { Ui::Grow(), Ui::Fit() }, .justify = Ui::Justify::Center })) {
+        AppStorage::SaveScene(scene, AppStorage::JoinExe(Serialize::DcadFileName(scene.filename)));
+    }
+    {
+        std::string dcad = AppStorage::JoinExe(Serialize::DcadFileName(scene.filename));
+        bool exists = AppStorage::FileExists(dcad);
+        if (UiStyle::Button("Open", Ui::NameId("Toolbox::Open"),
+                { .sizing = { Ui::Grow(), Ui::Fit() }, .justify = Ui::Justify::Center, .labelColor = exists ? colors.textBase : colors.textMuted })
+            && exists) {
+            Serialize::SerError err;
+            AppStorage::LoadScene(scene, dcad, err);
+        }
+    }
+    Ui::CloseElement();
+
+    // While a gesture is running the toolbox shows ONLY that gesture: its inputs, its
+    // value field, Apply/Cancel. Offering the tool list at the same time invites a click
+    // that silently abandons half-placed work, and the tool's own options are what the
+    // user is actually looking for at that moment.
+    if (wb.ActiveTool().Active()) {
+        UiActiveToolView(scene);
+        Ui::CloseElement(); // Toolbox
+        return;
+    }
+
+    // THE line that replaces both switches.
+    std::vector<ToolId> tools = wb.AvailableTools();
+
+    // Group in kToolTable order so the layout is stable regardless of the order a
+    // context happens to list its tools in.
+    static std::vector<std::string_view> groups;
+    groups.clear();
+    for (const ToolInfo& info : kToolTable) {
+        bool available = false;
+        for (ToolId t : tools) {
+            if (t == info.id) {
+                available = true;
+                break;
+            }
+        }
+        if (!available) {
             continue;
-        bool tab_active = (i == scene.toolbox.active_toolset);
-        Ui::UiId tabId = Ui::NameId("ToolsetTab", i);
-
-        UiStyle::ButtonStyle st {};
-        st.sizing = { Ui::Grow(), Ui::Fit() };
-        st.justify = Ui::Justify::Center;
-        st.padding = { 16, 16, 4, 0 }; // sides + top (no bottom)
-        st.active = tab_active;
-        st.border = tab_active ? Ui::Edges { 2, 2, 2, 2 } : Ui::Edges {};
-        st.borderColor = colors.accentPrimary;
-        st.labelColor = tab_active ? colors.textBase : colors.textMuted;
-        if (UiStyle::Button(toolset.name, tabId, st)) {
-            scene.toolbox.active_toolset = i;
+        }
+        bool seen = false;
+        for (std::string_view g : groups) {
+            if (g == info.group) {
+                seen = true;
+                break;
+            }
+        }
+        if (!seen) {
+            groups.push_back(info.group);
         }
     }
 
-    Ui::CloseElement(); // ToolsetTabs
-
-    Ui::LayoutConfig content {};
-    content.sizing = UiStyle::Expand();
-    content.padding = UiStyle::PaddingAll(4);
-    content.gap = 16;
-    content.direction = Ui::Direction::TopToBottom;
-    content.align = Ui::AlignCross::Stretch; // tool buttons/groups fill the width.
-    content.background = colors.bgBase;
-    Ui::OpenElement(content, Ui::NameId("Toolset"));
-
-    switch (scene.toolbox.active_toolset) {
-    case 0:
-        UiPartToolset(scene);
-        break;
-    case 1:
-        UiSketchToolset(scene);
-        break;
-    case 2:
-        UiInspectToolset(scene);
-        break;
-    default:
-        break;
+    for (std::string_view g : groups) {
+        UiToolGroup(g, tools, scene);
     }
 
-    Ui::CloseElement(); // Toolset
     Ui::CloseElement(); // Toolbox
 }
 
-// ── Phase 6: Canvas (3D viewport via Ui::Raylib::Canvas3D) ────────────────────
+// ── Canvas (3D viewport via Ui::Raylib::Canvas3D) ─────────────────────────────
 // The 3D scene renders at DISPATCH — Canvas3D composites into the final layout rect
 // with no frame lag. All interaction runs here at BUILD time, gated on the viewport
 // being hovered (IsHovered, last frame) and ray-picking through canvas.lastRect (the
 // canvas sub-viewport, so picking is correct even though the 3D view doesn't fill the
-// window — the Clay path used full-window coords and was imprecise). Right/middle mouse
-// + wheel are read raw from raylib (the Ui PointerState only tracks the left button).
-// Reuses the Clay canvas helpers (ComputeHoveredOriginPlane / SketchPointToWorld /
-// UI::DrawGrid / plane colors) — same translation unit via Workbench.cpp -> Canvas.cpp.
+// window). Right/middle mouse + wheel are read raw from raylib (the Ui PointerState
+// only tracks the left button).
+//
+// The canvas is GENERIC over tools: a click feeds Tool::AddPoint / AddPick and the tool
+// decides what that means. It does not know what a line is, which is what let the
+// hand-written line-chaining state machine go away.
+//
+// It draws SOLVED geometry, never raw commands. The sketch being authored is replayed +
+// solved every frame (Workbench::BuildSketchPreview), so applying a dimension moves the
+// geometry immediately rather than at Finish Sketch — and so picking hits the line where
+// the user can actually see it.
+#include "Gui/DimensionVisual.h" // DimensionVisual + BuildDimensionVisuals
+using AppUi::BuildDimensionVisuals;
+using AppUi::DIM_OFFSET;
+using AppUi::DIM_TEXT_SIZE;
+using AppUi::DimensionVisual;
+
 class SceneViewport : public Ui::Raylib::Canvas3D {
 public:
     Scene* scene { nullptr };
@@ -486,39 +360,34 @@ public:
     std::optional<Geometry::SketchPlane> hoveredPlane {};
     Geometry::Point2 cursorOnPlane {};
 
-    // Rendering half of the Clay CanvasRenderToTexture, reading state cached at build.
+    // Solved geometry for the sketch being authored, rebuilt each frame at build time.
+    SketchDocument preview;
+    bool hasPreview { false };
+    std::vector<DimensionVisual> dims;
+    FeatureId highlighted { kNullFeature };
+
+    // The hovered line (idle mode) whose endpoint handles are shown, and whether each
+    // endpoint has freedom to be dragged.
+    FeatureId hoverLine { kNullFeature };
+    bool hoverStartFree { false };
+    bool hoverEndFree { false };
+
     void Draw3D(Ui::Rect) override
     {
+        if (!scene) {
+            return;
+        }
+
         if (sketchValid && activePlane.has_value()) {
             Geometry::SketchPlane sp = *activePlane;
             UI::DrawGrid(SketchPlaneToOriginPlane(sp), 100, 1.0f);
 
-            auto& part_opt = scene->command_toolbox.GetActivePartCommand();
-            auto* create_sketch = part_opt.has_value() ? part_opt.value().As<CreateSketchCommand>() : nullptr;
-            if (create_sketch) {
-                for (auto& feature : create_sketch->history) {
-                    if (!feature.IsType(SketchCommandType::Line))
-                        continue;
-                    auto* line = feature.As<SketchLineCommand>();
-                    if (!line || !line->start.has_value() || !line->end.has_value())
-                        continue;
-                    DrawLine3D(SketchPointToWorld(*line->start, sp), SketchPointToWorld(*line->end, sp), BLACK);
-                }
-
-                // Preview: sphere at placed start, rubber-band line, sphere at cursor.
-                auto& active_sketch = scene->command_toolbox.GetActiveSketchCommand();
-                if (active_sketch.has_value() && active_sketch.value().IsType(SketchCommandType::Line)) {
-                    if (auto* line_cmd = active_sketch.value().As<SketchLineCommand>()) {
-                        Vector3 cursor_world = SketchPointToWorld(cursorOnPlane, sp);
-                        if (line_cmd->start.has_value()) {
-                            Vector3 start_world = SketchPointToWorld(*line_cmd->start, sp);
-                            DrawSphereEx(start_world, 0.1f, 6, 8, BLUE);
-                            DrawLine3D(start_world, cursor_world, GRAY);
-                        }
-                        DrawSphereEx(cursor_world, 0.07f, 6, 8, SKYBLUE);
-                    }
-                }
+            if (hasPreview) {
+                DrawEntities(preview, sp);
+                DrawDimensionLines(sp);
+                DrawHoverHandles(sp);
             }
+            DrawToolPreview(sp);
         } else if (sketchActive) {
             // Plane-selection: all three origin planes; hovered highlighted, rest dimmed.
             UI::DrawOriginPlane(UI::OriginPlane::XY, { 0, 0, 0 }, ORIGIN_PLANE_SIZE,
@@ -530,12 +399,158 @@ public:
             UI::DrawGrid(UI::OriginPlane::XZ, 100, 1.0f);
         } else {
             UI::DrawGrid(UI::OriginPlane::XZ, 100, 1.0f);
-            for (auto& sketch : scene->geometry) {
-                for (auto& line : sketch.lines) {
-                    DrawLine3D(SketchPointToWorld(line.start, sketch.plane),
-                        SketchPointToWorld(line.end, sketch.plane), BLACK);
-                }
+            for (const SketchDocument& doc : scene->workbench.Evaluated().sketches) {
+                DrawEntities(doc, doc.plane);
             }
+        }
+    }
+
+    // Dimension text. raylib has no 3D text primitive, so the label is projected to the
+    // texture's 2D space here, after the 3D pass.
+    void Draw2D(Ui::Rect rect) override
+    {
+        if (!scene || !sketchValid || !activePlane.has_value() || !hasPreview) {
+            return;
+        }
+        Geometry::SketchPlane sp = *activePlane;
+        int w = static_cast<int>(rect.w + 0.5f);
+        int h = static_cast<int>(rect.h + 0.5f);
+
+        for (const DimensionVisual& d : dims) {
+            if (d.label.empty()) {
+                continue;
+            }
+
+            Vector2 sa = GetWorldToScreenEx(SketchPointToWorld(d.a, sp), camera, w, h);
+            Vector2 sb = GetWorldToScreenEx(SketchPointToWorld(d.b, sp), camera, w, h);
+
+            // "if it fits into the dimension line": measure the label against the
+            // dimension line's on-screen length and draw only when it actually fits.
+            // A dimension line shorter than its own text would otherwise render an
+            // unreadable overlap across the geometry it is annotating.
+            f32 lineLen = std::sqrt((sb.x - sa.x) * (sb.x - sa.x) + (sb.y - sa.y) * (sb.y - sa.y));
+            Vector2 textSize = MeasureTextEx(GetFontDefault(), d.label.c_str(), DIM_TEXT_SIZE, 1.0f);
+            if (textSize.x > lineLen) {
+                continue;
+            }
+
+            Vector2 mid { (sa.x + sb.x) * 0.5f, (sa.y + sb.y) * 0.5f };
+            Vector2 pos { mid.x - textSize.x * 0.5f, mid.y - textSize.y * 0.5f };
+
+            // A pad behind the text so it stays legible where it crosses the grid.
+            DrawRectangle(static_cast<int>(pos.x) - 2, static_cast<int>(pos.y) - 1,
+                static_cast<int>(textSize.x) + 4, static_cast<int>(textSize.y) + 2,
+                Color { 255, 255, 255, 220 });
+            DrawTextEx(GetFontDefault(), d.label.c_str(), pos, DIM_TEXT_SIZE, 1.0f,
+                d.ok ? DIM_COLOR : DIM_ERROR_COLOR);
+        }
+    }
+
+private:
+    static constexpr Color DIM_COLOR { 40, 90, 180, 255 };
+    static constexpr Color DIM_ERROR_COLOR { 200, 50, 50, 255 };
+
+    void DrawEntities(const SketchDocument& doc, Geometry::SketchPlane sp) const
+    {
+        for (const SketchEntity& e : doc.entities) {
+            Color tint = e.construction ? GRAY : BLACK;
+            if (e.id == highlighted) {
+                tint = ORANGE;
+            }
+            switch (e.kind) {
+            case EntityKind::Line:
+                DrawLine3D(SketchPointToWorld(e.a, sp), SketchPointToWorld(e.b, sp), tint);
+                break;
+            case EntityKind::Circle:
+                DrawCircleOnPlane(e.a, e.radius, 0.0, 2.0 * Param::kPi, sp, tint);
+                break;
+            case EntityKind::Arc:
+                DrawCircleOnPlane(e.a, e.radius, e.startAngle, e.endAngle, sp, tint);
+                break;
+            }
+        }
+    }
+
+    // Extension lines from the entity out to the dimension line, plus the dimension
+    // line itself. The label is drawn separately in Draw2D.
+    void DrawDimensionLines(Geometry::SketchPlane sp) const
+    {
+        for (const DimensionVisual& d : dims) {
+            Color c = d.ok ? DIM_COLOR : DIM_ERROR_COLOR;
+            DrawLine3D(SketchPointToWorld(d.extA, sp), SketchPointToWorld(d.a, sp), c);
+            DrawLine3D(SketchPointToWorld(d.extB, sp), SketchPointToWorld(d.b, sp), c);
+            DrawLine3D(SketchPointToWorld(d.a, sp), SketchPointToWorld(d.b, sp), c);
+            DrawSphereEx(SketchPointToWorld(d.a, sp), 0.06f, 4, 6, c);
+            DrawSphereEx(SketchPointToWorld(d.b, sp), 0.06f, 4, 6, c);
+        }
+    }
+
+    // Endpoint handles for the hovered line (idle mode). A filled dot marks a draggable
+    // point; a dimmed hollow-ish dot marks one the constraints have pinned. The line
+    // itself is tinted so it's clear what's grabbable.
+    void DrawHoverHandles(Geometry::SketchPlane sp) const
+    {
+        if (hoverLine == kNullFeature) {
+            return;
+        }
+        const SketchEntity* e = preview.Find(hoverLine);
+        if (!e || e->kind != EntityKind::Line) {
+            return;
+        }
+        DrawLine3D(SketchPointToWorld(e->a, sp), SketchPointToWorld(e->b, sp), ORANGE);
+        DrawHandle(e->a, sp, hoverStartFree);
+        DrawHandle(e->b, sp, hoverEndFree);
+    }
+
+    static void DrawHandle(Geometry::Point2 p, Geometry::SketchPlane sp, bool free)
+    {
+        Vector3 w = SketchPointToWorld(p, sp);
+        // Free = a solid orange grip; pinned = a smaller grey dot (not draggable).
+        Color c = free ? Color { 255, 140, 30, 255 } : Color { 150, 150, 150, 255 };
+        DrawSphereEx(w, free ? 0.16f : 0.10f, 8, 8, c);
+    }
+
+    // Rubber-band preview: the points placed so far, plus a trail to the cursor.
+    void DrawToolPreview(Geometry::SketchPlane sp)
+    {
+        const Tool& tool = scene->workbench.ActiveTool();
+        if (!tool.Active()) {
+            return;
+        }
+
+        Vector3 cursor = SketchPointToWorld(cursorOnPlane, sp);
+        const std::vector<Geometry::Point2>& pts = tool.Points();
+
+        for (const Geometry::Point2& p : pts) {
+            DrawSphereEx(SketchPointToWorld(p, sp), 0.1f, 6, 8, BLUE);
+        }
+        if (!pts.empty() && tool.PointsRemaining() > 0) {
+            DrawLine3D(SketchPointToWorld(pts.back(), sp), cursor, GRAY);
+        }
+        if (tool.PointsRemaining() > 0) {
+            DrawSphereEx(cursor, 0.07f, 6, 8, SKYBLUE);
+        }
+    }
+
+    // raylib has no "circle on an arbitrary sketch plane" primitive; step it manually so
+    // circles and arcs render on XY/XZ/YZ alike.
+    static void DrawCircleOnPlane(Geometry::Point2 c, f64 r, f64 a0, f64 a1,
+        Geometry::SketchPlane sp, Color tint)
+    {
+        constexpr int kSegments = 48;
+        f64 sweep = a1 - a0;
+        if (sweep <= 0.0) {
+            sweep += 2.0 * Param::kPi; // normalize a backwards arc
+        }
+        Vector3 prev {};
+        for (int i = 0; i <= kSegments; ++i) {
+            f64 t = a0 + sweep * (static_cast<f64>(i) / kSegments);
+            Geometry::Point2 p { c.x + r * std::cos(t), c.y + r * std::sin(t) };
+            Vector3 w = SketchPointToWorld(p, sp);
+            if (i > 0) {
+                DrawLine3D(prev, w, tint);
+            }
+            prev = w;
         }
     }
 };
@@ -556,30 +571,76 @@ Ray CanvasRayFromMouse(const Camera3D& cam, Ui::Rect rect)
 // free its RenderTexture while the GL context is still live (see AppShutdown).
 SceneViewport* g_viewport { nullptr };
 
-// Phase 6: the Canvas. Interaction (camera / plane pick / line placement) at build
-// time; the 3D render is deferred to dispatch by Canvas3D. Mirrors the Clay
-// CanvasRenderToTexture + LayoutCanvas.
+// Pick the sketch entity nearest the cursor, for tools that need a selection.
+//
+// Picks against SOLVED entities, not the raw commands: once a line carries a dimension
+// its as-drawn coordinates are not where it is rendered, and picking the raw geometry
+// would mean clicking a line and hitting nothing (or hitting a different one).
+//
+// Distance is in sketch units against a generous threshold — a stand-in until real
+// screen-space picking lands, which is what makes the threshold zoom-independent.
+std::optional<FeatureId> PickEntityNear(const SketchDocument& doc, Geometry::Point2 at, f64 maxDist)
+{
+    std::optional<FeatureId> best;
+    f64 bestDist = maxDist;
+
+    for (const SketchEntity& e : doc.entities) {
+        f64 d = 0;
+        if (e.kind == EntityKind::Line) {
+            // Point-to-segment distance.
+            f64 dx = e.b.x - e.a.x;
+            f64 dy = e.b.y - e.a.y;
+            f64 lenSq = dx * dx + dy * dy;
+            f64 t = lenSq > 0.0 ? ((at.x - e.a.x) * dx + (at.y - e.a.y) * dy) / lenSq : 0.0;
+            t = t < 0.0 ? 0.0 : (t > 1.0 ? 1.0 : t);
+            f64 px = e.a.x + t * dx;
+            f64 py = e.a.y + t * dy;
+            d = std::sqrt((at.x - px) * (at.x - px) + (at.y - py) * (at.y - py));
+        } else {
+            // Circle/arc: distance to the rim, not the centre.
+            f64 dc = std::sqrt((at.x - e.a.x) * (at.x - e.a.x) + (at.y - e.a.y) * (at.y - e.a.y));
+            d = std::fabs(dc - e.radius);
+        }
+
+        if (d < bestDist) {
+            bestDist = d;
+            best = e.id;
+        }
+    }
+
+    return best;
+}
+
+// The Canvas. Interaction at build time; the 3D render is deferred to dispatch.
 //
 // Timing note: both the hover gate (viewport.Hovered()) and the pick rect
 // (viewport.lastRect) reflect the PREVIOUS frame's layout/hit-test — the standard
-// 1-frame lag of this immediate-mode framework (every IsHovered is last-frame). It
-// differs slightly from the Clay path, which gated on the current-frame pointer
-// position: on the single frame the cursor crosses the canvas edge with a button
-// down-edge, a click may be honored/ignored one frame later, and during a live
-// window resize the preview cursor can sit one frame stale. Both are self-correcting
-// and consistent with the rest of the Ui path; Hovered() is also occlusion-aware
-// (a floating panel over the canvas correctly suppresses interaction), which a raw
-// rect test would not be — so the lag is kept deliberately.
+// 1-frame lag of this immediate-mode framework. Hovered() is occlusion-aware (a
+// floating panel over the canvas correctly suppresses interaction), which a raw rect
+// test would not be, so the lag is kept deliberately.
 void UiCanvas(Scene& scene)
 {
     static SceneViewport viewport;
     g_viewport = &viewport; // let AppShutdown() reach it for GL-live teardown.
     viewport.scene = &scene;
 
-    bool is_sketch_active = scene.command_toolbox.IsSketchContext();
-    auto active_plane = scene.command_toolbox.GetActiveSketchPlane();
+    Workbench& wb = scene.workbench;
+    Tool& tool = wb.ActiveTool();
+
+    const SketchContext* sketch = wb.Contexts().ActiveSketch();
+    bool is_sketch_active = sketch != nullptr || (tool.Active() && tool.Id() == ToolId::CreateSketch);
+    std::optional<Geometry::SketchPlane> active_plane;
+    if (sketch) {
+        active_plane = sketch->plane;
+    }
     bool sketch_valid = active_plane.has_value();
     bool hovered = viewport.Hovered();
+
+    // Replay + solve the in-progress sketch, BEFORE interaction: this frame's picking
+    // and this frame's rendering must agree about where the geometry is. Rebuilt every
+    // frame, so a dimension (or a parameter edit) shows up immediately without waiting
+    // for Finish Sketch.
+    viewport.hasPreview = wb.BuildSketchPreview(viewport.preview);
 
     // Camera snap to the confirmed sketch plane; restore isometric when sketch exits.
     if (sketch_valid && !scene.was_sketch_valid) {
@@ -602,59 +663,137 @@ void UiCanvas(Scene& scene)
 
     Ray ray = CanvasRayFromMouse(scene.camera.raylib_camera, viewport.lastRect);
 
-    // Plane selection: hover highlight + click-to-confirm.
+    // Plane selection feeds the tool, exactly like a point would.
     scene.hovered_plane = std::nullopt;
-    if (is_sketch_active && !sketch_valid && hovered) {
+    if (!sketch_valid && tool.Active() && tool.Info() && tool.Info()->plane && hovered) {
         scene.hovered_plane = ComputeHoveredOriginPlane(ray, ORIGIN_PLANE_EXTENT);
         if (scene.hovered_plane.has_value() && IsMouseButtonPressed(MOUSE_BUTTON_LEFT)) {
-            auto& part_opt = scene.command_toolbox.GetActivePartCommand();
-            if (part_opt.has_value()) {
-                if (auto* cmd = part_opt.value().As<CreateSketchCommand>()) {
-                    cmd->plane = *scene.hovered_plane;
-                }
-            }
+            tool.SetPlane(*scene.hovered_plane);
+            wb.FinishTool(); // CreateSketch needs nothing else
         }
     }
 
-    // Line placement: right-click resets the start; left-click places (with chaining).
-    if (sketch_valid && hovered && scene.command_toolbox.IsSketchCommandActive()) {
-        auto& sketch_opt = scene.command_toolbox.GetActiveSketchCommand();
-        if (sketch_opt.has_value() && sketch_opt.value().IsType(SketchCommandType::Line)) {
-            auto* line_cmd = sketch_opt.value().As<SketchLineCommand>();
-            if (line_cmd && IsMouseButtonPressed(MOUSE_BUTTON_RIGHT)) {
-                line_cmd->start = std::nullopt;
-            } else if (line_cmd && IsMouseButtonPressed(MOUSE_BUTTON_LEFT)) {
-                auto hit = scene.camera.GetMouseOnSketchPlane(*active_plane, ray);
-                if (!line_cmd->start.has_value()) {
-                    line_cmd->start = hit;
-                } else {
-                    line_cmd->end = hit;
-                    Geometry::Point2 chain_start = hit;
-                    scene.command_toolbox.FinishSketchCommand();
-                    scene.command_toolbox.StartSketchCommand(SketchCommandType::Line);
-                    auto& next_opt = scene.command_toolbox.GetActiveSketchCommand();
-                    if (next_opt.has_value() && next_opt.value().IsType(SketchCommandType::Line)) {
-                        if (auto* next_line = next_opt.value().As<SketchLineCommand>()) {
-                            next_line->start = chain_start;
-                        }
+    // Generic tool input. The canvas knows about points and picks; it does NOT know
+    // what tool is running or what a line is.
+    if (sketch_valid && hovered && tool.Active()) {
+        Geometry::Point2 hit = scene.camera.GetMouseOnSketchPlane(*active_plane, ray);
+        const ToolInfo* info = tool.Info();
+
+        if (IsMouseButtonPressed(MOUSE_BUTTON_RIGHT)) {
+            wb.CancelTool();
+            scene.toolbox.ClearValue();
+        } else if (IsMouseButtonPressed(MOUSE_BUTTON_LEFT) && info) {
+            if (tool.Points().size() < info->points) {
+                tool.AddPoint(hit);
+            } else if (tool.Picks().size() < info->picks) {
+                // Against solved geometry — where the line actually is on screen.
+                if (auto picked = PickEntityNear(viewport.preview, hit, 0.5)) {
+                    tool.AddPick(*picked);
+                }
+            }
+
+            if (tool.Ready()) {
+                ToolId finished = tool.Id();
+                Geometry::Point2 last = tool.Points().empty() ? hit : tool.Points().back();
+                if (wb.FinishTool()) {
+                    scene.toolbox.ClearValue();
+                    // Chain: a finished Line immediately starts the next one from its
+                    // end point, so a polyline is a run of clicks. SetChain marks the new
+                    // segment so the commit path auto-adds a Coincident joining it to the
+                    // line just placed — the polyline becomes a connected chain, not just
+                    // touching points.
+                    if (finished == ToolId::Line && wb.StartTool(ToolId::Line)) {
+                        wb.ActiveTool().SeedPoint(last);
+                        wb.ActiveTool().SetChain(true);
                     }
                 }
             }
         }
     }
 
-    // Cache state for Draw3D (dispatch) and hand the live camera to the viewport.
+    // Idle direct-manipulation: with a sketch open and NO drawing tool running, hovering
+    // a line shows its endpoint handles and lets the user drag a point or the whole line —
+    // but only where the constraints leave freedom. Dragging edits the line's command; the
+    // preview re-solves each frame, so a constrained line follows the cursor only as far
+    // as it can. Left-drag doesn't collide with the camera (2D pan is the middle button).
+    scene.hover_entity.reset();
+    if (sketch_valid && !tool.Active()) {
+        constexpr f64 kGrab = 0.6; // sketch-space grab radius for an endpoint / the line
+        Geometry::Point2 cursor = scene.camera.GetMouseOnSketchPlane(*active_plane, ray);
+
+        if (scene.drag.Active()) {
+            // A drag is under way: follow the cursor until the button releases.
+            if (IsMouseButtonDown(MOUSE_BUTTON_LEFT)) {
+                if (scene.drag.mode == DragMode::Point) {
+                    wb.MoveLinePoint(scene.drag.entity, scene.drag.point, cursor);
+                } else if (scene.drag.mode == DragMode::Body) {
+                    Geometry::Point2 d { cursor.x - scene.drag.lastCursor.x, cursor.y - scene.drag.lastCursor.y };
+                    wb.TranslateLine(scene.drag.entity, d);
+                }
+                scene.drag.lastCursor = cursor;
+                scene.hover_entity = scene.drag.entity;
+            } else {
+                scene.drag = {}; // released
+            }
+        } else if (hovered) {
+            // Not dragging: reveal the hovered line and, on press, grab a point or body.
+            if (auto picked = PickEntityNear(viewport.preview, cursor, kGrab)) {
+                const SketchEntity* e = viewport.preview.Find(*picked);
+                if (e && e->kind == EntityKind::Line) {
+                    scene.hover_entity = *picked;
+                    if (IsMouseButtonPressed(MOUSE_BUTTON_LEFT)) {
+                        f64 dStart = std::hypot(cursor.x - e->a.x, cursor.y - e->a.y);
+                        f64 dEnd = std::hypot(cursor.x - e->b.x, cursor.y - e->b.y);
+                        bool startFree = SketchPointFreedom(viewport.preview, *picked, PointRef::Start) > 0;
+                        bool endFree = SketchPointFreedom(viewport.preview, *picked, PointRef::End) > 0;
+                        // Prefer the nearer endpoint if it's within grab range and free;
+                        // otherwise translate the body (needs both ends free).
+                        if (dStart <= dEnd && dStart < kGrab && startFree) {
+                            scene.drag = { *picked, DragMode::Point, PointRef::Start, cursor };
+                        } else if (dEnd < kGrab && endFree) {
+                            scene.drag = { *picked, DragMode::Point, PointRef::End, cursor };
+                        } else if (startFree && endFree) {
+                            scene.drag = { *picked, DragMode::Body, PointRef::Start, cursor };
+                        }
+                    }
+                }
+            }
+        }
+    } else {
+        scene.drag = {}; // a tool started or the sketch closed — abandon any drag
+    }
+
+    // Cache state for Draw3D/Draw2D (dispatch) and hand the live camera to the viewport.
     viewport.camera = scene.camera.raylib_camera;
-    viewport.background = Ui::UiColor { 255, 255, 255, 255 }; // white canvas (matches Clay)
+    viewport.background = Ui::UiColor { 255, 255, 255, 255 };
     viewport.sketchValid = sketch_valid;
     viewport.sketchActive = is_sketch_active;
     viewport.activePlane = active_plane;
     viewport.hoveredPlane = scene.hovered_plane;
     viewport.cursorOnPlane = sketch_valid ? scene.camera.GetMouseOnSketchPlane(*active_plane, ray) : Geometry::Point2 {};
 
+    // Highlight whatever the tool has already picked, so a selection is visible.
+    viewport.highlighted = tool.Active() && !tool.Picks().empty() ? tool.Picks().back() : kNullFeature;
+
+    // The hovered line + its endpoint freedom, so Draw3D can show drag handles (filled
+    // where draggable, dimmed where pinned). Computed here at build time (the freedom
+    // query needs the parameter table); Draw3D just reads it.
+    viewport.hoverLine = scene.hover_entity.value_or(kNullFeature);
+    if (viewport.hoverLine != kNullFeature && viewport.hasPreview) {
+        viewport.hoverStartFree = SketchPointFreedom(viewport.preview, viewport.hoverLine, PointRef::Start) > 0;
+        viewport.hoverEndFree = SketchPointFreedom(viewport.preview, viewport.hoverLine, PointRef::End) > 0;
+    }
+
+    // Dimension visuals need the parameter table, which is a build-time concern — Draw2D
+    // runs at dispatch and only consumes what is cached here.
+    if (viewport.hasPreview) {
+        viewport.dims = BuildDimensionVisuals(viewport.preview, wb.Params(), scene.display_unit);
+    } else {
+        viewport.dims.clear();
+    }
+
     viewport.Render(Ui::NameId("CanvasPanel"), UiStyle::ExpandMinMaxWidth(500));
 }
-
 // Phase 3: the Workbench frame — inner three-sibling grow row + footer. Explorer,
 // Canvas (Phase 6, real), and Toolbox (Phase 5, real) are all ported.
 void UiWorkbench(Scene& scene)
@@ -690,6 +829,49 @@ void UiWorkbench(Scene& scene)
     Ui::CloseElement(); // Workbench
 }
 
+// ── auto-save ─────────────────────────────────────────────────────────────────
+// Seconds of no further change before the cache is written. A burst of edits keeps
+// restarting the window, so continuous editing writes nothing until the user pauses —
+// coalescing many commits into a single disk write.
+constexpr f64 kAutoSaveDebounce { 0.75 };
+
+// Set each frame so AppShutdown (which takes no AppState) can flush pending saves — same
+// pattern as g_viewport.
+AppState* g_app { nullptr };
+
+// Per-frame auto-save for one scene. Watches the combined (history revision, parameter
+// generation) pair — the two counters that together cover every persistable change — and
+// writes the cache once edits have been quiet for the debounce.
+void AutoSaveTick(Scene& scene)
+{
+    u32 rev = scene.workbench.Doc().Revision();
+    u32 gen = scene.workbench.Params().Generation();
+
+    if (rev != scene.saved_doc_rev || gen != scene.saved_param_gen) {
+        scene.saved_doc_rev = rev;
+        scene.saved_param_gen = gen;
+        scene.save_pending = true;
+        scene.pending_since = GetTime(); // (re)start the debounce on every change
+    }
+
+    if (scene.save_pending && (GetTime() - scene.pending_since) >= kAutoSaveDebounce) {
+        AppStorage::AutoSave(scene);
+        scene.save_pending = false;
+    }
+}
+
+// Write any scene with an unflushed pending change — called on shutdown so a debounce in
+// flight at exit is not lost.
+void FlushPendingSaves(AppState& app)
+{
+    for (Scene& scene : app.GetSceneList()) {
+        if (scene.save_pending) {
+            AppStorage::AutoSave(scene);
+            scene.save_pending = false;
+        }
+    }
+}
+
 void BuildUiTree(AppState& app)
 {
     Ui::LayoutConfig outer {};
@@ -711,6 +893,7 @@ void BuildUiTree(AppState& app)
         Scene* scene = app.GetActiveScene();
         if (scene != nullptr) {
             UiWorkbench(*scene);
+            AutoSaveTick(*scene);
         }
         break;
     }
@@ -732,6 +915,9 @@ extern "C" {
 APP_API
 void AppShutdown()
 {
+    if (g_app != nullptr) {
+        FlushPendingSaves(*g_app); // don't lose a debounce that was in flight at exit
+    }
     if (g_viewport != nullptr) {
         g_viewport->Unload();
     }
@@ -741,6 +927,8 @@ APP_API
 void AppUpdate(AppState& app)
 {
     ZoneScoped;
+
+    g_app = &app; // let AppShutdown reach the scenes to flush pending saves
 
     Graphics::BeginFrame();
     BuildUiTree(app);

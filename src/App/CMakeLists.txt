@@ -12,15 +12,21 @@ set(APP_INC_DIRS
 "${COMMON_DIR}"
 "${GRAPHICS_DIR}"
 "${RAYLIB_DIR}/src"
+"${GLAZE_INC}"
 "${APP_DIR}"
+"${APP_DIR}/Gui"
 "${APP_DIR}/Gui/Toolbox"
 "${APP_DIR}/Gui/Canvas"
 "${APP_DIR}/Core"
 "${APP_DIR}/Core/Kernel"
 "${APP_DIR}/Core/Command"
-"${APP_DIR}/Core/Command/Part"
 "${APP_DIR}/Core/Command/Sketch"
+"${APP_DIR}/Core/Context"
+"${APP_DIR}/Core/Document"
 "${APP_DIR}/Core/Geometry"
+"${APP_DIR}/Core/Parameter"
+"${APP_DIR}/Core/Serialize"
+"${APP_DIR}/Core/Tool"
 )
 
 # Set the same variable in the parent scope so main can find the files
@@ -66,6 +72,12 @@ add_library(${PROJECT_NAME} ${LIB_BUILD_OPTION} ${APP_SRC_FILES} ${APP_INC_DIRS}
 
 target_include_directories(${PROJECT_NAME} PUBLIC ${APP_INC_DIRS})
 target_link_libraries(${PROJECT_NAME} ${LIBS_TO_LINK})
+# glaze's file_ops.hpp calls std::fopen, which the MSVC UCRT marks deprecated. We never
+# use glaze's file helpers (we do our own atomic write), but the header is pulled in
+# transitively; silence just that warning for the App TU that includes glaze.
+if(WIN32)
+    target_compile_definitions(${PROJECT_NAME} PRIVATE _CRT_SECURE_NO_WARNINGS)
+endif()
 # Tracy profiler client (inert unless TRACY_ENABLE=ON). Plain signature to match
 # the call above (CMake forbids mixing plain and keyword forms on one target).
 target_link_libraries(${PROJECT_NAME} TracyClient)

@@ -1,6 +1,7 @@
 #pragma once
 #include "Scene.h"
 
+#include <format> // CreateNewScene; was reaching this transitively via Scene.h.
 #include <vector>
 #include <optional>
 #include "assert.h"
