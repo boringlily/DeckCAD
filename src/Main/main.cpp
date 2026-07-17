@@ -93,10 +93,10 @@ int main(int, char**)
         ReportError("hot reload", "failed to load deckcad_core");
         return 1;
     }
-    // Open a scene immediately so the viewport is visible on first launch.
+    // Open a scene immediately; the viewport needs one to show on first launch.
     hot_reload_core.appInit(app);
 #else
-    // Open a scene immediately so the viewport is visible on first launch.
+    // Open a scene immediately; the viewport needs one to show on first launch.
     app.newScene();
 #endif
 
