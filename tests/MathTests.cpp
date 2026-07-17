@@ -62,8 +62,7 @@ TEST(Matrix4, InverseRoundTripsAGeneralTransform)
 
 TEST(Matrix4, SingularMatrixInverseFallsBackToIdentity)
 {
-    // A zero scale collapses the matrix; the fallback keeps NaNs out of the
-    // camera path rather than propagating them into every ray.
+    // zero scale collapses the matrix; fallback keeps NaNs out of ray casts downstream
     Matrix4 singular = MatrixScale({ 1.0f, 0.0f, 1.0f });
     Matrix4 result = Inverse(singular);
     Matrix4 identity = Matrix4::identityMatrix();
@@ -73,9 +72,8 @@ TEST(Matrix4, SingularMatrixInverseFallsBackToIdentity)
     }
 }
 
-// The whole renderer assumes WebGPU's [0, 1] clip depth. Under the OpenGL
-// convention raylib used, the near plane would map to -1 and everything would
-// depth-test wrong, so this is the guard against silently regressing back.
+// Renderer assumes WebGPU's [0, 1] clip depth. raylib used OpenGL's [-1, 1]
+// convention; if that ever comes back the near plane depth-tests wrong.
 TEST(Projection, PerspectiveMapsNearToZeroAndFarToOne)
 {
     const f32 near_z = 0.1f;

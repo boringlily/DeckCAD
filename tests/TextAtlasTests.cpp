@@ -4,7 +4,7 @@
 #include <string>
 
 // Exercises the real FreeType -> msdfgen -> atlas path against a font that
-// ships with the repo, so a break in the text pipeline fails a test instead of
+// ships with the repo; a break in the pipeline fails a test instead of
 // silently rendering nothing in the viewport.
 
 namespace TextAtlasTestsInternal {
@@ -19,7 +19,7 @@ const std::string& FontPath()
 Text::AtlasConfiguration SmallConfiguration()
 {
     Text::AtlasConfiguration configuration {};
-    // A narrow range keeps the test fast; the packing logic is the same.
+    // narrow codepoint range keeps the test fast; packing logic doesn't change
     configuration.glyph_pixel_size = 32;
     configuration.first_codepoint = 32; // space
     configuration.last_codepoint = 90; // 'Z'
@@ -85,7 +85,6 @@ TEST_F(TextAtlas, LettersCarryGeometryAndSpaceDoesNot)
 
     const Text::Glyph* space_ptr = shared_atlas.findGlyph(' ');
     ASSERT_NE(space_ptr, nullptr);
-    // Space advances the pen but rasterizes nothing.
     EXPECT_FALSE(space_ptr->has_geometry);
     EXPECT_GT(space_ptr->advance, 0.0f);
 }
@@ -113,8 +112,7 @@ TEST_F(TextAtlas, RasterizesActualDistanceData)
 {
     ASSERT_TRUE(atlas_built) << build_error;
 
-    // An all-zero atlas would mean msdfgen ran but wrote nothing, which the
-    // shape/UV assertions above would not catch.
+    // all-zero atlas means msdfgen ran but wrote nothing; shape/UV checks above wouldn't catch that
     const std::vector<u8>& pixels_ref = shared_atlas.getPixels();
     const bool any_non_zero = std::any_of(pixels_ref.begin(), pixels_ref.end(),
         [](u8 value) { return value != 0 && value != 255; });

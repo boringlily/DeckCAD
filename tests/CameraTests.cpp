@@ -16,7 +16,7 @@ TEST(Camera, StartsIsometricLookingAtTheOrigin)
     EXPECT_NEAR(camera.getTarget().y, 0.0f, EPSILON);
     EXPECT_NEAR(camera.getTarget().z, 0.0f, EPSILON);
 
-    // Equal components on all three axes is what makes the view isometric.
+    // equal x, y, z components make the view isometric
     Vector3 position = camera.getPosition();
     EXPECT_NEAR(position.x, position.y, EPSILON);
     EXPECT_NEAR(position.y, position.z, EPSILON);
@@ -61,7 +61,7 @@ TEST(Camera, PanMovesPositionAndTargetTogether)
     camera.panAcrossView(50.0f, 25.0f);
 
     const Vector3 offset_after = camera.getPosition() - camera.getTarget();
-    // Panning slides the whole rig, so the eye-to-target vector is unchanged.
+    // panning moves the whole rig together; eye-to-target offset is unchanged
     EXPECT_NEAR(offset_after.x, offset_before.x, EPSILON);
     EXPECT_NEAR(offset_after.y, offset_before.y, EPSILON);
     EXPECT_NEAR(offset_after.z, offset_before.z, EPSILON);
@@ -78,7 +78,7 @@ TEST(Camera, ZoomInMovesCloserAndZoomOutMovesAway)
     EXPECT_LT(closer, start);
 
     camera.zoomTowardTarget(-1.0f);
-    // Exponential zoom is symmetric, so this returns to where it began.
+    // zoom is symmetric; returns to the starting distance
     EXPECT_NEAR(camera.getDistanceToTarget(), start, EPSILON);
 }
 
@@ -148,7 +148,7 @@ TEST(Camera, EdgeRaysDivergeFromTheCentreRay)
 TEST(Camera, ScreenPointToRayHandlesADegenerateViewport)
 {
     Camera camera;
-    // A zero-sized viewport happens for a frame while a panel is being docked.
+    // viewport can be zero-sized for a frame while a panel is docking
     Ray ray = camera.screenPointToRay(0.0f, 0.0f, 0.0f, 0.0f);
     EXPECT_NEAR(Length(ray.direction), 0.0f, EPSILON);
 }
@@ -161,8 +161,7 @@ TEST(Camera, OrthographicProjectionDiffersFromPerspective)
     camera.setProjection(Camera::Projection::Orthographic);
     Matrix4 orthographic = camera.getProjectionMatrix(1.5f);
 
-    // The perspective divide term is the giveaway: it is -1 for perspective
-    // and 0 for orthographic.
+    // perspective divide term distinguishes them: -1 for perspective, 0 for orthographic
     EXPECT_NEAR(perspective.columns[2].w, -1.0f, EPSILON);
     EXPECT_NEAR(orthographic.columns[2].w, 0.0f, EPSILON);
 }
