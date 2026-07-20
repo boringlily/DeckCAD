@@ -29,20 +29,23 @@ inline SketchCmdDto ToDto(const SketchCmd& cmd); // fwd (recursive through group
 
 inline SketchCmdDto ToSketchCmdDto(const SketchCmdBase& base, const SketchCmd& cmd)
 {
+    if (const auto* p = cmd.As<SketchPointCmd>()) {
+        return { PointDto { p->id, ToDto(p->initial) } };
+    }
     if (const auto* l = cmd.As<SketchLine>()) {
-        return { LineDto { l->id, ToDto(l->a), ToDto(l->b), l->construction } };
+        return { LineDto { l->id, l->p0, l->p1, l->construction } };
     }
     if (const auto* a = cmd.As<SketchArc>()) {
-        return { ArcDto { a->id, ToDto(a->center), a->radius, a->startAngle, a->endAngle, a->construction } };
+        return { ArcDto { a->id, a->center, a->start, a->end, a->construction } };
     }
     if (const auto* c = cmd.As<SketchCircle>()) {
-        return { CircleDto { c->id, ToDto(c->center), c->radius, c->construction } };
+        return { CircleDto { c->id, c->a, c->b, c->construction } };
     }
     if (const auto* d = cmd.As<SketchDimensionCmd>()) {
         return { DimensionDto { d->id, d->kind, d->targetA, d->targetB, d->value } };
     }
     if (const auto* k = cmd.As<SketchConstraintCmd>()) {
-        return { ConstraintDto { k->id, k->kind, k->a, k->b, k->axis, k->aPoint, k->bPoint } };
+        return { ConstraintDto { k->id, k->kind, k->a, k->b, k->axis } };
     }
     if (const auto* g = cmd.As<CompoundSketchCmd>()) {
         GroupDto out;
@@ -53,9 +56,9 @@ inline SketchCmdDto ToSketchCmdDto(const SketchCmdBase& base, const SketchCmd& c
         }
         return { std::move(out) };
     }
-    // Unreachable: the variant is closed. Fall back to a degenerate line so a future
+    // Unreachable: the variant is closed. Fall back to a degenerate point so a future
     // unhandled alternative fails loud in a round-trip test rather than corrupting silently.
-    return { LineDto { base.id } };
+    return { PointDto { base.id } };
 }
 
 inline SketchCmdDto ToDto(const SketchCmd& cmd) { return ToSketchCmdDto(cmd.Get(), cmd); }
@@ -106,27 +109,31 @@ inline SketchCmd FromDto(const SketchCmdDto& dto)
 {
     return std::visit([](const auto& d) -> SketchCmd {
         using T = std::decay_t<decltype(d)>;
-        if constexpr (std::is_same_v<T, LineDto>) {
+        if constexpr (std::is_same_v<T, PointDto>) {
+            SketchPointCmd p;
+            p.id = d.id;
+            p.initial = FromDto(d.initial);
+            return SketchCmd { p };
+        } else if constexpr (std::is_same_v<T, LineDto>) {
             SketchLine l;
             l.id = d.id;
-            l.a = FromDto(d.a);
-            l.b = FromDto(d.b);
+            l.p0 = d.p0;
+            l.p1 = d.p1;
             l.construction = d.construction;
             return SketchCmd { l };
         } else if constexpr (std::is_same_v<T, ArcDto>) {
             SketchArc a;
             a.id = d.id;
-            a.center = FromDto(d.center);
-            a.radius = d.radius;
-            a.startAngle = d.startAngle;
-            a.endAngle = d.endAngle;
+            a.center = d.center;
+            a.start = d.start;
+            a.end = d.end;
             a.construction = d.construction;
             return SketchCmd { a };
         } else if constexpr (std::is_same_v<T, CircleDto>) {
             SketchCircle c;
             c.id = d.id;
-            c.center = FromDto(d.center);
-            c.radius = d.radius;
+            c.a = d.a;
+            c.b = d.b;
             c.construction = d.construction;
             return SketchCmd { c };
         } else if constexpr (std::is_same_v<T, DimensionDto>) {
@@ -144,8 +151,6 @@ inline SketchCmd FromDto(const SketchCmdDto& dto)
             k.a = d.a;
             k.b = d.b;
             k.axis = d.axis;
-            k.aPoint = d.aPoint;
-            k.bPoint = d.bPoint;
             return SketchCmd { k };
         } else { // GroupDto
             CompoundSketchCmd g;
@@ -183,7 +188,10 @@ inline Command FromDto(const CommandDto& dto)
 // ReadDcad before this is reached, so here the DTO is structurally valid.
 inline bool FromDto(const DocumentDto& dto, Document& doc, Param::ParameterEngine& params, SceneMeta& meta)
 {
-    if (dto.version == 0 || dto.version > kDcadVersion) {
+    // Refuse anything the running build can't faithfully read: version 0 (absent/invalid), a
+    // future version (> current), and any pre-point-based version (< the minimum readable),
+    // for which there is no back-migration. Refusing beats silently misreading it.
+    if (dto.version < kMinReadableDcadVersion || dto.version > kDcadVersion) {
         return false;
     }
 

@@ -56,76 +56,110 @@ struct SketchCmdBase {
     virtual bool Valid() const { return true; }
 };
 
+// A parametric point — the atom every curve and constraint refers to. Its `initial`
+// position is a parameter (the solver's seed, and what a drag edits), NOT geometry
+// embedded in a curve. This is the separation the whole point model exists for.
+struct SketchPointCmd : SketchCmdBase {
+    Geometry::Point2 initial {};
+
+    ExecResult execute(SketchDocument& doc) const override
+    {
+        doc.AddPointWithId(id, initial); // the point carries this command's id
+        return ExecOk();
+    }
+
+    std::string_view TypeName() const override { return "Point"; }
+    bool Valid() const override { return true; }
+};
+
+// A line REFERENCES two points by id — it holds no coordinates. The points are created by
+// SketchPointCmds earlier in the same gesture (compound), and execute() reads their
+// positions only to seed the draw cache; the solver owns the truth.
 struct SketchLine : SketchCmdBase {
-    Geometry::Point2 a {};
-    Geometry::Point2 b {};
+    FeatureId p0 { kNullFeature };
+    FeatureId p1 { kNullFeature };
     bool construction { false };
 
     ExecResult execute(SketchDocument& doc) const override
     {
+        if (!doc.FindPoint(p0) || !doc.FindPoint(p1)) {
+            return ExecFail(ExecStatus::MissingReference, "line references a missing point");
+        }
         SketchEntity e {};
         e.id = id;
         e.kind = EntityKind::Line;
-        e.a = a;
-        e.b = b;
+        e.p0 = p0;
+        e.p1 = p1;
         e.construction = construction;
+        doc.DeriveOne(e); // seed the draw cache from the points (solver recomputes later)
         doc.entities.push_back(e);
         return ExecOk();
     }
 
     std::string_view TypeName() const override { return "Line"; }
-
-    bool Valid() const override
-    {
-        // A zero-length line is a mis-click, not a feature.
-        return !(a.x == b.x && a.y == b.y);
-    }
+    bool Valid() const override { return p0 != kNullFeature && p1 != kNullFeature; }
 };
 
+// Arc references three points: centre, start, end. Radius and the sweep angles are DERIVED
+// from those points; nothing here stores a coordinate. The solver keeps ‖centre−start‖ =
+// ‖centre−end‖ so the two endpoints stay on one circle — which lets them coincide with
+// adjacent line/arc endpoints, so profiles of lines and arcs close by construction.
 struct SketchArc : SketchCmdBase {
-    Geometry::Point2 center {};
-    f64 radius { 0 };
-    f64 startAngle { 0 };
-    f64 endAngle { 0 };
+    FeatureId center { kNullFeature };
+    FeatureId start { kNullFeature };
+    FeatureId end { kNullFeature };
     bool construction { false };
 
     ExecResult execute(SketchDocument& doc) const override
     {
+        if (!doc.FindPoint(center) || !doc.FindPoint(start) || !doc.FindPoint(end)) {
+            return ExecFail(ExecStatus::MissingReference, "arc references a missing point");
+        }
         SketchEntity e {};
         e.id = id;
         e.kind = EntityKind::Arc;
-        e.a = center;
-        e.radius = radius;
-        e.startAngle = startAngle;
-        e.endAngle = endAngle;
+        e.p0 = center;
+        e.p1 = start;
+        e.p2 = end;
         e.construction = construction;
+        doc.DeriveOne(e);
         doc.entities.push_back(e);
         return ExecOk();
     }
 
     std::string_view TypeName() const override { return "Arc"; }
-    bool Valid() const override { return radius > 0.0; }
+    bool Valid() const override
+    {
+        return center != kNullFeature && start != kNullFeature && end != kNullFeature;
+    }
 };
 
+// Circle references a centre point and a rim point; its radius is DERIVED as ‖a−b‖. No
+// coordinate or scalar radius is stored — moving either point reshapes the circle, and a
+// radius dimension is a distance between the two points.
 struct SketchCircle : SketchCmdBase {
-    Geometry::Point2 center {};
-    f64 radius { 0 };
+    FeatureId a { kNullFeature }; // centre
+    FeatureId b { kNullFeature }; // rim (a point on the circle)
     bool construction { false };
 
     ExecResult execute(SketchDocument& doc) const override
     {
+        if (!doc.FindPoint(a) || !doc.FindPoint(b)) {
+            return ExecFail(ExecStatus::MissingReference, "circle references a missing point");
+        }
         SketchEntity e {};
         e.id = id;
         e.kind = EntityKind::Circle;
-        e.a = center;
-        e.radius = radius;
+        e.p0 = a;
+        e.p1 = b;
         e.construction = construction;
+        doc.DeriveOne(e);
         doc.entities.push_back(e);
         return ExecOk();
     }
 
     std::string_view TypeName() const override { return "Circle"; }
-    bool Valid() const override { return radius > 0.0; }
+    bool Valid() const override { return a != kNullFeature && b != kNullFeature; }
 };
 
 // Applying one of these is what gives an entity a size that is DICTATED rather than
@@ -167,11 +201,9 @@ struct SketchDimensionCmd : SketchCmdBase {
 
 struct SketchConstraintCmd : SketchCmdBase {
     ConstraintKind kind { ConstraintKind::Coincident };
-    FeatureId a { kNullFeature };
+    FeatureId a { kNullFeature }; // Coincident/Ground: a POINT id. Others: a CURVE id.
     FeatureId b { kNullFeature };
     FeatureId axis { kNullFeature };
-    PointRef aPoint { PointRef::Start }; // Coincident only
-    PointRef bPoint { PointRef::Start };
 
     ExecResult execute(SketchDocument& doc) const override
     {
@@ -184,8 +216,6 @@ struct SketchConstraintCmd : SketchCmdBase {
         c.a = a;
         c.b = b;
         c.axis = axis;
-        c.aPoint = aPoint;
-        c.bPoint = bPoint;
         doc.constraints.push_back(c);
         return ExecOk();
     }
@@ -219,8 +249,8 @@ struct CompoundSketchCmd : SketchCmdBase {
     bool Valid() const override;
 };
 
-struct SketchCmd : PolymorphicVariant<SketchCmdBase, SketchLine, SketchArc, SketchCircle,
-                       SketchDimensionCmd, SketchConstraintCmd, CompoundSketchCmd> {
+struct SketchCmd : PolymorphicVariant<SketchCmdBase, SketchPointCmd, SketchLine, SketchArc,
+                       SketchCircle, SketchDimensionCmd, SketchConstraintCmd, CompoundSketchCmd> {
     using PolymorphicVariant::PolymorphicVariant;
 };
 

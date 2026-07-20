@@ -18,12 +18,88 @@ namespace {
 
 constexpr f64 kEps = 1e-9;
 
-SketchLine MakeLine(f64 ax, f64 ay, f64 bx, f64 by)
+// A line references two points by id. The variant/composite tests below don't execute the
+// command (or add the points), so any ids will do — the point references are what we assert
+// the machinery preserves.
+SketchLine MakeLine(FeatureId p0 = 1, FeatureId p1 = 2)
 {
     SketchLine l {};
-    l.a = { ax, ay };
-    l.b = { bx, by };
+    l.p0 = p0;
+    l.p1 = p1;
     return l;
+}
+
+// A curve gesture now commits a compound of points + a curve. These helpers dig the curve
+// (and its points) back out of that structure, which is what every consumer references.
+FeatureId LastCurveIdIn(const std::vector<SketchCmd>& cmds)
+{
+    FeatureId found = kNullFeature;
+    for (const SketchCmd& c : cmds) {
+        if (c.Is<SketchLine>() || c.Is<SketchCircle>() || c.Is<SketchArc>()) {
+            found = c.Get().id;
+        } else if (const CompoundSketchCmd* g = c.As<CompoundSketchCmd>()) {
+            FeatureId nested = LastCurveIdIn(g->children);
+            if (nested != kNullFeature) {
+                found = nested;
+            }
+        }
+    }
+    return found;
+}
+
+FeatureId LastCurveId(const Workbench& wb)
+{
+    const SketchContext* s = wb.Contexts().ActiveSketch();
+    return s ? LastCurveIdIn(s->children) : kNullFeature;
+}
+
+// Find a line command by id, recursing into gesture compounds.
+const SketchLine* FindLineCmd(const std::vector<SketchCmd>& cmds, FeatureId id)
+{
+    for (const SketchCmd& c : cmds) {
+        if (const SketchLine* l = c.As<SketchLine>()) {
+            if (l->id == id) {
+                return l;
+            }
+        }
+        if (const CompoundSketchCmd* g = c.As<CompoundSketchCmd>()) {
+            if (const SketchLine* nested = FindLineCmd(g->children, id)) {
+                return nested;
+            }
+        }
+    }
+    return nullptr;
+}
+
+// The SketchLine directly inside a gesture compound (or the command itself if it is a bare
+// line), and the seed position of a point declared in that same compound.
+const SketchLine* LineIn(const SketchCmd& cmd)
+{
+    if (const SketchLine* l = cmd.As<SketchLine>()) {
+        return l;
+    }
+    if (const CompoundSketchCmd* g = cmd.As<CompoundSketchCmd>()) {
+        for (const SketchCmd& c : g->children) {
+            if (const SketchLine* l = c.As<SketchLine>()) {
+                return l;
+            }
+        }
+    }
+    return nullptr;
+}
+
+Geometry::Point2 PointInit(const SketchCmd& compound, FeatureId pid)
+{
+    if (const CompoundSketchCmd* g = compound.As<CompoundSketchCmd>()) {
+        for (const SketchCmd& c : g->children) {
+            if (const SketchPointCmd* p = c.As<SketchPointCmd>()) {
+                if (p->id == pid) {
+                    return p->initial;
+                }
+            }
+        }
+    }
+    return {};
 }
 
 bool HasTool(const std::vector<ToolId>& tools, ToolId id)
@@ -63,17 +139,17 @@ FeatureId AuthorSketch(Workbench& wb, u32 lineCount)
 
 TEST(PolymorphicVariant, NarrowsWithoutRtti)
 {
-    SketchCmd c { MakeLine(0, 0, 1, 1) };
+    SketchCmd c { MakeLine(1, 2) };
     ASSERT_TRUE(c.Is<SketchLine>());
     ASSERT_NE(c.As<SketchLine>(), nullptr);
     EXPECT_EQ(c.As<SketchCircle>(), nullptr);
-    EXPECT_NEAR(c.As<SketchLine>()->b.x, 1.0, kEps);
+    EXPECT_EQ(c.As<SketchLine>()->p1, 2u);
 }
 
 TEST(PolymorphicVariant, GetReturnsTheLiveSubobjectNotACopy)
 {
     // If Get() sliced or copied, mutating through the Base& would be lost.
-    SketchCmd c { MakeLine(0, 0, 1, 1) };
+    SketchCmd c { MakeLine(1, 2) };
     c.Get().id = 42;
     EXPECT_EQ(c.As<SketchLine>()->id, 42u);
     EXPECT_EQ(&c.Get(), static_cast<SketchCmdBase*>(c.As<SketchLine>()));
@@ -81,7 +157,7 @@ TEST(PolymorphicVariant, GetReturnsTheLiveSubobjectNotACopy)
 
 TEST(PolymorphicVariant, VirtualDispatchWorksThroughTheBase)
 {
-    SketchCmd line { MakeLine(0, 0, 1, 1) };
+    SketchCmd line { MakeLine(1, 2) };
     SketchCmd circle { SketchCircle {} };
     EXPECT_EQ(line.Get().TypeName(), "Line");
     EXPECT_EQ(circle.Get().TypeName(), "Circle");
@@ -96,24 +172,24 @@ TEST(PolymorphicVariant, CopyIsADeepCopyWithNoCloneVirtual)
 {
     // The payoff for values-over-unique_ptr: edit-mode deep copy is just `=`.
     CompoundSketchCmd g {};
-    g.children.push_back(SketchCmd { MakeLine(0, 0, 1, 1) });
+    g.children.push_back(SketchCmd { MakeLine(1, 2) });
 
     SketchCmd original { g };
     SketchCmd copy = original;
 
-    copy.As<CompoundSketchCmd>()->children[0].As<SketchLine>()->b.x = 99.0;
+    copy.As<CompoundSketchCmd>()->children[0].As<SketchLine>()->p1 = 99u;
 
-    EXPECT_NEAR(original.As<CompoundSketchCmd>()->children[0].As<SketchLine>()->b.x, 1.0, kEps);
-    EXPECT_NEAR(copy.As<CompoundSketchCmd>()->children[0].As<SketchLine>()->b.x, 99.0, kEps);
+    EXPECT_EQ(original.As<CompoundSketchCmd>()->children[0].As<SketchLine>()->p1, 2u);
+    EXPECT_EQ(copy.As<CompoundSketchCmd>()->children[0].As<SketchLine>()->p1, 99u);
 }
 
 TEST(PolymorphicVariant, VectorOfCommandsCopiesDeeply)
 {
     std::vector<SketchCmd> a;
-    a.push_back(SketchCmd { MakeLine(0, 0, 1, 1) });
+    a.push_back(SketchCmd { MakeLine(1, 2) });
     std::vector<SketchCmd> b = a;
-    b[0].As<SketchLine>()->a.x = 5.0;
-    EXPECT_NEAR(a[0].As<SketchLine>()->a.x, 0.0, kEps);
+    b[0].As<SketchLine>()->p0 = 5u;
+    EXPECT_EQ(a[0].As<SketchLine>()->p0, 1u);
 }
 
 // ── recursive composite ──────────────────────────────────────────────────────
@@ -121,11 +197,11 @@ TEST(PolymorphicVariant, VectorOfCommandsCopiesDeeply)
 TEST(CompositeCommand, NestsArbitrarilyDeep)
 {
     CompoundSketchCmd inner {};
-    inner.children.push_back(SketchCmd { MakeLine(0, 0, 1, 0) });
+    inner.children.push_back(SketchCmd { MakeLine() });
 
     CompoundSketchCmd outer {};
     outer.children.push_back(SketchCmd { std::move(inner) });
-    outer.children.push_back(SketchCmd { MakeLine(0, 1, 1, 1) });
+    outer.children.push_back(SketchCmd { MakeLine() });
 
     std::vector<SketchCmd> history;
     history.push_back(SketchCmd { std::move(outer) });
@@ -136,17 +212,36 @@ TEST(CompositeCommand, NestsArbitrarilyDeep)
 
 TEST(CompositeCommand, ExecutesEveryDescendant)
 {
+    // Lines reference points, so the group must create those points before the lines that
+    // reference them (exactly as a real gesture compound does).
     CompoundSketchCmd g {};
-    SketchLine a = MakeLine(0, 0, 1, 0);
-    a.id = 1;
-    SketchLine b = MakeLine(0, 1, 1, 1);
-    b.id = 2;
+    SketchPointCmd p1 {};
+    p1.id = 1;
+    p1.initial = { 0, 0 };
+    SketchPointCmd p2 {};
+    p2.id = 2;
+    p2.initial = { 1, 0 };
+    SketchPointCmd p3 {};
+    p3.id = 3;
+    p3.initial = { 0, 1 };
+    SketchPointCmd p4 {};
+    p4.id = 4;
+    p4.initial = { 1, 1 };
+    SketchLine a = MakeLine(1, 2);
+    a.id = 5;
+    SketchLine b = MakeLine(3, 4);
+    b.id = 6;
+    g.children.push_back(SketchCmd { p1 });
+    g.children.push_back(SketchCmd { p2 });
+    g.children.push_back(SketchCmd { p3 });
+    g.children.push_back(SketchCmd { p4 });
     g.children.push_back(SketchCmd { a });
     g.children.push_back(SketchCmd { b });
 
     SketchDocument doc;
     ASSERT_TRUE(g.execute(doc).Ok());
-    EXPECT_EQ(doc.entities.size(), 2u);
+    EXPECT_EQ(doc.entities.size(), 2u); // two curves (points live in doc.points)
+    EXPECT_EQ(doc.points.size(), 4u);
 }
 
 TEST(CompositeCommand, AFailingChildFailsTheWholeGroup)
@@ -162,7 +257,7 @@ TEST(CompositeCommand, AFailingChildFailsTheWholeGroup)
 TEST(CompositeCommand, WalkReportsDepth)
 {
     CompoundSketchCmd inner {};
-    inner.children.push_back(SketchCmd { MakeLine(0, 0, 1, 0) });
+    inner.children.push_back(SketchCmd { MakeLine() });
     CompoundSketchCmd outer {};
     outer.children.push_back(SketchCmd { std::move(inner) });
 
@@ -222,7 +317,7 @@ TEST(ContextStack, FinishSketchIsFilteredWhileAMirrorIsActive)
     wb.ActiveTool().AddPoint({ 0, 0 });
     wb.ActiveTool().AddPoint({ 0, 10 });
     wb.FinishTool();
-    FeatureId axis = wb.Contexts().ActiveSketch()->children.back().Get().id;
+    FeatureId axis = LastCurveId(wb);
 
     ASSERT_TRUE(HasTool(wb.AvailableTools(), ToolId::FinishSketch));
 
@@ -251,7 +346,7 @@ TEST(ContextStack, EscapePopsExactlyOneLevelNeverStraightToRoot)
     wb.ActiveTool().AddPoint({ 0, 0 });
     wb.ActiveTool().AddPoint({ 0, 10 });
     wb.FinishTool();
-    FeatureId axis = wb.Contexts().ActiveSketch()->children.back().Get().id;
+    FeatureId axis = LastCurveId(wb);
 
     wb.StartTool(ToolId::SymmetryGroup);
     wb.ActiveTool().AddPick(axis);
@@ -372,7 +467,7 @@ TEST(SymmetryGroup, OneCommitProducesLineTwinAndConstraintInTheParent)
     wb.ActiveTool().AddPoint({ 0, 0 });
     wb.ActiveTool().AddPoint({ 0, 10 });
     wb.FinishTool();
-    FeatureId axis = wb.Contexts().ActiveSketch()->children.back().Get().id;
+    FeatureId axis = LastCurveId(wb);
 
     wb.StartTool(ToolId::SymmetryGroup);
     wb.ActiveTool().AddPick(axis);
@@ -392,21 +487,25 @@ TEST(SymmetryGroup, OneCommitProducesLineTwinAndConstraintInTheParent)
 
     const CompoundSketchCmd* g = s->children[1].As<CompoundSketchCmd>();
     ASSERT_NE(g, nullptr);
-    ASSERT_EQ(g->children.size(), 3u); // original + twin + symmetry constraint
+    // original gesture (a point+point+line compound) + twin gesture + symmetry constraint.
+    ASSERT_EQ(g->children.size(), 3u);
 
-    const SketchLine* original = g->children[0].As<SketchLine>();
-    const SketchLine* twin = g->children[1].As<SketchLine>();
+    const SketchLine* original = LineIn(g->children[0]);
+    const SketchLine* twin = LineIn(g->children[1]);
     const SketchConstraintCmd* link = g->children[2].As<SketchConstraintCmd>();
     ASSERT_NE(original, nullptr);
     ASSERT_NE(twin, nullptr);
     ASSERT_NE(link, nullptr);
 
-    // Mirrored across x = 0.
-    EXPECT_NEAR(twin->a.x, -5.0, kEps);
-    EXPECT_NEAR(twin->a.y, 1.0, kEps);
-    EXPECT_NEAR(twin->b.x, -8.0, kEps);
-    EXPECT_NEAR(twin->b.y, 2.0, kEps);
+    // The twin's POINTs are the originals reflected across x = 0.
+    Geometry::Point2 ta = PointInit(g->children[1], twin->p0);
+    Geometry::Point2 tb = PointInit(g->children[1], twin->p1);
+    EXPECT_NEAR(ta.x, -5.0, kEps);
+    EXPECT_NEAR(ta.y, 1.0, kEps);
+    EXPECT_NEAR(tb.x, -8.0, kEps);
+    EXPECT_NEAR(tb.y, 2.0, kEps);
 
+    // The symmetry constraint links the two CURVES (by id).
     EXPECT_EQ(link->kind, ConstraintKind::Symmetry);
     EXPECT_EQ(link->a, original->id);
     EXPECT_EQ(link->b, twin->id);
@@ -424,7 +523,7 @@ TEST(SymmetryGroup, TheGestureCollapsesToASingleUndoStep)
     wb.ActiveTool().AddPoint({ 0, 0 });
     wb.ActiveTool().AddPoint({ 0, 10 });
     wb.FinishTool();
-    FeatureId axis = wb.Contexts().ActiveSketch()->children.back().Get().id;
+    FeatureId axis = LastCurveId(wb);
 
     wb.StartTool(ToolId::SymmetryGroup);
     wb.ActiveTool().AddPick(axis);
@@ -451,7 +550,7 @@ TEST(SymmetryGroup, ConfirmReturnsNothingBecauseItAlreadyCommitted)
     wb.ActiveTool().AddPoint({ 0, 0 });
     wb.ActiveTool().AddPoint({ 0, 10 });
     wb.FinishTool();
-    FeatureId axis = wb.Contexts().ActiveSketch()->children.back().Get().id;
+    FeatureId axis = LastCurveId(wb);
 
     wb.StartTool(ToolId::SymmetryGroup);
     wb.ActiveTool().AddPick(axis);
@@ -484,7 +583,7 @@ TEST(SymmetryGroup, CancellingLeavesAlreadyMirroredGeometryAlone)
     wb.ActiveTool().AddPoint({ 0, 0 });
     wb.ActiveTool().AddPoint({ 0, 10 });
     wb.FinishTool();
-    FeatureId axis = wb.Contexts().ActiveSketch()->children.back().Get().id;
+    FeatureId axis = LastCurveId(wb);
 
     wb.StartTool(ToolId::SymmetryGroup);
     wb.ActiveTool().AddPick(axis);
@@ -500,12 +599,27 @@ TEST(SymmetryGroup, CancellingLeavesAlreadyMirroredGeometryAlone)
     EXPECT_EQ(wb.Contexts().CurrentKind(), ContextKind::Sketch);
     EXPECT_EQ(wb.Contexts().ActiveSketch()->children.size(), 2u); // twin survives
 
-    // And a line drawn afterwards is no longer mirrored.
+    // And a line drawn afterwards is no longer mirrored: its gesture is a plain line
+    // compound (a direct line child, no synthesized symmetry constraint), not a mirror
+    // group (which nests the line + twin compounds and a symmetry link).
     wb.StartTool(ToolId::Line);
     wb.ActiveTool().AddPoint({ 1, 1 });
     wb.ActiveTool().AddPoint({ 2, 2 });
     wb.FinishTool();
-    EXPECT_TRUE(wb.Contexts().ActiveSketch()->children.back().Is<SketchLine>());
+    const CompoundSketchCmd* last = wb.Contexts().ActiveSketch()->children.back().As<CompoundSketchCmd>();
+    ASSERT_NE(last, nullptr);
+    bool hasDirectLine = false;
+    bool hasSymmetry = false;
+    for (const SketchCmd& c : last->children) {
+        if (c.Is<SketchLine>()) {
+            hasDirectLine = true;
+        }
+        if (const auto* k = c.As<SketchConstraintCmd>()) {
+            hasSymmetry = hasSymmetry || k->kind == ConstraintKind::Symmetry;
+        }
+    }
+    EXPECT_TRUE(hasDirectLine);
+    EXPECT_FALSE(hasSymmetry);
 }
 
 TEST(SymmetryGroup, MirroredSketchEvaluatesToBothLines)
@@ -519,7 +633,7 @@ TEST(SymmetryGroup, MirroredSketchEvaluatesToBothLines)
     wb.ActiveTool().AddPoint({ 0, 0 });
     wb.ActiveTool().AddPoint({ 0, 10 });
     wb.FinishTool();
-    FeatureId axis = wb.Contexts().ActiveSketch()->children.back().Get().id;
+    FeatureId axis = LastCurveId(wb);
 
     wb.StartTool(ToolId::SymmetryGroup);
     wb.ActiveTool().AddPick(axis);
@@ -805,9 +919,56 @@ TEST(ToolLayer, CircleTakesCentreThenRim)
     wb.ActiveTool().AddPoint({ 3, 4 }); // radius 5
     ASSERT_TRUE(wb.FinishTool());
 
-    const SketchCircle* c = wb.Contexts().ActiveSketch()->children[0].As<SketchCircle>();
+    // The gesture is a compound of the centre point + the rim point + the circle. The
+    // circle holds no radius — it references the two points, and radius = ‖centre − rim‖.
+    const SketchCmd& gesture = wb.Contexts().ActiveSketch()->children[0];
+    const CompoundSketchCmd* g = gesture.As<CompoundSketchCmd>();
+    ASSERT_NE(g, nullptr);
+    const SketchCircle* c = nullptr;
+    for (const SketchCmd& child : g->children) {
+        if (const SketchCircle* cc = child.As<SketchCircle>()) {
+            c = cc;
+        }
+    }
     ASSERT_NE(c, nullptr);
-    EXPECT_NEAR(c->radius, 5.0, kEps);
+    Geometry::Point2 centre = PointInit(gesture, c->a);
+    Geometry::Point2 rim = PointInit(gesture, c->b);
+    EXPECT_NEAR(std::hypot(rim.x - centre.x, rim.y - centre.y), 5.0, kEps);
+}
+
+TEST(ToolLayer, ArcTakesCentreStartAndEndOnTheRim)
+{
+    Workbench wb;
+    wb.StartTool(ToolId::CreateSketch);
+    wb.ActiveTool().SetPlane(Geometry::SketchPlane::XY);
+    wb.FinishTool();
+
+    wb.StartTool(ToolId::Arc);
+    wb.ActiveTool().AddPoint({ 0, 0 }); // centre
+    wb.ActiveTool().AddPoint({ 5, 0 }); // start — fixes radius 5
+    wb.ActiveTool().AddPoint({ 0, 9 }); // end direction (+Y); the raw click is off the rim
+    ASSERT_TRUE(wb.FinishTool());
+
+    const SketchCmd& gesture = wb.Contexts().ActiveSketch()->children[0];
+    const CompoundSketchCmd* g = gesture.As<CompoundSketchCmd>();
+    ASSERT_NE(g, nullptr);
+    const SketchArc* a = nullptr;
+    for (const SketchCmd& child : g->children) {
+        if (const SketchArc* aa = child.As<SketchArc>()) {
+            a = aa;
+        }
+    }
+    ASSERT_NE(a, nullptr);
+
+    Geometry::Point2 c = PointInit(gesture, a->center);
+    Geometry::Point2 s = PointInit(gesture, a->start);
+    Geometry::Point2 e = PointInit(gesture, a->end);
+    // start fixes the radius; end is snapped ONTO that circle (equal radius), not left at
+    // the raw third click — so the arc is a proper equal-radius arc from the first solve.
+    EXPECT_NEAR(std::hypot(s.x - c.x, s.y - c.y), 5.0, kEps);
+    EXPECT_NEAR(std::hypot(e.x - c.x, e.y - c.y), 5.0, kEps);
+    EXPECT_NEAR(e.x, 0.0, kEps); // end direction was +Y -> (0, 5)
+    EXPECT_NEAR(e.y, 5.0, kEps);
 }
 
 TEST(ToolLayer, EveryCommittedCommandGetsAUniqueFeatureId)
@@ -823,7 +984,7 @@ TEST(ToolLayer, EveryCommittedCommandGetsAUniqueFeatureId)
         wb.ActiveTool().AddPoint({ 0, static_cast<f64>(k) });
         wb.ActiveTool().AddPoint({ 1, static_cast<f64>(k) });
         wb.FinishTool();
-        seen.push_back(wb.Contexts().ActiveSketch()->children.back().Get().id);
+        seen.push_back(LastCurveId(wb));
     }
 
     for (u32 i = 0; i < seen.size(); ++i) {
@@ -847,10 +1008,12 @@ TEST(ToolLayer, SeedPointChainsFromThePreviousLine)
     ASSERT_TRUE(wb.ActiveTool().Ready());
     ASSERT_TRUE(wb.FinishTool());
 
-    const SketchLine* l = wb.Contexts().ActiveSketch()->children[0].As<SketchLine>();
+    const SketchCmd& gesture = wb.Contexts().ActiveSketch()->children[0];
+    const SketchLine* l = LineIn(gesture);
     ASSERT_NE(l, nullptr);
-    EXPECT_NEAR(l->a.x, 3.0, kEps);
-    EXPECT_NEAR(l->b.x, 9.0, kEps);
+    // The line's seed points are the seeded start and the clicked end.
+    EXPECT_NEAR(PointInit(gesture, l->p0).x, 3.0, kEps);
+    EXPECT_NEAR(PointInit(gesture, l->p1).x, 9.0, kEps);
 }
 
 // ── Workbench is movable (Scene lives in a vector) ───────────────────────────
@@ -890,13 +1053,13 @@ std::pair<FeatureId, FeatureId> TwoLines(Workbench& wb)
     wb.ActiveTool().AddPoint({ 0, 0 });
     wb.ActiveTool().AddPoint({ 10, 0 }); // horizontal
     wb.FinishTool();
-    FeatureId a = wb.Contexts().ActiveSketch()->children.back().Get().id;
+    FeatureId a = LastCurveId(wb);
 
     wb.StartTool(ToolId::Line);
     wb.ActiveTool().AddPoint({ 0, 5 });
     wb.ActiveTool().AddPoint({ 8, 3 }); // sloped
     wb.FinishTool();
-    FeatureId b = wb.Contexts().ActiveSketch()->children.back().Get().id;
+    FeatureId b = LastCurveId(wb);
     return { a, b };
 }
 
@@ -987,7 +1150,7 @@ TEST(ConstraintTool, NoConstraintsKeepsGeometryAsDrawn)
     wb.ActiveTool().AddPoint({ 0, 0 });
     wb.ActiveTool().AddPoint({ 10, 0 });
     wb.FinishTool();
-    FeatureId line = wb.Contexts().ActiveSketch()->children.back().Get().id;
+    FeatureId line = LastCurveId(wb);
 
     wb.StartTool(ToolId::Dimension);
     wb.ActiveTool().AddPick(line);
@@ -1022,17 +1185,9 @@ std::vector<FeatureId> DrawPolyline(Workbench& wb, const std::vector<Geometry::P
         }
         wb.ActiveTool().AddPoint(pts[k + 1]);
         wb.FinishTool();
-        // A chained segment commits the line AND the coincident, so children.back() is
-        // the constraint — walk back to the most recent actual line.
-        const std::vector<SketchCmd>& children = wb.Contexts().ActiveSketch()->children;
-        FeatureId lineId = kNullFeature;
-        for (auto it = children.rbegin(); it != children.rend(); ++it) {
-            if (it->Is<SketchLine>()) {
-                lineId = it->Get().id;
-                break;
-            }
-        }
-        lines.push_back(lineId);
+        // A chained segment commits the line gesture (a compound) AND the coincident; the
+        // most recently authored curve is the line just drawn.
+        lines.push_back(LastCurveId(wb));
     }
     return lines;
 }
@@ -1090,9 +1245,11 @@ TEST(ChainedLines, TheCoincidentJoinsPrevEndToNewStart)
     std::vector<FeatureId> lines = DrawPolyline(wb, { { 0, 0 }, { 10, 0 }, { 10, 10 } });
     ASSERT_EQ(lines.size(), 2u);
 
-    // Find the coincident and confirm it links line0's End to line1's Start.
+    // Find the coincident and confirm it links line0's END point to line1's START point —
+    // two distinct point ids, not a merge.
+    const std::vector<SketchCmd>& children = wb.Contexts().ActiveSketch()->children;
     const SketchConstraintCmd* join = nullptr;
-    for (const SketchCmd& c : wb.Contexts().ActiveSketch()->children) {
+    for (const SketchCmd& c : children) {
         if (const auto* k = c.As<SketchConstraintCmd>()) {
             if (k->kind == ConstraintKind::Coincident) {
                 join = k;
@@ -1100,10 +1257,12 @@ TEST(ChainedLines, TheCoincidentJoinsPrevEndToNewStart)
         }
     }
     ASSERT_NE(join, nullptr);
-    EXPECT_EQ(join->a, lines[0]);
-    EXPECT_EQ(join->aPoint, PointRef::End);
-    EXPECT_EQ(join->b, lines[1]);
-    EXPECT_EQ(join->bPoint, PointRef::Start);
+    const SketchLine* l0 = FindLineCmd(children, lines[0]);
+    const SketchLine* l1 = FindLineCmd(children, lines[1]);
+    ASSERT_NE(l0, nullptr);
+    ASSERT_NE(l1, nullptr);
+    EXPECT_EQ(join->a, l0->p1); // previous segment's end point
+    EXPECT_EQ(join->b, l1->p0); // this segment's start point
 }
 
 TEST(ChainedLines, DraggingOneSegmentCarriesTheJoinedNeighbour)
@@ -1184,7 +1343,7 @@ FeatureId OpenSketchWithLine(Workbench& wb, Geometry::Point2 a, Geometry::Point2
     wb.ActiveTool().AddPoint(a);
     wb.ActiveTool().AddPoint(b);
     wb.FinishTool();
-    return wb.Contexts().ActiveSketch()->children.back().Get().id;
+    return LastCurveId(wb);
 }
 
 } // namespace

@@ -46,13 +46,13 @@ struct DirectSketchSolver : ISketchSolver {
 
             switch (d.kind) {
             case DimensionKind::Length:
-                ApplyLength(*e, r.value);
+                ApplyLength(doc, *e, r.value);
                 break;
             case DimensionKind::Radius:
-                ApplyRadius(*e, r.value);
+                ApplyRadius(doc, *e, r.value);
                 break;
             case DimensionKind::Angle:
-                ApplyAngle(*e, r.value);
+                ApplyAngle(doc, *e, r.value);
                 break;
             case DimensionKind::Distance:
                 // Two-entity dimensions have no single target to move: which one gives?
@@ -61,6 +61,9 @@ struct DirectSketchSolver : ISketchSolver {
                 break;
             }
         }
+
+        // Length/Angle moved the endpoint POINTS; sync each curve's a/b draw cache.
+        doc.RefreshDerived();
     }
 
 private:
@@ -82,7 +85,7 @@ private:
         return std::nullopt;
     }
 
-    static void ApplyLength(SketchEntity& e, Param::Quantity q)
+    static void ApplyLength(SketchDocument& doc, SketchEntity& e, Param::Quantity q)
     {
         if (e.kind != EntityKind::Line) {
             return;
@@ -91,22 +94,28 @@ private:
         if (!target.has_value() || *target < 0.0) {
             return;
         }
+        GeomPoint* pb = doc.FindPoint(e.p1);
+        if (!pb) {
+            return;
+        }
+        Geometry::Point2 a = doc.PointPos(e.p0);
+        Geometry::Point2 b = pb->pos;
 
-        f64 dx = e.b.x - e.a.x;
-        f64 dy = e.b.y - e.a.y;
+        f64 dx = b.x - a.x;
+        f64 dy = b.y - a.y;
         f64 len = std::sqrt(dx * dx + dy * dy);
         if (len == 0.0) {
             // No direction to grow along. Fall back to +X so the dimension still has a
             // visible effect rather than silently doing nothing.
-            e.b = { e.a.x + *target, e.a.y };
+            pb->pos = { a.x + *target, a.y };
             return;
         }
 
         f64 s = *target / len;
-        e.b = { e.a.x + dx * s, e.a.y + dy * s };
+        pb->pos = { a.x + dx * s, a.y + dy * s };
     }
 
-    static void ApplyRadius(SketchEntity& e, Param::Quantity q)
+    static void ApplyRadius(SketchDocument& doc, SketchEntity& e, Param::Quantity q)
     {
         if (e.kind != EntityKind::Circle && e.kind != EntityKind::Arc) {
             return;
@@ -115,10 +124,33 @@ private:
         if (!target.has_value() || *target <= 0.0) {
             return;
         }
-        e.radius = *target;
+        // Radius is derived from points now, so drive it by MOVING the rim/endpoint points
+        // to `target` along their current direction from the centre. For an arc both
+        // endpoints move, so it stays a proper (equal-radius) arc. RefreshDerived (called at
+        // the end of Solve) recomputes the cached radius from the moved points.
+        Geometry::Point2 c = doc.PointPos(e.p0);
+        auto moveToRadius = [&](FeatureId pid) {
+            GeomPoint* p = doc.FindPoint(pid);
+            if (!p) {
+                return;
+            }
+            f64 dx = p->pos.x - c.x;
+            f64 dy = p->pos.y - c.y;
+            f64 len = std::sqrt(dx * dx + dy * dy);
+            if (len == 0.0) {
+                p->pos = { c.x + *target, c.y }; // no direction — fall back to +X
+                return;
+            }
+            f64 s = *target / len;
+            p->pos = { c.x + dx * s, c.y + dy * s };
+        };
+        moveToRadius(e.p1); // circle rim / arc start
+        if (e.kind == EntityKind::Arc) {
+            moveToRadius(e.p2); // arc end — keeps ‖centre−start‖ = ‖centre−end‖
+        }
     }
 
-    static void ApplyAngle(SketchEntity& e, Param::Quantity q)
+    static void ApplyAngle(SketchDocument& doc, SketchEntity& e, Param::Quantity q)
     {
         if (e.kind != EntityKind::Line) {
             return;
@@ -127,14 +159,18 @@ private:
         if (!target.has_value()) {
             return;
         }
-
-        f64 dx = e.b.x - e.a.x;
-        f64 dy = e.b.y - e.a.y;
+        GeomPoint* pb = doc.FindPoint(e.p1);
+        if (!pb) {
+            return;
+        }
+        Geometry::Point2 a = doc.PointPos(e.p0);
+        f64 dx = pb->pos.x - a.x;
+        f64 dy = pb->pos.y - a.y;
         f64 len = std::sqrt(dx * dx + dy * dy);
         if (len == 0.0) {
             return;
         }
         // Rotate about the start, preserving length.
-        e.b = { e.a.x + len * std::cos(*target), e.a.y + len * std::sin(*target) };
+        pb->pos = { a.x + len * std::cos(*target), a.y + len * std::sin(*target) };
     }
 };

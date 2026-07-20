@@ -14,24 +14,70 @@ namespace {
 
 constexpr f64 kEps = 1e-4; // the solver converges to ~1e-5; assert a hair looser
 
-SketchEntity Line(FeatureId id, f64 ax, f64 ay, f64 bx, f64 by)
+// Curves reference points now, so building geometry by hand must mint the points on the
+// document (as execute() does) — the helpers take `doc` and add the entity + its points.
+// Point ids are derived from the entity id (id*1000+n) so they are deterministic and never
+// collide with the small entity/constraint ids these tests use.
+SketchEntity& AddLine(SketchDocument& doc, FeatureId id, f64 ax, f64 ay, f64 bx, f64 by)
 {
     SketchEntity e;
     e.id = id;
     e.kind = EntityKind::Line;
+    e.p0 = id * 1000 + 1;
+    e.p1 = id * 1000 + 2;
+    doc.AddPointWithId(e.p0, { ax, ay });
+    doc.AddPointWithId(e.p1, { bx, by });
     e.a = { ax, ay };
     e.b = { bx, by };
-    return e;
+    doc.entities.push_back(e);
+    return doc.entities.back();
 }
 
-SketchEntity Circle(FeatureId id, f64 cx, f64 cy, f64 r)
+SketchEntity& AddCircle(SketchDocument& doc, FeatureId id, f64 cx, f64 cy, f64 r)
 {
+    // A circle is a centre point + a rim point; its radius is derived as their distance, so
+    // seed the rim at (cx + r, cy) to get radius r.
     SketchEntity e;
     e.id = id;
     e.kind = EntityKind::Circle;
-    e.a = { cx, cy };
-    e.radius = r;
-    return e;
+    e.p0 = id * 1000 + 1;
+    e.p1 = id * 1000 + 2;
+    doc.AddPointWithId(e.p0, { cx, cy });
+    doc.AddPointWithId(e.p1, { cx + r, cy });
+    doc.DeriveOne(e); // sets e.a = centre and e.radius = r from the points
+    doc.entities.push_back(e);
+    return doc.entities.back();
+}
+
+// An arc is centre + start + end points; radius and angles are derived. Point ids follow the
+// same id*1000+n scheme so they never collide with the small entity/constraint ids.
+SketchEntity& AddArc(SketchDocument& doc, FeatureId id, f64 cx, f64 cy, f64 sx, f64 sy, f64 ex, f64 ey)
+{
+    SketchEntity e;
+    e.id = id;
+    e.kind = EntityKind::Arc;
+    e.p0 = id * 1000 + 1;
+    e.p1 = id * 1000 + 2;
+    e.p2 = id * 1000 + 3;
+    doc.AddPointWithId(e.p0, { cx, cy });
+    doc.AddPointWithId(e.p1, { sx, sy });
+    doc.AddPointWithId(e.p2, { ex, ey });
+    doc.DeriveOne(e);
+    doc.entities.push_back(e);
+    return doc.entities.back();
+}
+
+// The point ids of a line's endpoints — for constraints that now reference points directly.
+FeatureId PStart(const SketchDocument& doc, FeatureId lineId) { return doc.Find(lineId)->p0; }
+FeatureId PEnd(const SketchDocument& doc, FeatureId lineId) { return doc.Find(lineId)->p1; }
+
+// The radius each of an arc's endpoints currently sits at (distance from its centre point).
+f64 RadiusOf(const SketchDocument& doc, FeatureId arcId, FeatureId endpoint)
+{
+    const SketchEntity* e = doc.Find(arcId);
+    Geometry::Point2 c = doc.PointPos(e->p0);
+    Geometry::Point2 p = doc.PointPos(endpoint);
+    return std::hypot(p.x - c.x, p.y - c.y);
 }
 
 f64 Len(const SketchEntity& e)
@@ -87,7 +133,7 @@ SketchConstraintRecord Constraint(FeatureId id, ConstraintKind kind, FeatureId a
 TEST(ConstraintSolver, UnconstrainedGeometryIsLeftAsDrawn)
 {
     SketchDocument doc;
-    doc.entities.push_back(Line(1, 2, 3, 12, 8));
+    AddLine(doc, 1, 2, 3, 12, 8);
     Solve(doc);
 
     const SketchEntity* e = doc.Find(1);
@@ -101,7 +147,7 @@ TEST(ConstraintSolver, UnconstrainedGeometryIsLeftAsDrawn)
 TEST(ConstraintSolver, AFreeLineIsUnderConstrained)
 {
     SketchDocument doc;
-    doc.entities.push_back(Line(1, 0, 0, 10, 0));
+    AddLine(doc, 1, 0, 0, 10, 0);
     SketchSolveResult r = Solve(doc);
     EXPECT_EQ(r.status, SketchSolveStatus::UnderConstrained);
     EXPECT_GT(r.dof, 0u);
@@ -112,7 +158,7 @@ TEST(ConstraintSolver, AFreeLineIsUnderConstrained)
 TEST(ConstraintSolver, LengthDimensionAchievesTheLength)
 {
     Doc d;
-    d.doc.entities.push_back(Line(1, 0, 0, 10, 0));
+    AddLine(d.doc, 1, 0, 0, 10, 0);
     d.Dimension(2, DimensionKind::Length, 1, "100mm");
     Solve(d.doc);
     EXPECT_NEAR(Len(*d.doc.Find(1)), 100.0, kEps);
@@ -121,7 +167,7 @@ TEST(ConstraintSolver, LengthDimensionAchievesTheLength)
 TEST(ConstraintSolver, LengthPreservesDirection)
 {
     Doc d;
-    d.doc.entities.push_back(Line(1, 0, 0, 3, 4)); // length 5, slope 4/3
+    AddLine(d.doc, 1, 0, 0, 3, 4); // length 5, slope 4/3
     d.Dimension(2, DimensionKind::Length, 1, "10mm");
     Solve(d.doc);
     const SketchEntity* e = d.doc.Find(1);
@@ -136,10 +182,51 @@ TEST(ConstraintSolver, LengthPreservesDirection)
 TEST(ConstraintSolver, RadiusDimensionAchievesTheRadius)
 {
     Doc d;
-    d.doc.entities.push_back(Circle(1, 0, 0, 5));
+    AddCircle(d.doc, 1, 0, 0, 5);
     d.Dimension(2, DimensionKind::Radius, 1, "25mm");
     Solve(d.doc);
     EXPECT_NEAR(d.doc.Find(1)->radius, 25.0, kEps);
+}
+
+TEST(ConstraintSolver, ArcHoldsItsEndpointsAtEqualRadius)
+{
+    // The always-on invariant: start at radius 5, end at radius 8 — the solver equalizes
+    // them (with no other constraint present) so both endpoints land on one circle.
+    SketchDocument doc;
+    AddArc(doc, 1, 0, 0, 5, 0, 0, 8);
+    Solve(doc);
+    const SketchEntity* e = doc.Find(1);
+    EXPECT_NEAR(RadiusOf(doc, 1, e->p1), RadiusOf(doc, 1, e->p2), kEps);
+}
+
+TEST(ConstraintSolver, ArcRadiusDimensionDrivesBothEndpoints)
+{
+    // A radius dimension on an arc sets ‖centre−start‖; the invariant carries the end, so
+    // both endpoints end up on the dimensioned circle and the derived radius matches.
+    Doc d;
+    AddArc(d.doc, 1, 0, 0, 5, 0, 0, 5); // quarter arc, radius 5
+    d.Dimension(2, DimensionKind::Radius, 1, "10mm");
+    Solve(d.doc);
+    const SketchEntity* e = d.doc.Find(1);
+    EXPECT_NEAR(RadiusOf(d.doc, 1, e->p1), 10.0, kEps);
+    EXPECT_NEAR(RadiusOf(d.doc, 1, e->p2), 10.0, kEps);
+    EXPECT_NEAR(e->radius, 10.0, kEps);
+}
+
+TEST(ConstraintSolver, ArcEndpointCanCoincideWithALineEnd)
+{
+    // The point payoff: an arc's endpoint is an ordinary point, so it can be joined to a
+    // line by a Coincident — the profile closes at that corner.
+    SketchDocument doc;
+    AddLine(doc, 1, 0, 0, 10, 0);
+    AddArc(doc, 2, 12, 5, 10, 3, 14, 3); // its start is near, but not at, the line's end
+    doc.constraints.push_back(
+        Constraint(3, ConstraintKind::Coincident, PEnd(doc, 1), doc.Find(2)->p1)); // line end == arc start
+    Solve(doc);
+    Geometry::Point2 lineEnd = doc.PointPos(doc.Find(1)->p1);
+    Geometry::Point2 arcStart = doc.PointPos(doc.Find(2)->p1);
+    EXPECT_NEAR(lineEnd.x, arcStart.x, kEps);
+    EXPECT_NEAR(lineEnd.y, arcStart.y, kEps);
 }
 
 TEST(ConstraintSolver, AngleDimensionRotatesTheLine)
@@ -147,7 +234,7 @@ TEST(ConstraintSolver, AngleDimensionRotatesTheLine)
     // Angle alone doesn't pin length (that DOF stays free), so a real angle dimension is
     // used alongside a length + a ground — the well-constrained case.
     Doc d;
-    d.doc.entities.push_back(Line(1, 0, 0, 10, 0)); // along +X
+    AddLine(d.doc, 1, 0, 0, 10, 0); // along +X
     d.doc.constraints.push_back(Constraint(2, ConstraintKind::Ground, 1)); // pin the start
     d.Dimension(3, DimensionKind::Length, 1, "10mm");
     d.Dimension(4, DimensionKind::Angle, 1, "90deg");
@@ -161,8 +248,8 @@ TEST(ConstraintSolver, AngleDimensionRotatesTheLine)
 TEST(ConstraintSolver, DistanceDimensionSeparatesTwoEntities)
 {
     Doc d;
-    d.doc.entities.push_back(Line(1, 0, 0, 1, 0));
-    d.doc.entities.push_back(Circle(2, 3, 0, 1));
+    AddLine(d.doc, 1, 0, 0, 1, 0);
+    AddCircle(d.doc, 2, 3, 0, 1);
     d.Dimension(3, DimensionKind::Distance, 1, "50mm", 2);
     Solve(d.doc);
     // Distance between line's anchor (a) and circle centre == 50.
@@ -174,7 +261,7 @@ TEST(ConstraintSolver, DistanceDimensionSeparatesTwoEntities)
 TEST(ConstraintSolver, ABrokenDimensionLeavesGeometryAsDrawn)
 {
     Doc d;
-    d.doc.entities.push_back(Line(1, 0, 0, 10, 0));
+    AddLine(d.doc, 1, 0, 0, 10, 0);
     // A dimension referencing an unknown parameter -> no residual.
     Param::UPID v = d.params.CreateDimension("$ghost", d.doc.id);
     SketchDimensionRecord dim;
@@ -193,7 +280,7 @@ TEST(ConstraintSolver, ABrokenDimensionLeavesGeometryAsDrawn)
 TEST(ConstraintSolver, HorizontalFlattensALine)
 {
     SketchDocument doc;
-    doc.entities.push_back(Line(1, 0, 0, 10, 3));
+    AddLine(doc, 1, 0, 0, 10, 3);
     doc.constraints.push_back(Constraint(2, ConstraintKind::Horizontal, 1));
     Solve(doc);
     const SketchEntity* e = doc.Find(1);
@@ -203,7 +290,7 @@ TEST(ConstraintSolver, HorizontalFlattensALine)
 TEST(ConstraintSolver, VerticalStandsALineUp)
 {
     SketchDocument doc;
-    doc.entities.push_back(Line(1, 0, 0, 3, 10));
+    AddLine(doc, 1, 0, 0, 3, 10);
     doc.constraints.push_back(Constraint(2, ConstraintKind::Vertical, 1));
     Solve(doc);
     const SketchEntity* e = doc.Find(1);
@@ -213,8 +300,8 @@ TEST(ConstraintSolver, VerticalStandsALineUp)
 TEST(ConstraintSolver, ParallelAlignsTwoLines)
 {
     SketchDocument doc;
-    doc.entities.push_back(Line(1, 0, 0, 10, 0)); // horizontal
-    doc.entities.push_back(Line(2, 0, 5, 8, 3)); // sloped
+    AddLine(doc, 1, 0, 0, 10, 0); // horizontal
+    AddLine(doc, 2, 0, 5, 8, 3); // sloped
     doc.constraints.push_back(Constraint(3, ConstraintKind::Parallel, 1, 2));
     Solve(doc);
     const SketchEntity* a = doc.Find(1);
@@ -226,8 +313,8 @@ TEST(ConstraintSolver, ParallelAlignsTwoLines)
 TEST(ConstraintSolver, PerpendicularSquaresTwoLines)
 {
     SketchDocument doc;
-    doc.entities.push_back(Line(1, 0, 0, 10, 0));
-    doc.entities.push_back(Line(2, 0, 0, 8, 1)); // nearly along X -> should swing to +Y
+    AddLine(doc, 1, 0, 0, 10, 0);
+    AddLine(doc, 2, 0, 0, 8, 1); // nearly along X -> should swing to +Y
     doc.constraints.push_back(Constraint(3, ConstraintKind::Perpendicular, 1, 2));
     Solve(doc);
     const SketchEntity* a = doc.Find(1);
@@ -239,8 +326,8 @@ TEST(ConstraintSolver, PerpendicularSquaresTwoLines)
 TEST(ConstraintSolver, EqualMatchesTwoLengths)
 {
     SketchDocument doc;
-    doc.entities.push_back(Line(1, 0, 0, 10, 0)); // length 10
-    doc.entities.push_back(Line(2, 0, 5, 4, 5)); // length 4
+    AddLine(doc, 1, 0, 0, 10, 0); // length 10
+    AddLine(doc, 2, 0, 5, 4, 5); // length 4
     doc.constraints.push_back(Constraint(3, ConstraintKind::Equal, 1, 2));
     Solve(doc);
     EXPECT_NEAR(Len(*doc.Find(1)), Len(*doc.Find(2)), kEps);
@@ -249,8 +336,8 @@ TEST(ConstraintSolver, EqualMatchesTwoLengths)
 TEST(ConstraintSolver, TangentTouchesALineToACircle)
 {
     SketchDocument doc;
-    doc.entities.push_back(Line(1, -10, 3, 10, 3)); // horizontal line at y=3
-    doc.entities.push_back(Circle(2, 0, 0, 5)); // radius 5 at origin -> needs the line at |y|=5
+    AddLine(doc, 1, -10, 3, 10, 3); // horizontal line at y=3
+    AddCircle(doc, 2, 0, 0, 5); // radius 5 at origin -> needs the line at |y|=5
     doc.constraints.push_back(Constraint(3, ConstraintKind::Tangent, 1, 2));
     Solve(doc);
 
@@ -266,13 +353,10 @@ TEST(ConstraintSolver, TangentTouchesALineToACircle)
 TEST(ConstraintSolver, CoincidentJoinsTwoEndpoints)
 {
     SketchDocument doc;
-    doc.entities.push_back(Line(1, 0, 0, 10, 0));
-    doc.entities.push_back(Line(2, 12, 1, 20, 5)); // starts near, but not at, line 1's end
-    // line1.end coincides with line2.start
-    SketchConstraintRecord c = Constraint(3, ConstraintKind::Coincident, 1, 2);
-    c.aPoint = PointRef::End;
-    c.bPoint = PointRef::Start;
-    doc.constraints.push_back(c);
+    AddLine(doc, 1, 0, 0, 10, 0);
+    AddLine(doc, 2, 12, 1, 20, 5); // starts near, but not at, line 1's end
+    // line1.end coincides with line2.start — a Coincident between two POINT ids.
+    doc.constraints.push_back(Constraint(3, ConstraintKind::Coincident, PEnd(doc, 1), PStart(doc, 2)));
     Solve(doc);
 
     const SketchEntity* a = doc.Find(1);
@@ -287,15 +371,14 @@ TEST(ConstraintSolver, SymmetryMirrorsALineAcrossAnAxis)
     // alone; otherwise the solver could satisfy it by moving the axis or original too
     // (all three are free), and "twin == -original" wouldn't be the unique answer.
     SketchDocument doc;
-    doc.entities.push_back(Line(1, 0, 0, 0, 10)); // axis: the Y axis (x=0)
-    doc.entities.push_back(Line(2, 5, 1, 8, 2)); // original, on the +X side
-    doc.entities.push_back(Line(3, -4, 1, -9, 2)); // twin, roughly mirrored but off
+    AddLine(doc, 1, 0, 0, 0, 10); // axis: the Y axis (x=0)
+    AddLine(doc, 2, 5, 1, 8, 2); // original, on the +X side
+    AddLine(doc, 3, -4, 1, -9, 2); // twin, roughly mirrored but off
 
-    // Pin the axis (both ends) and the original (both ends).
+    // Pin the axis (both ends) and the original (both ends). Ground references a POINT id.
     auto ground = [&](FeatureId id, FeatureId ent, PointRef pt) {
-        SketchConstraintRecord g = Constraint(id, ConstraintKind::Ground, ent);
-        g.aPoint = pt;
-        doc.constraints.push_back(g);
+        FeatureId pid = (pt == PointRef::End) ? PEnd(doc, ent) : PStart(doc, ent);
+        doc.constraints.push_back(Constraint(id, ConstraintKind::Ground, pid));
     };
     ground(10, 1, PointRef::Start);
     ground(11, 1, PointRef::End);
@@ -319,7 +402,7 @@ TEST(ConstraintSolver, SymmetryMirrorsALineAcrossAnAxis)
 TEST(ConstraintSolver, GroundPinsAPoint)
 {
     SketchDocument doc;
-    doc.entities.push_back(Line(1, 2, 3, 12, 3));
+    AddLine(doc, 1, 2, 3, 12, 3);
     doc.constraints.push_back(Constraint(2, ConstraintKind::Ground, 1)); // pin start
     Solve(doc);
     const SketchEntity* e = doc.Find(1);
@@ -331,7 +414,7 @@ TEST(ConstraintSolver, AFullyPinnedLineIsWellConstrained)
 {
     // Ground the start, dimension the length, and fix the angle: no freedom left.
     Doc d;
-    d.doc.entities.push_back(Line(1, 0, 0, 10, 0));
+    AddLine(d.doc, 1, 0, 0, 10, 0);
     d.doc.constraints.push_back(Constraint(2, ConstraintKind::Ground, 1)); // -2 DOF
     d.doc.constraints.push_back(Constraint(3, ConstraintKind::Horizontal, 1)); // -1 DOF
     d.Dimension(4, DimensionKind::Length, 1, "50mm"); // -1 DOF
@@ -346,7 +429,7 @@ TEST(ConstraintSolver, RedundantConstraintsAreOverConstrainedButConsistent)
 {
     // Two Horizontal constraints on the same line: the second is redundant but agrees.
     SketchDocument doc;
-    doc.entities.push_back(Line(1, 0, 0, 10, 0));
+    AddLine(doc, 1, 0, 0, 10, 0);
     doc.constraints.push_back(Constraint(2, ConstraintKind::Ground, 1));
     doc.constraints.push_back(Constraint(3, ConstraintKind::Horizontal, 1));
     doc.constraints.push_back(Constraint(4, ConstraintKind::Horizontal, 1)); // redundant
@@ -358,7 +441,7 @@ TEST(ConstraintSolver, ConflictingDimensionsAreDetectedNotCrashed)
 {
     // Two different lengths on one line can't both hold.
     Doc d;
-    d.doc.entities.push_back(Line(1, 0, 0, 10, 0));
+    AddLine(d.doc, 1, 0, 0, 10, 0);
     d.doc.constraints.push_back(Constraint(2, ConstraintKind::Ground, 1));
     d.doc.constraints.push_back(Constraint(3, ConstraintKind::Horizontal, 1));
     d.Dimension(4, DimensionKind::Length, 1, "50mm");
@@ -377,17 +460,15 @@ TEST(ConstraintSolver, RectangleFromConstraintsAndDimensions)
     // Four lines, corners coincident, two horizontal + two vertical, one width + one
     // height dimension, one corner grounded -> a fully determined rectangle.
     Doc d;
-    d.doc.entities.push_back(Line(1, 0, 0, 10, 1)); // bottom (roughly)
-    d.doc.entities.push_back(Line(2, 10, 1, 9, 6)); // right
-    d.doc.entities.push_back(Line(3, 9, 6, 1, 5)); // top
-    d.doc.entities.push_back(Line(4, 1, 5, 0, 0)); // left
+    AddLine(d.doc, 1, 0, 0, 10, 1); // bottom (roughly)
+    AddLine(d.doc, 2, 10, 1, 9, 6); // right
+    AddLine(d.doc, 3, 9, 6, 1, 5); // top
+    AddLine(d.doc, 4, 1, 5, 0, 0); // left
 
-    // Close the loop: each line's end coincides with the next line's start.
+    // Close the loop: each line's end coincides with the next line's start (point ids).
     auto corner = [&](FeatureId id, FeatureId a, FeatureId b) {
-        SketchConstraintRecord c = Constraint(id, ConstraintKind::Coincident, a, b);
-        c.aPoint = PointRef::End;
-        c.bPoint = PointRef::Start;
-        d.doc.constraints.push_back(c);
+        d.doc.constraints.push_back(
+            Constraint(id, ConstraintKind::Coincident, PEnd(d.doc, a), PStart(d.doc, b)));
     };
     corner(10, 1, 2);
     corner(11, 2, 3);
@@ -420,15 +501,13 @@ TEST(ConstraintSolver, TriangleFromThreeLengths)
 {
     // A 3-4-5 triangle from three coincident-cornered lines with length dimensions.
     Doc d;
-    d.doc.entities.push_back(Line(1, 0, 0, 3, 1)); // -> length 3
-    d.doc.entities.push_back(Line(2, 3, 1, 3, 4)); // -> length 4
-    d.doc.entities.push_back(Line(3, 3, 4, 0, 0)); // -> length 5 (closes)
+    AddLine(d.doc, 1, 0, 0, 3, 1); // -> length 3
+    AddLine(d.doc, 2, 3, 1, 3, 4); // -> length 4
+    AddLine(d.doc, 3, 3, 4, 0, 0); // -> length 5 (closes)
 
     auto corner = [&](FeatureId id, FeatureId a, FeatureId b) {
-        SketchConstraintRecord c = Constraint(id, ConstraintKind::Coincident, a, b);
-        c.aPoint = PointRef::End;
-        c.bPoint = PointRef::Start;
-        d.doc.constraints.push_back(c);
+        d.doc.constraints.push_back(
+            Constraint(id, ConstraintKind::Coincident, PEnd(d.doc, a), PStart(d.doc, b)));
     };
     corner(10, 1, 2);
     corner(11, 2, 3);
@@ -454,7 +533,7 @@ TEST(ConstraintSolver, ReSolvesWhenAParameterChanges)
 {
     Doc d;
     Param::UPID w = d.params.Create("w", "40mm");
-    d.doc.entities.push_back(Line(1, 0, 0, 10, 0));
+    AddLine(d.doc, 1, 0, 0, 10, 0);
     d.doc.constraints.push_back(Constraint(2, ConstraintKind::Ground, 1));
     d.doc.constraints.push_back(Constraint(3, ConstraintKind::Horizontal, 1));
     // dimension = $w
@@ -478,7 +557,7 @@ TEST(ConstraintSolver, IsDeterministic)
 {
     auto build = []() {
         Doc* d = new Doc();
-        d->doc.entities.push_back(Line(1, 0, 0, 10, 2));
+        AddLine(d->doc, 1, 0, 0, 10, 2);
         d->doc.constraints.push_back(Constraint(2, ConstraintKind::Ground, 1));
         d->Dimension(3, DimensionKind::Length, 1, "37mm");
         return d;
@@ -497,7 +576,7 @@ TEST(ConstraintSolver, IsIdempotent)
 {
     // Solving an already-solved sketch must not move it further.
     Doc d;
-    d.doc.entities.push_back(Line(1, 0, 0, 10, 0));
+    AddLine(d.doc, 1, 0, 0, 10, 0);
     d.doc.constraints.push_back(Constraint(2, ConstraintKind::Ground, 1));
     d.doc.constraints.push_back(Constraint(3, ConstraintKind::Horizontal, 1));
     d.Dimension(4, DimensionKind::Length, 1, "55mm");
@@ -522,7 +601,7 @@ TEST(ConstraintSolver, DanglingConstraintReferenceIsIgnored)
 {
     // A constraint naming a missing entity contributes nothing and must not crash.
     SketchDocument doc;
-    doc.entities.push_back(Line(1, 0, 0, 10, 0));
+    AddLine(doc, 1, 0, 0, 10, 0);
     doc.constraints.push_back(Constraint(2, ConstraintKind::Parallel, 1, 999));
     SketchSolveResult r = Solve(doc);
     EXPECT_TRUE(r.Solved()); // no residual added; the line stays as drawn
@@ -534,7 +613,7 @@ TEST(ConstraintSolver, DanglingConstraintReferenceIsIgnored)
 TEST(PointFreedom, AFreeLineHasFullyFreeEndpoints)
 {
     SketchDocument doc;
-    doc.entities.push_back(Line(1, 0, 0, 10, 0));
+    AddLine(doc, 1, 0, 0, 10, 0);
     EXPECT_EQ(SketchPointFreedom(doc, 1, PointRef::Start), 2u);
     EXPECT_EQ(SketchPointFreedom(doc, 1, PointRef::End), 2u);
 }
@@ -542,7 +621,7 @@ TEST(PointFreedom, AFreeLineHasFullyFreeEndpoints)
 TEST(PointFreedom, AGroundedPointIsLockedButTheOtherEndIsFree)
 {
     SketchDocument doc;
-    doc.entities.push_back(Line(1, 0, 0, 10, 0));
+    AddLine(doc, 1, 0, 0, 10, 0);
     doc.constraints.push_back(Constraint(2, ConstraintKind::Ground, 1)); // pins start
     EXPECT_EQ(SketchPointFreedom(doc, 1, PointRef::Start), 0u); // locked
     EXPECT_EQ(SketchPointFreedom(doc, 1, PointRef::End), 2u); // still free
@@ -551,7 +630,7 @@ TEST(PointFreedom, AGroundedPointIsLockedButTheOtherEndIsFree)
 TEST(PointFreedom, AFullyPinnedLineHasNoFreedom)
 {
     Doc d;
-    d.doc.entities.push_back(Line(1, 0, 0, 10, 0));
+    AddLine(d.doc, 1, 0, 0, 10, 0);
     d.doc.constraints.push_back(Constraint(2, ConstraintKind::Ground, 1));
     d.doc.constraints.push_back(Constraint(3, ConstraintKind::Horizontal, 1));
     d.Dimension(4, DimensionKind::Length, 1, "50mm");

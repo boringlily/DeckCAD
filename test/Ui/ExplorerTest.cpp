@@ -57,6 +57,30 @@ u32 CaretAt(void*, const char*, u32 len, Rect box, u16, u16 size, s32, Vec2 poin
     return idx > len ? len : idx;
 }
 
+// The last curve id authored in the active sketch. A gesture commits a compound of points +
+// a curve, so `children.back()` is the compound — recurse to the curve consumers reference.
+FeatureId LastCurveIdIn(const std::vector<SketchCmd>& cmds)
+{
+    FeatureId found = kNullFeature;
+    for (const SketchCmd& c : cmds) {
+        if (c.Is<SketchLine>() || c.Is<SketchCircle>() || c.Is<SketchArc>()) {
+            found = c.Get().id;
+        } else if (const CompoundSketchCmd* g = c.As<CompoundSketchCmd>()) {
+            FeatureId nested = LastCurveIdIn(g->children);
+            if (nested != kNullFeature) {
+                found = nested;
+            }
+        }
+    }
+    return found;
+}
+
+FeatureId LastCurveId(const Workbench& wb)
+{
+    const SketchContext* s = wb.Contexts().ActiveSketch();
+    return s ? LastCurveIdIn(s->children) : kNullFeature;
+}
+
 } // namespace
 
 class ExplorerTest : public ::testing::Test {
@@ -361,7 +385,7 @@ TEST_F(ExplorerTest, MirrorGroupRendersAsANestedSubtree)
     wb.ActiveTool().AddPoint({ 0, 0 });
     wb.ActiveTool().AddPoint({ 0, 10 });
     wb.FinishTool();
-    FeatureId axis = wb.Contexts().ActiveSketch()->children.back().Get().id;
+    FeatureId axis = LastCurveId(wb);
 
     wb.StartTool(ToolId::SymmetryGroup);
     wb.ActiveTool().AddPick(axis);
@@ -566,7 +590,7 @@ TEST_F(ExplorerTest, EditingAParameterReDrivesDimensionedGeometry)
     wb.ActiveTool().AddPoint({ 0, 0 });
     wb.ActiveTool().AddPoint({ 5, 0 });
     wb.FinishTool();
-    FeatureId line = wb.Contexts().ActiveSketch()->children.back().Get().id;
+    FeatureId line = LastCurveId(wb);
 
     wb.StartTool(ToolId::Dimension);
     wb.ActiveTool().AddPick(line);
@@ -635,7 +659,7 @@ TEST_F(ExplorerTest, DimensionValuesAppearInTheTableAlongsideUserParameters)
     wb.ActiveTool().AddPoint({ 0, 0 });
     wb.ActiveTool().AddPoint({ 5, 0 });
     wb.FinishTool();
-    FeatureId line = wb.Contexts().ActiveSketch()->children.back().Get().id;
+    FeatureId line = LastCurveId(wb);
     wb.StartTool(ToolId::Dimension);
     wb.ActiveTool().AddPick(line);
     wb.ActiveTool().SetValue("$w * 2");
@@ -683,7 +707,7 @@ TEST_F(ExplorerTest, GeometryTabShowsTheSketchBeingAuthoredBeforeItIsCommitted)
     wb.ActiveTool().AddPoint({ 0, 0 });
     wb.ActiveTool().AddPoint({ 10, 0 });
     wb.FinishTool();
-    FeatureId line = wb.Contexts().ActiveSketch()->children.back().Get().id;
+    FeatureId line = LastCurveId(wb);
 
     ShowTab(ExplorerTab::Geometry);
     Frame();
@@ -703,7 +727,7 @@ TEST_F(ExplorerTest, GeometryTabReflectsAnAppliedDimensionImmediately)
     wb.ActiveTool().AddPoint({ 0, 0 });
     wb.ActiveTool().AddPoint({ 10, 0 });
     wb.FinishTool();
-    FeatureId line = wb.Contexts().ActiveSketch()->children.back().Get().id;
+    FeatureId line = LastCurveId(wb);
 
     SketchDocument before;
     ASSERT_TRUE(wb.BuildSketchPreview(before));

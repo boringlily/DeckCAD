@@ -29,18 +29,42 @@ enum class EntityKind : u8 {
     Circle,
 };
 
-// One drawn entity. A flat struct rather than a variant: the fields that don't apply
-// to a kind simply go unread, and keeping it POD makes the document trivially copyable.
+// A parametric point — the ONLY thing in a solved sketch that carries a position. The
+// solver's variables live here; curves reference points by id. Every coordinate a sketch
+// has lives on a point; curves and their radii/angles are all derived from points.
+struct GeomPoint {
+    FeatureId id { kNullFeature };
+    Geometry::Point2 pos {};
+};
+
+// A curve in the SOLVED output. It REFERENCES points (its skeleton, where the DOF live)
+// and caches the values convenient for drawing/measuring (centre/radius/angles) that are
+// DERIVED from those points after each solve. The cached values are OUTPUT, not an authored
+// definition — nothing here is a degree of freedom the solver varies; only the points are.
+//
+// Point roles by kind:
+//   Line   — p0 = start,  p1 = end.
+//   Circle — p0 = centre, p1 = rim (radius = ‖p0−p1‖).
+//   Arc    — p0 = centre, p1 = start, p2 = end. radius = ‖p0−p1‖; the solver keeps
+//            ‖p0−p1‖ = ‖p0−p2‖ so both endpoints sit on the same circle.
 struct SketchEntity {
     FeatureId id { kNullFeature };
     EntityKind kind { EntityKind::Line };
 
-    Geometry::Point2 a {}; // Line: start.   Arc/Circle: centre.
-    Geometry::Point2 b {}; // Line: end.
-    f64 radius { 0 }; // Arc/Circle.
-    f64 startAngle { 0 }; // Arc, radians.
-    f64 endAngle { 0 }; // Arc, radians.
+    FeatureId p0 { kNullFeature }; // Line start / Circle+Arc centre
+    FeatureId p1 { kNullFeature }; // Line end / Circle rim / Arc start
+    FeatureId p2 { kNullFeature }; // Arc end
+
     bool construction { false };
+
+    // Derived draw/measure cache, refreshed from the referenced points post-solve (see
+    // DeriveOne). These are output, never authored:
+    //   a = line start, or circle/arc centre.   b = line end.
+    Geometry::Point2 a {};
+    Geometry::Point2 b {};
+    f64 radius { 0 }; // Circle/Arc, derived from the rim/start point.
+    f64 startAngle { 0 }; // Arc, radians, derived from p1.
+    f64 endAngle { 0 }; // Arc, radians, derived from p2.
 };
 
 enum class DimensionKind : u8 {
@@ -80,14 +104,15 @@ enum class PointRef : u8 {
     Center, // circle/arc centre (explicit; same as Start for those).
 };
 
+// Coincident/Ground reference POINT ids in a/b; every other constraint references CURVE
+// ids (lines, circles). There is no PointRef field: a point is a first-class entity with
+// its own id, so "which endpoint" is just a point id.
 struct SketchConstraintRecord {
     FeatureId id { kNullFeature };
     ConstraintKind kind { ConstraintKind::Coincident };
     FeatureId a { kNullFeature };
     FeatureId b { kNullFeature };
     FeatureId axis { kNullFeature }; // Symmetry only
-    PointRef aPoint { PointRef::Start }; // Coincident only
-    PointRef bPoint { PointRef::Start }; // Coincident only
 };
 
 // ── solve diagnostics ──────────────────────────────────────────────────────────
@@ -139,7 +164,8 @@ public:
     FeatureId id { kNullFeature };
     Geometry::SketchPlane plane { Geometry::SketchPlane::XY };
 
-    std::vector<SketchEntity> entities;
+    std::vector<GeomPoint> points; // the DOF: every position lives here
+    std::vector<SketchEntity> entities; // curves referencing points (+ derived cache)
     std::vector<SketchDimensionRecord> dimensions;
     std::vector<SketchConstraintRecord> constraints;
 
@@ -152,9 +178,80 @@ public:
 
     void Clear()
     {
+        points.clear();
         entities.clear();
         dimensions.clear();
         constraints.clear();
+    }
+
+    // Add a point with an explicit id — used by SketchPointCmd::execute during replay, so
+    // the point carries its command's stable FeatureId (referenceable by curves and
+    // constraints).
+    void AddPointWithId(FeatureId pid, Geometry::Point2 pos)
+    {
+        points.push_back({ pid, pos });
+    }
+
+    GeomPoint* FindPoint(FeatureId pid)
+    {
+        for (GeomPoint& p : points) {
+            if (p.id == pid) {
+                return &p;
+            }
+        }
+        return nullptr;
+    }
+
+    const GeomPoint* FindPoint(FeatureId pid) const
+    {
+        for (const GeomPoint& p : points) {
+            if (p.id == pid) {
+                return &p;
+            }
+        }
+        return nullptr;
+    }
+
+    Geometry::Point2 PointPos(FeatureId pid) const
+    {
+        const GeomPoint* p = FindPoint(pid);
+        return p ? p->pos : Geometry::Point2 {};
+    }
+
+    // Recompute one curve's derived draw/measure cache (a/b/centre/radius/angles) from its
+    // referenced points. This is where "a circle's radius" and "an arc's angles" actually
+    // come from now — they are outputs of the points, never stored DOF.
+    void DeriveOne(SketchEntity& e) const
+    {
+        Geometry::Point2 p0 = PointPos(e.p0);
+        e.a = p0; // line start / circle+arc centre
+        switch (e.kind) {
+        case EntityKind::Line:
+            e.b = PointPos(e.p1);
+            break;
+        case EntityKind::Circle: {
+            Geometry::Point2 rim = PointPos(e.p1);
+            e.radius = std::hypot(rim.x - p0.x, rim.y - p0.y);
+            break;
+        }
+        case EntityKind::Arc: {
+            Geometry::Point2 s = PointPos(e.p1);
+            Geometry::Point2 en = PointPos(e.p2);
+            e.radius = std::hypot(s.x - p0.x, s.y - p0.y);
+            e.startAngle = std::atan2(s.y - p0.y, s.x - p0.x);
+            e.endAngle = std::atan2(en.y - p0.y, en.x - p0.x);
+            break;
+        }
+        }
+    }
+
+    // Recompute every curve's derived cache from its points. Called by the solver after it
+    // writes solved point positions back, so consumers can read a/b/radius/angles.
+    void RefreshDerived()
+    {
+        for (SketchEntity& e : entities) {
+            DeriveOne(e);
+        }
     }
 
     SketchEntity* Find(FeatureId id)

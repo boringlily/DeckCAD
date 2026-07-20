@@ -108,11 +108,12 @@ public:
     std::vector<ToolId> AvailableTools() const { return contexts.AvailableTools(); }
 
     // ── direct manipulation (canvas drag) ─────────────────────────────────────
-    // Move a line's endpoint (or a circle/arc centre) in the ACTIVE sketch to `to`. This
-    // edits the authoring command's as-drawn coordinate; the next BuildSketchPreview /
-    // Evaluated re-solves from there, so a constrained line follows the cursor only as
-    // far as its constraints allow. Returns false if `id` isn't an editable line in the
-    // sketch being authored.
+    // Move a line's endpoint in the ACTIVE sketch to `to`. A drag edits a POINT parameter,
+    // never a curve command: it rewrites the referenced SketchPointCmd's `initial`, and the
+    // next BuildSketchPreview / Evaluated re-solves from there — so a constrained line
+    // follows the cursor only as far as its constraints allow, and any other curve sharing
+    // that point (via a coincidence) is carried along by the solver. Returns false if `id`
+    // isn't an editable line in the sketch being authored.
     bool MoveLinePoint(FeatureId id, PointRef which, Geometry::Point2 to)
     {
         SketchContext* s = contexts.ActiveSketch();
@@ -123,15 +124,17 @@ public:
         if (!l) {
             return false;
         }
-        if (which == PointRef::End) {
-            l->b = to;
-        } else {
-            l->a = to;
+        FeatureId pid = (which == PointRef::End) ? l->p1 : l->p0;
+        SketchPointCmd* p = FindPointMutable(s->children, pid);
+        if (!p) {
+            return false;
         }
+        p->initial = to;
         return true;
     }
 
-    // Translate a whole line (both endpoints) by `delta` — dragging the line body.
+    // Translate a whole line (both endpoints) by `delta` — dragging the line body. Moves
+    // both of the line's points.
     bool TranslateLine(FeatureId id, Geometry::Point2 delta)
     {
         SketchContext* s = contexts.ActiveSketch();
@@ -142,8 +145,13 @@ public:
         if (!l) {
             return false;
         }
-        l->a = { l->a.x + delta.x, l->a.y + delta.y };
-        l->b = { l->b.x + delta.x, l->b.y + delta.y };
+        SketchPointCmd* p0 = FindPointMutable(s->children, l->p0);
+        SketchPointCmd* p1 = FindPointMutable(s->children, l->p1);
+        if (!p0 || !p1) {
+            return false;
+        }
+        p0->initial = { p0->initial.x + delta.x, p0->initial.y + delta.y };
+        p1->initial = { p1->initial.x + delta.x, p1->initial.y + delta.y };
         return true;
     }
 
@@ -177,7 +185,7 @@ public:
         const SketchContext* sketch = contexts.ActiveSketch();
         FeatureId owner = sketch ? sketch->featureId : kNullFeature;
 
-        ToolOutcome out = tool.Finish(parameters, owner);
+        ToolOutcome out = tool.Finish(document, parameters, owner);
         bool ok = Apply(std::move(out));
         tool.Reset();
         return ok;
@@ -251,41 +259,57 @@ private:
         return nullptr;
     }
 
+    // Find a mutable SketchPointCmd by id in a command tree (recursing into groups). Points
+    // live inside their gesture's compound, so this is what a drag walks to reach the
+    // parameter it edits.
+    static SketchPointCmd* FindPointMutable(std::vector<SketchCmd>& cmds, FeatureId id)
+    {
+        for (SketchCmd& c : cmds) {
+            if (SketchPointCmd* p = c.As<SketchPointCmd>()) {
+                if (p->id == id) {
+                    return p;
+                }
+            }
+            if (CompoundSketchCmd* g = c.As<CompoundSketchCmd>()) {
+                if (SketchPointCmd* nested = FindPointMutable(g->children, id)) {
+                    return nested;
+                }
+            }
+        }
+        return nullptr;
+    }
+
     bool Apply(ToolOutcome out)
     {
         bool ok = true;
 
-        // Note whether we're committing a line BEFORE the move consumes the command.
-        bool committedLine = out.command.has_value() && out.command->Is<SketchLine>();
+        // A line gesture reports the two POINTs it created; that (not the command shape,
+        // which is now a compound) is how we recognize a line and chain it.
+        bool committedLine = out.lineEndPoint != kNullFeature;
         bool chainLink = out.chainLink;
+        FeatureId newStart = out.lineStartPoint;
+        FeatureId newEnd = out.lineEndPoint;
 
         if (out.command.has_value()) {
             ok = contexts.Commit(document, std::move(*out.command));
         }
 
-        // Auto-coincident on chained lines: the polyline the canvas draws by restarting
-        // the Line tool becomes a truly connected chain, so dragging or dimensioning one
-        // segment carries its neighbours. Skipped inside a mirror (the pass-through
+        // Auto-coincident on chained lines: the polyline the canvas draws by restarting the
+        // Line tool becomes a truly connected chain of distinct-but-coincident points, so
+        // dragging or dimensioning one segment carries its neighbours — and deleting the
+        // coincidence separates them again. Skipped inside a mirror (the pass-through
         // context has its own synthesis) and whenever a non-line command breaks the run.
         if (committedLine && ok && contexts.ActiveSymmetry() == nullptr) {
-            const SketchContext* s = contexts.ActiveSketch();
-            FeatureId newLine = (s && !s->children.empty() && s->children.back().Is<SketchLine>())
-                ? s->children.back().Get().id
-                : kNullFeature;
-            if (newLine != kNullFeature) {
-                if (chainLink && lastLine != kNullFeature) {
-                    SketchConstraintCmd c {};
-                    c.kind = ConstraintKind::Coincident;
-                    c.a = lastLine;
-                    c.aPoint = PointRef::End;
-                    c.b = newLine;
-                    c.bPoint = PointRef::Start;
-                    contexts.Commit(document, SketchCmd { c });
-                }
-                lastLine = newLine;
+            if (chainLink && lastEndPoint != kNullFeature) {
+                SketchConstraintCmd c {};
+                c.kind = ConstraintKind::Coincident;
+                c.a = lastEndPoint; // previous segment's end point
+                c.b = newStart; // this segment's start point
+                contexts.Commit(document, SketchCmd { c });
             }
+            lastEndPoint = newEnd;
         } else if (out.command.has_value()) {
-            lastLine = kNullFeature; // a non-line command ends the chain
+            lastEndPoint = kNullFeature; // a non-line command ends the chain
         }
 
         switch (out.action) {
@@ -320,7 +344,7 @@ private:
         // Entering/leaving a context (finish sketch, start/stop mirror, ...) ends any
         // polyline run: the next Line starts a fresh chain.
         if (out.action != ContextAction::None) {
-            lastLine = kNullFeature;
+            lastEndPoint = kNullFeature;
         }
 
         return ok;
@@ -334,8 +358,8 @@ private:
     ContextStack contexts;
     Tool tool;
 
-    // The previous line committed in the current polyline run, for auto-coincident
+    // The previous segment's END point in the current polyline run, for auto-coincident
     // chaining. kNullFeature when no chain is in progress. A transient UI hint, so it is
     // intentionally not preserved across a Workbench move.
-    FeatureId lastLine { kNullFeature };
+    FeatureId lastEndPoint { kNullFeature };
 };

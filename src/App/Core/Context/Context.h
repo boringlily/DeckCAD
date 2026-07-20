@@ -346,22 +346,25 @@ private:
                 cmd.Get().id = doc.NextId();
             }
 
-            DTL::Optional<SketchCmd> twin = Geometry::MirrorCmd(cmd, g->axisA, g->axisB, doc.NextId());
+            auto nextId = [&doc]() { return doc.NextId(); };
+            DTL::Optional<SketchCmd> twin = Geometry::MirrorCmd(cmd, g->axisA, g->axisB, nextId);
             if (!twin.has_value()) {
-                // Dimensions/constraints/groups have no spatial twin — forward as-is
-                // rather than duplicating something meaningless.
+                // Dimensions/constraints/point-only groups have no spatial twin — forward
+                // as-is rather than duplicating something meaningless.
                 return CommitAt(doc, index - 1, std::move(cmd));
             }
 
+            // The symmetry constraint links the two CURVES (by id), not the gesture
+            // compounds — the solver reflects the curves' endpoints across the axis.
             SketchConstraintCmd link {};
             link.id = doc.NextId();
             link.kind = ConstraintKind::Symmetry;
-            link.a = cmd.Get().id;
-            link.b = twin->Get().id;
+            link.a = Geometry::PrimaryCurveId(cmd);
+            link.b = Geometry::PrimaryCurveId(*twin);
             link.axis = g->axis;
 
             // Wrap the whole gesture in ONE composite before forwarding. This is what
-            // makes line+twin+constraint a single undo step — no gesture tagging, no
+            // makes gesture+twin+constraint a single undo step — no gesture tagging, no
             // undo-grouping mechanism, just the composite that already exists.
             CompoundSketchCmd group {};
             group.id = doc.NextId();

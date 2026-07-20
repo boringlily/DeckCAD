@@ -24,6 +24,30 @@ namespace {
 
 constexpr f64 kEps = 1e-9;
 
+// A curve gesture commits a compound of points + a curve, so `children.back()` is the
+// compound — this recovers the curve id every consumer references.
+FeatureId LastCurveIdIn(const std::vector<SketchCmd>& cmds)
+{
+    FeatureId found = kNullFeature;
+    for (const SketchCmd& c : cmds) {
+        if (c.Is<SketchLine>() || c.Is<SketchCircle>() || c.Is<SketchArc>()) {
+            found = c.Get().id;
+        } else if (const CompoundSketchCmd* g = c.As<CompoundSketchCmd>()) {
+            FeatureId nested = LastCurveIdIn(g->children);
+            if (nested != kNullFeature) {
+                found = nested;
+            }
+        }
+    }
+    return found;
+}
+
+FeatureId LastCurveId(const Workbench& wb)
+{
+    const SketchContext* s = wb.Contexts().ActiveSketch();
+    return s ? LastCurveIdIn(s->children) : kNullFeature;
+}
+
 // Author a scene into `wb`: a sketch with parameter-driven dimensions and a mirror
 // group, plus a couple of user parameters — enough to exercise nesting, dimensions,
 // constraints, and $refs in one round-trip.
@@ -41,13 +65,13 @@ void AuthorRichScene(Workbench& wb)
     wb.ActiveTool().AddPoint({ 0, 0 });
     wb.ActiveTool().AddPoint({ 0, 10 });
     wb.FinishTool();
-    FeatureId axis = wb.Contexts().ActiveSketch()->children.back().Get().id;
+    FeatureId axis = LastCurveId(wb);
 
     wb.StartTool(ToolId::Line);
     wb.ActiveTool().AddPoint({ 5, 1 });
     wb.ActiveTool().AddPoint({ 15, 1 });
     wb.FinishTool();
-    FeatureId dimd = wb.Contexts().ActiveSketch()->children.back().Get().id;
+    FeatureId dimd = LastCurveId(wb);
 
     wb.StartTool(ToolId::Dimension);
     wb.ActiveTool().AddPick(dimd);
@@ -66,13 +90,19 @@ void AuthorRichScene(Workbench& wb)
 
     wb.StartTool(ToolId::FinishSketch);
 
-    // A second sketch on another plane.
+    // A second sketch on another plane, with a circle and an arc — so the round-trip
+    // exercises the fully point-based curve DTOs (centre+rim, centre+start+end).
     wb.StartTool(ToolId::CreateSketch);
     wb.ActiveTool().SetPlane(Geometry::SketchPlane::YZ);
     wb.FinishTool();
     wb.StartTool(ToolId::Circle);
     wb.ActiveTool().AddPoint({ 0, 0 });
     wb.ActiveTool().AddPoint({ 4, 0 });
+    wb.FinishTool();
+    wb.StartTool(ToolId::Arc);
+    wb.ActiveTool().AddPoint({ 10, 0 }); // centre
+    wb.ActiveTool().AddPoint({ 13, 0 }); // start (radius 3)
+    wb.ActiveTool().AddPoint({ 10, 5 }); // end direction
     wb.FinishTool();
     wb.StartTool(ToolId::FinishSketch);
 }
@@ -284,14 +314,22 @@ TEST(Serialization, ContinuingToEditAfterLoadWorks)
     RoundTrip(src, {}, ld);
     u32 before = ld.doc.Size();
 
-    // Commit a new sketch straight into the loaded document.
+    // Commit a new sketch straight into the loaded document — a point-based line gesture.
     SketchFeatureCommand sf;
     sf.id = ld.doc.NextId();
     sf.plane = Geometry::SketchPlane::XY;
+    SketchPointCmd p0;
+    p0.id = ld.doc.NextId();
+    p0.initial = { 0, 0 };
+    SketchPointCmd p1;
+    p1.id = ld.doc.NextId();
+    p1.initial = { 1, 1 };
     SketchLine l;
     l.id = ld.doc.NextId();
-    l.a = { 0, 0 };
-    l.b = { 1, 1 };
+    l.p0 = p0.id;
+    l.p1 = p1.id;
+    sf.children.push_back(SketchCmd { p0 });
+    sf.children.push_back(SketchCmd { p1 });
     sf.children.push_back(SketchCmd { l });
     ld.doc.PushCommand(Command { std::move(sf) });
 
@@ -331,6 +369,44 @@ TEST(Serialization, UnknownVersionIsRejectedNotGuessed)
     Document doc { &params, &solver };
     SceneMeta meta;
     EXPECT_FALSE(FromDto(parsed, doc, params, meta)); // ...but load refuses the version
+}
+
+TEST(Serialization, PrePointBasedVersionIsRejectedBecauseThereIsNoBackMigration)
+{
+    // v1 embedded coordinates in curves; the point-based v2 schema is structurally
+    // incompatible, so a v1 document (e.g. a stale auto-save cache from a pre-point-based
+    // build, which shipped kDcadVersion = 1) must be refused rather than parsed against the
+    // v2 DTOs into lines that reference points that were never created.
+    Workbench src;
+    AuthorRichScene(src);
+    DocumentDto dto = ToDto(src.Doc(), src.Params(), {});
+    dto.version = 1;
+
+    DocumentDto parsed;
+    SerError err;
+    ASSERT_TRUE(ReadDcad(WriteDcad(dto), parsed, err)); // parses fine...
+
+    Param::ParameterEngine params;
+    HybridSketchSolver solver;
+    Document doc { &params, &solver };
+    SceneMeta meta;
+    EXPECT_FALSE(FromDto(parsed, doc, params, meta)); // ...but load refuses the old version
+}
+
+TEST(Serialization, AbsentVersionFieldIsRejectedNotTreatedAsCurrent)
+{
+    // A document JSON with no "version" key parses fine (glaze doesn't require it), but must
+    // NOT be taken as the current version — otherwise a truncated or hand-authored file loads
+    // as an empty current-version scene instead of being refused.
+    DocumentDto parsed;
+    SerError err;
+    ASSERT_TRUE(ReadDcad("{}", parsed, err)); // valid JSON object, version key omitted
+
+    Param::ParameterEngine params;
+    HybridSketchSolver solver;
+    Document doc { &params, &solver };
+    SceneMeta meta;
+    EXPECT_FALSE(FromDto(parsed, doc, params, meta));
 }
 
 TEST(Serialization, VersionZeroIsRejected)

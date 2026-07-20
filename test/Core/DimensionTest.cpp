@@ -18,6 +18,31 @@ namespace {
 
 constexpr f64 kEps = 1e-6;
 
+// The id of the last curve (line/circle/arc) authored in the active sketch. A gesture now
+// commits a compound of points + a curve, so `children.back()` is the compound — this digs
+// out the curve id every consumer actually references (dimensions, drag, picking).
+FeatureId LastCurveIdIn(const std::vector<SketchCmd>& cmds)
+{
+    FeatureId found = kNullFeature;
+    for (const SketchCmd& c : cmds) {
+        if (c.Is<SketchLine>() || c.Is<SketchCircle>() || c.Is<SketchArc>()) {
+            found = c.Get().id;
+        } else if (const CompoundSketchCmd* g = c.As<CompoundSketchCmd>()) {
+            FeatureId nested = LastCurveIdIn(g->children);
+            if (nested != kNullFeature) {
+                found = nested;
+            }
+        }
+    }
+    return found;
+}
+
+FeatureId LastCurveId(const Workbench& wb)
+{
+    const SketchContext* s = wb.Contexts().ActiveSketch();
+    return s ? LastCurveIdIn(s->children) : kNullFeature;
+}
+
 // Author a sketch containing a single horizontal line of length `len` from the origin,
 // leaving the sketch context OPEN. Returns the line's FeatureId.
 FeatureId BeginSketchWithLine(Workbench& wb, f64 len = 10.0)
@@ -31,7 +56,7 @@ FeatureId BeginSketchWithLine(Workbench& wb, f64 len = 10.0)
     wb.ActiveTool().AddPoint({ len, 0 });
     wb.FinishTool();
 
-    return wb.Contexts().ActiveSketch()->children.back().Get().id;
+    return LastCurveId(wb);
 }
 
 bool DimensionLine(Workbench& wb, FeatureId line, std::string_view expr)
@@ -136,7 +161,7 @@ TEST(Dimension, LengthPreservesADiagonalsAngle)
     wb.ActiveTool().AddPoint({ 0, 0 });
     wb.ActiveTool().AddPoint({ 3, 4 }); // length 5, angle atan2(4,3)
     wb.FinishTool();
-    FeatureId line = wb.Contexts().ActiveSketch()->children.back().Get().id;
+    FeatureId line = LastCurveId(wb);
 
     ASSERT_TRUE(DimensionLine(wb, line, "10"));
     wb.StartTool(ToolId::FinishSketch);
@@ -225,13 +250,13 @@ TEST(Dimension, AnUndimensionedLineIsLeftExactlyAsDrawn)
     wb.ActiveTool().AddPoint({ 0, 0 });
     wb.ActiveTool().AddPoint({ 7, 0 });
     wb.FinishTool();
-    FeatureId free = wb.Contexts().ActiveSketch()->children.back().Get().id;
+    FeatureId free = LastCurveId(wb);
 
     wb.StartTool(ToolId::Line);
     wb.ActiveTool().AddPoint({ 0, 5 });
     wb.ActiveTool().AddPoint({ 9, 5 });
     wb.FinishTool();
-    FeatureId driven = wb.Contexts().ActiveSketch()->children.back().Get().id;
+    FeatureId driven = LastCurveId(wb);
 
     ASSERT_TRUE(DimensionLine(wb, driven, "100"));
     wb.StartTool(ToolId::FinishSketch);
@@ -527,10 +552,18 @@ TEST(SolverSeam, NullSolverLeavesDimensionsRecordedButInert)
 
     Param::UPID v = params.Create("len", "100mm");
 
+    // A line references two points (point-based commands), so the feature carries the point
+    // commands the line depends on, then the line, then the dimension.
+    SketchPointCmd p0 {};
+    p0.id = 8;
+    p0.initial = { 0, 0 };
+    SketchPointCmd p1 {};
+    p1.id = 9;
+    p1.initial = { 10, 0 };
     SketchLine l {};
     l.id = 10;
-    l.a = { 0, 0 };
-    l.b = { 10, 0 };
+    l.p0 = 8;
+    l.p1 = 9;
 
     SketchDimensionCmd d {};
     d.id = 11;
@@ -541,6 +574,8 @@ TEST(SolverSeam, NullSolverLeavesDimensionsRecordedButInert)
     SketchFeatureCommand f {};
     f.id = 1;
     f.plane = Geometry::SketchPlane::XY;
+    f.children.push_back(SketchCmd { p0 });
+    f.children.push_back(SketchCmd { p1 });
     f.children.push_back(SketchCmd { l });
     f.children.push_back(SketchCmd { d });
     doc.PushCommand(Command { std::move(f) });
@@ -568,7 +603,7 @@ TEST(SolverSeam, RadiusDrivesACircle)
     wb.ActiveTool().AddPoint({ 0, 0 });
     wb.ActiveTool().AddPoint({ 5, 0 }); // drawn radius 5
     wb.FinishTool();
-    FeatureId circle = wb.Contexts().ActiveSketch()->children.back().Get().id;
+    FeatureId circle = LastCurveId(wb);
 
     // The Dimension tool defaults to Length; drive the radius through the command
     // directly, which is the same commit path the tool uses.

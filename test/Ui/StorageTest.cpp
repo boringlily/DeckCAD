@@ -23,6 +23,24 @@ std::string TempDcad(std::string_view stem)
     return p.string();
 }
 
+// The last curve id authored in a sketch. A gesture commits a compound of points + a
+// curve, so `children.back()` is the compound — recurse to the curve consumers reference.
+FeatureId LastCurveIdIn(const std::vector<SketchCmd>& cmds)
+{
+    FeatureId found = kNullFeature;
+    for (const SketchCmd& c : cmds) {
+        if (c.Is<SketchLine>() || c.Is<SketchCircle>() || c.Is<SketchArc>()) {
+            found = c.Get().id;
+        } else if (const CompoundSketchCmd* g = c.As<CompoundSketchCmd>()) {
+            FeatureId nested = LastCurveIdIn(g->children);
+            if (nested != kNullFeature) {
+                found = nested;
+            }
+        }
+    }
+    return found;
+}
+
 FeatureId AuthorLineSketch(Scene& scene, f64 len)
 {
     Workbench& wb = scene.workbench;
@@ -33,7 +51,7 @@ FeatureId AuthorLineSketch(Scene& scene, f64 len)
     wb.ActiveTool().AddPoint({ 0, 0 });
     wb.ActiveTool().AddPoint({ len, 0 });
     wb.FinishTool();
-    FeatureId id = wb.Contexts().ActiveSketch()->children.back().Get().id;
+    FeatureId id = LastCurveIdIn(wb.Contexts().ActiveSketch()->children);
     wb.StartTool(ToolId::FinishSketch);
     return id;
 }

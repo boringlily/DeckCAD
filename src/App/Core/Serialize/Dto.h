@@ -27,7 +27,22 @@ namespace Serialize {
 
 // Bump when the schema changes incompatibly. ReadDcad refuses an unknown version rather
 // than guessing, so an old build can't silently misread a newer file.
-inline constexpr u32 kDcadVersion = 1;
+//
+// v2: the point-based model — curves reference POINTs by id instead of embedding
+//     coordinates; PointDto carries the only authored coordinate; constraints reference
+//     point ids directly (the PointRef fields are gone).
+// v3: circles and arcs are FULLY point-based — a circle is a centre + rim point (radius
+//     derived), an arc is centre + start + end points (radius/angles derived). No scalar
+//     radius or angles are stored.
+inline constexpr u32 kDcadVersion = 3;
+
+// The oldest schema this build can READ. There is no back-migration: each bump changed a
+// curve's DTO shape (v1 embedded coordinates; v2 kept a scalar circle/arc radius), so an
+// older document parsed against the current DTOs would load as curves referencing points
+// that were never created — silent broken geometry rather than a clean failure. A stale
+// auto-save cache from an older build is the concrete case, so anything below this is
+// refused, not misread.
+inline constexpr u32 kMinReadableDcadVersion = 3;
 
 struct Vec2Dto {
     f64 x { 0 };
@@ -36,28 +51,34 @@ struct Vec2Dto {
 
 // ── sketch commands ──────────────────────────────────────────────────────────
 // Each mirrors one concrete SketchCmd alternative. `id` is the FeatureId, which must
-// round-trip: dimensions and constraints reference entities by it.
+// round-trip: curves, dimensions, and constraints reference points/entities by it.
+
+// The only command that carries a coordinate — a point's seed position. Everything else
+// references points by id.
+struct PointDto {
+    u32 id { kNullFeature };
+    Vec2Dto initial {};
+};
 
 struct LineDto {
     u32 id { kNullFeature };
-    Vec2Dto a {};
-    Vec2Dto b {};
+    u32 p0 { kNullFeature }; // start point id
+    u32 p1 { kNullFeature }; // end point id
     bool construction { false };
 };
 
 struct ArcDto {
     u32 id { kNullFeature };
-    Vec2Dto center {};
-    f64 radius { 0 };
-    f64 startAngle { 0 };
-    f64 endAngle { 0 };
+    u32 center { kNullFeature }; // centre point id
+    u32 start { kNullFeature }; // start point id (on the rim)
+    u32 end { kNullFeature }; // end point id (on the rim)
     bool construction { false };
 };
 
 struct CircleDto {
     u32 id { kNullFeature };
-    Vec2Dto center {};
-    f64 radius { 0 };
+    u32 a { kNullFeature }; // centre point id
+    u32 b { kNullFeature }; // rim point id (radius = ‖a−b‖)
     bool construction { false };
 };
 
@@ -72,11 +93,9 @@ struct DimensionDto {
 struct ConstraintDto {
     u32 id { kNullFeature };
     ConstraintKind kind { ConstraintKind::Coincident };
-    u32 a { kNullFeature };
+    u32 a { kNullFeature }; // Coincident/Ground: a POINT id. Others: a CURVE id.
     u32 b { kNullFeature };
     u32 axis { kNullFeature };
-    PointRef aPoint { PointRef::Start }; // Coincident only
-    PointRef bPoint { PointRef::Start };
 };
 
 // The recursive case. Ordering mirrors SketchCmd's own trick: the variant wrapper is
@@ -90,7 +109,8 @@ struct GroupDto {
     std::vector<SketchCmdDto> children;
 };
 
-using SketchCmdVariant = std::variant<LineDto, ArcDto, CircleDto, DimensionDto, ConstraintDto, GroupDto>;
+using SketchCmdVariant
+    = std::variant<PointDto, LineDto, ArcDto, CircleDto, DimensionDto, ConstraintDto, GroupDto>;
 struct SketchCmdDto {
     SketchCmdVariant v;
 };
@@ -119,7 +139,12 @@ struct ParameterDto {
 
 // ── the document ─────────────────────────────────────────────────────────────
 struct DocumentDto {
-    u32 version { kDcadVersion };
+    // Defaults to an out-of-range sentinel, NOT the current version: ReadDcad's glaze parse
+    // does not error on a missing key, so a file whose "version" is absent (truncated,
+    // hand-authored, a future format that renamed it) would otherwise deserialize to the
+    // current version and be silently accepted. 0 makes an absent version fail the load gate
+    // (see FromDto). The writer always emits `version`, so valid files are unaffected.
+    u32 version { 0 };
 
     // Id counters — must round-trip so a command or parameter created after a load can
     // never collide with a loaded id.
@@ -162,12 +187,6 @@ struct glz::meta<ConstraintKind> {
 };
 
 template <>
-struct glz::meta<PointRef> {
-    using enum PointRef;
-    static constexpr auto value = enumerate(Start, End, Center);
-};
-
-template <>
 struct glz::meta<Param::Unit> {
     using enum Param::Unit;
     static constexpr auto value = enumerate(
@@ -184,8 +203,8 @@ struct glz::meta<Param::Unit> {
 template <>
 struct glz::meta<Serialize::SketchCmdVariant> {
     static constexpr std::string_view tag = "type";
-    static constexpr auto ids = std::array<std::string_view, 6> {
-        "line", "arc", "circle", "dimension", "constraint", "group"
+    static constexpr auto ids = std::array<std::string_view, 7> {
+        "point", "line", "arc", "circle", "dimension", "constraint", "group"
     };
 };
 

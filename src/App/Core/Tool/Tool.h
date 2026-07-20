@@ -1,6 +1,7 @@
 #pragma once
 #include "Context.h"
 #include "DTL.h"
+#include "Document.h"
 #include "Geometry.h"
 #include "ParameterEngine.h"
 #include "SketchCmd.h"
@@ -43,10 +44,16 @@ struct ToolOutcome {
     PushRequest push {};
 
     // Set on a line that was chained from the previous one (a polyline segment). The
-    // commit path reads it to auto-add a Coincident between the previous line's end and
-    // this line's start, so the polyline is a real connected chain, not just visually
-    // touching points.
+    // commit path reads it to auto-add a Coincident between the previous line's end POINT
+    // and this line's start POINT, so the polyline is a real connected chain of distinct
+    // (but coincident) points, not a merge.
     bool chainLink { false };
+
+    // For a line gesture: the ids of the two POINTs the compound created. The commit path
+    // uses them to chain (Coincident prevEnd→thisStart) and to know the run is a line.
+    // kNullFeature for any non-line outcome.
+    FeatureId lineStartPoint { kNullFeature };
+    FeatureId lineEndPoint { kNullFeature };
 };
 
 class Tool {
@@ -145,13 +152,15 @@ public:
     const DTL::Optional<Geometry::SketchPlane>& Plane() const { return plane; }
 
     // ── finish ───────────────────────────────────────────────────────────────
-    // Turn the collected inputs into an outcome. `params` is needed because a dimension's
-    // value is an expression that must be registered to get a UPID; `sketchOwner` is the
-    // sketch that expression belongs to.
+    // Turn the collected inputs into an outcome. `doc` is needed to allocate the FeatureIds
+    // of the POINTs a curve gesture creates (a line becomes a compound of two points + the
+    // line, all with real ids so the line can reference them). `params` is needed because a
+    // dimension's value is an expression that must be registered to get a UPID;
+    // `sketchOwner` is the sketch that expression belongs to.
     //
     // Returns an empty outcome (action None, no command) when the tool isn't ready, so a
     // premature call is inert rather than committing something half-specified.
-    ToolOutcome Finish(Param::ParameterEngine& params, FeatureId sketchOwner)
+    ToolOutcome Finish(Document& doc, Param::ParameterEngine& params, FeatureId sketchOwner)
     {
         ToolOutcome out {};
         if (!Ready()) {
@@ -167,36 +176,103 @@ public:
         }
 
         case ToolId::Line: {
-            SketchLine l {};
-            l.a = points[0];
-            l.b = points[1];
-            if (l.Valid()) {
-                out.command = SketchCmd { l };
-                out.chainLink = chain; // link this segment to the previous line
+            // A line references two points. The gesture materializes both as
+            // SketchPointCmds and the line over their ids, wrapped in one compound so the
+            // whole thing is a single undo step. A zero-length line (a double-click) is a
+            // point, not a segment — reject it.
+            if (Distance(points[0], points[1]) <= 0.0) {
+                break;
             }
+            FeatureId p0 = doc.NextId();
+            FeatureId p1 = doc.NextId();
+            SketchPointCmd s0 {};
+            s0.id = p0;
+            s0.initial = points[0];
+            SketchPointCmd s1 {};
+            s1.id = p1;
+            s1.initial = points[1];
+            SketchLine l {};
+            l.id = doc.NextId();
+            l.p0 = p0;
+            l.p1 = p1;
+
+            CompoundSketchCmd g {};
+            g.children.push_back(SketchCmd { s0 });
+            g.children.push_back(SketchCmd { s1 });
+            g.children.push_back(SketchCmd { l });
+            out.command = SketchCmd { std::move(g) };
+            out.chainLink = chain; // link this segment's start to the previous line's end
+            out.lineStartPoint = p0;
+            out.lineEndPoint = p1;
             break;
         }
 
         case ToolId::Circle: {
-            SketchCircle c {};
-            c.center = points[0];
-            c.radius = Distance(points[0], points[1]);
-            if (c.Valid()) {
-                out.command = SketchCmd { c };
+            // Centre point + a rim point; radius is derived as their distance. A zero-radius
+            // circle (a double-click) is a point, not a circle — reject it.
+            f64 radius = Distance(points[0], points[1]);
+            if (radius <= 0.0) {
+                break;
             }
+            FeatureId center = doc.NextId();
+            FeatureId rim = doc.NextId();
+            SketchPointCmd pc {};
+            pc.id = center;
+            pc.initial = points[0];
+            SketchPointCmd pr {};
+            pr.id = rim;
+            pr.initial = points[1];
+            SketchCircle c {};
+            c.id = doc.NextId();
+            c.a = center;
+            c.b = rim;
+
+            CompoundSketchCmd g {};
+            g.children.push_back(SketchCmd { pc });
+            g.children.push_back(SketchCmd { pr });
+            g.children.push_back(SketchCmd { c });
+            out.command = SketchCmd { std::move(g) };
             break;
         }
 
         case ToolId::Arc: {
-            // centre, then a point fixing the radius + start angle, then the end angle.
-            SketchArc a {};
-            a.center = points[0];
-            a.radius = Distance(points[0], points[1]);
-            a.startAngle = Angle(points[0], points[1]);
-            a.endAngle = Angle(points[0], points[2]);
-            if (a.Valid()) {
-                out.command = SketchCmd { a };
+            // centre, then a rim point fixing the radius + start angle, then a click fixing
+            // the end angle. All three are real points: start is the second click; end is
+            // placed ON the same circle (radius from the centre at the end angle), so the
+            // arc's equal-radius invariant holds from the first solve.
+            f64 radius = Distance(points[0], points[1]);
+            if (radius <= 0.0) {
+                break;
             }
+            f64 endAngle = Angle(points[0], points[2]);
+            Geometry::Point2 endPos {
+                points[0].x + radius * std::cos(endAngle),
+                points[0].y + radius * std::sin(endAngle),
+            };
+            FeatureId center = doc.NextId();
+            FeatureId start = doc.NextId();
+            FeatureId end = doc.NextId();
+            SketchPointCmd pc {};
+            pc.id = center;
+            pc.initial = points[0];
+            SketchPointCmd ps {};
+            ps.id = start;
+            ps.initial = points[1];
+            SketchPointCmd pe {};
+            pe.id = end;
+            pe.initial = endPos;
+            SketchArc a {};
+            a.id = doc.NextId();
+            a.center = center;
+            a.start = start;
+            a.end = end;
+
+            CompoundSketchCmd g {};
+            g.children.push_back(SketchCmd { pc });
+            g.children.push_back(SketchCmd { ps });
+            g.children.push_back(SketchCmd { pe });
+            g.children.push_back(SketchCmd { a });
+            out.command = SketchCmd { std::move(g) };
             break;
         }
 

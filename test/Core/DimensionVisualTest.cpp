@@ -19,6 +19,30 @@ namespace {
 
 constexpr f64 kEps = 1e-6;
 
+// A curve gesture commits a compound of points + a curve, so `children.back()` is no longer
+// the curve — dig out the last curve id every consumer references.
+FeatureId LastCurveIdIn(const std::vector<SketchCmd>& cmds)
+{
+    FeatureId found = kNullFeature;
+    for (const SketchCmd& c : cmds) {
+        if (c.Is<SketchLine>() || c.Is<SketchCircle>() || c.Is<SketchArc>()) {
+            found = c.Get().id;
+        } else if (const CompoundSketchCmd* g = c.As<CompoundSketchCmd>()) {
+            FeatureId nested = LastCurveIdIn(g->children);
+            if (nested != kNullFeature) {
+                found = nested;
+            }
+        }
+    }
+    return found;
+}
+
+FeatureId LastCurveId(const Workbench& wb)
+{
+    const SketchContext* s = wb.Contexts().ActiveSketch();
+    return s ? LastCurveIdIn(s->children) : kNullFeature;
+}
+
 // A sketch with one horizontal line from the origin, left open.
 FeatureId BeginSketchWithLine(Workbench& wb, f64 len = 10.0)
 {
@@ -29,7 +53,7 @@ FeatureId BeginSketchWithLine(Workbench& wb, f64 len = 10.0)
     wb.ActiveTool().AddPoint({ 0, 0 });
     wb.ActiveTool().AddPoint({ len, 0 });
     wb.FinishTool();
-    return wb.Contexts().ActiveSketch()->children.back().Get().id;
+    return LastCurveId(wb);
 }
 
 bool DimensionLine(Workbench& wb, FeatureId line, std::string_view expr)
@@ -281,7 +305,7 @@ TEST(DimensionVisual, DimensionLineIsParallelToADiagonal)
     wb.ActiveTool().AddPoint({ 0, 0 });
     wb.ActiveTool().AddPoint({ 3, 4 }); // length 5
     wb.FinishTool();
-    FeatureId line = wb.Contexts().ActiveSketch()->children.back().Get().id;
+    FeatureId line = LastCurveId(wb);
     ASSERT_TRUE(DimensionLine(wb, line, "5mm"));
 
     std::vector<DimensionVisual> v = VisualsFor(wb);
@@ -331,7 +355,7 @@ TEST(DimensionVisual, OneVisualPerDimension)
         wb.ActiveTool().AddPoint({ 0, static_cast<f64>(k) * 5.0 });
         wb.ActiveTool().AddPoint({ 10, static_cast<f64>(k) * 5.0 });
         wb.FinishTool();
-        FeatureId id = wb.Contexts().ActiveSketch()->children.back().Get().id;
+        FeatureId id = LastCurveId(wb);
         ASSERT_TRUE(DimensionLine(wb, id, std::to_string((k + 1) * 10) + "mm"));
     }
 

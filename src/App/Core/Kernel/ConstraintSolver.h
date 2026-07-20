@@ -124,73 +124,66 @@ namespace la {
 } // namespace la
 
 // ── the variable layout ──────────────────────────────────────────────────────
-// Flattens every entity's degrees of freedom into one vector x, and remembers where
-// each entity's variables live so residuals can read them and the solution can be
-// written back.
+// The unknowns are POINTS, 2 vars each, and nothing else: a circle's radius and an arc's
+// radius/angles are DERIVED from points, not solved scalars. This remembers where each
+// point's variables live so residuals can read them by point id and the solution writes
+// back to the points.
 struct VarLayout {
-    struct Ent {
-        FeatureId id { kNullFeature };
-        EntityKind kind { EntityKind::Line };
-        u32 base { 0 }; // index of this entity's first variable in x
+    static constexpr u32 kNoIdx = u32_max;
+
+    struct PVar {
+        FeatureId id { kNullFeature }; // GeomPoint id
+        u32 base { 0 }; // its x is at base, y at base+1
     };
 
     std::vector<f64> x; // live variable values
     std::vector<f64> drawn; // as-drawn snapshot (Ground pins a point to its value here)
-    std::vector<Ent> ents;
+    std::vector<PVar> pvars;
 
-    static u32 DofOf(EntityKind k)
+    const PVar* PointVarOf(FeatureId pid) const
     {
-        switch (k) {
-        case EntityKind::Line:
-            return 4; // a.x a.y b.x b.y
-        case EntityKind::Circle:
-            return 3; // c.x c.y r
-        case EntityKind::Arc:
-            return 5; // c.x c.y r start end
-        }
-        return 0;
-    }
-
-    const Ent* Of(FeatureId id) const
-    {
-        for (const Ent& e : ents) {
-            if (e.id == id) {
-                return &e;
+        for (const PVar& p : pvars) {
+            if (p.id == pid) {
+                return &p;
             }
         }
         return nullptr;
     }
 
+    // The variable base of a point referenced directly by id (Coincident/Ground).
+    u32 PointBaseById(FeatureId pid) const
+    {
+        const PVar* pv = PointVarOf(pid);
+        return pv ? pv->base : kNoIdx;
+    }
+
+    // The variable base for a constraint's (curve, PointRef) reference: a line's start/end
+    // point, or a circle/arc centre. kNoIdx if unresolvable. Used by the curve-referencing
+    // constraints (Horizontal, Parallel, …); point-referencing ones use PointBaseById.
+    u32 PointBase(const SketchDocument& doc, FeatureId curveId, PointRef which) const
+    {
+        const SketchEntity* e = doc.Find(curveId);
+        if (!e) {
+            return kNoIdx;
+        }
+        FeatureId pid = (e->kind == EntityKind::Line && which == PointRef::End) ? e->p1 : e->p0;
+        return PointBaseById(pid);
+    }
+
     void Build(const SketchDocument& doc)
     {
         u32 n = 0;
-        for (const SketchEntity& e : doc.entities) {
-            ents.push_back({ e.id, e.kind, n });
-            n += DofOf(e.kind);
+        for (const GeomPoint& p : doc.points) {
+            pvars.push_back({ p.id, n });
+            n += 2;
         }
+
         x.assign(n, 0.0);
-        for (u32 k = 0; k < doc.entities.size(); ++k) {
-            const SketchEntity& e = doc.entities[k];
-            u32 b = ents[k].base;
-            switch (e.kind) {
-            case EntityKind::Line:
-                x[b] = e.a.x;
-                x[b + 1] = e.a.y;
-                x[b + 2] = e.b.x;
-                x[b + 3] = e.b.y;
-                break;
-            case EntityKind::Circle:
-                x[b] = e.a.x;
-                x[b + 1] = e.a.y;
-                x[b + 2] = e.radius;
-                break;
-            case EntityKind::Arc:
-                x[b] = e.a.x;
-                x[b + 1] = e.a.y;
-                x[b + 2] = e.radius;
-                x[b + 3] = e.startAngle;
-                x[b + 4] = e.endAngle;
-                break;
+        for (const PVar& pv : pvars) {
+            const GeomPoint* p = doc.FindPoint(pv.id);
+            if (p) {
+                x[pv.base] = p->pos.x;
+                x[pv.base + 1] = p->pos.y;
             }
         }
         drawn = x;
@@ -198,29 +191,13 @@ struct VarLayout {
 
     void WriteBack(SketchDocument& doc) const
     {
-        for (const Ent& en : ents) {
-            SketchEntity* e = doc.Find(en.id);
-            if (!e) {
-                continue;
-            }
-            u32 b = en.base;
-            switch (e->kind) {
-            case EntityKind::Line:
-                e->a = { x[b], x[b + 1] };
-                e->b = { x[b + 2], x[b + 3] };
-                break;
-            case EntityKind::Circle:
-                e->a = { x[b], x[b + 1] };
-                e->radius = x[b + 2];
-                break;
-            case EntityKind::Arc:
-                e->a = { x[b], x[b + 1] };
-                e->radius = x[b + 2];
-                e->startAngle = x[b + 3];
-                e->endAngle = x[b + 4];
-                break;
+        for (const PVar& pv : pvars) {
+            GeomPoint* p = doc.FindPoint(pv.id);
+            if (p) {
+                p->pos = { x[pv.base], x[pv.base + 1] };
             }
         }
+        doc.RefreshDerived(); // recompute every curve's centre/radius/angles from the points
     }
 };
 
@@ -280,16 +257,12 @@ public:
     {
         VarLayout vars;
         vars.Build(doc);
-        const VarLayout::Ent* e = vars.Of(entity);
-        if (!e) {
+        u32 base = vars.PointBase(doc, entity, which);
+        if (base == VarLayout::kNoIdx) {
             return 0;
         }
-        u32 xi = e->base;
-        u32 yi = e->base + 1;
-        if (e->kind == EntityKind::Line && which == PointRef::End) {
-            xi = e->base + 2;
-            yi = e->base + 3;
-        }
+        u32 xi = base;
+        u32 yi = base + 1;
 
         std::vector<Residual> rs = BuildResiduals(doc, vars);
         if (rs.empty()) {
@@ -317,28 +290,11 @@ private:
     SolveOptions opts_;
 
     // ── residual construction ─────────────────────────────────────────────────
-    static f64 PointX(const std::vector<f64>& x, const VarLayout& v, FeatureId id, PointRef which)
-    {
-        const VarLayout::Ent* e = v.Of(id);
-        if (!e) {
-            return 0.0;
-        }
-        if (e->kind == EntityKind::Line) {
-            return which == PointRef::End ? x[e->base + 2] : x[e->base];
-        }
-        return x[e->base]; // circle/arc centre
-    }
-    static f64 PointY(const std::vector<f64>& x, const VarLayout& v, FeatureId id, PointRef which)
-    {
-        const VarLayout::Ent* e = v.Of(id);
-        if (!e) {
-            return 0.0;
-        }
-        if (e->kind == EntityKind::Line) {
-            return which == PointRef::End ? x[e->base + 3] : x[e->base + 1];
-        }
-        return x[e->base + 1];
-    }
+    // All references resolve to POINT variable bases at build time (via
+    // vars.PointBase(doc, curve, PointRef)); the lambdas capture those indices, so
+    // evaluation never re-walks the document. A base of kNoIdx means the reference didn't
+    // resolve — that residual is skipped, leaving the geometry as drawn.
+    static constexpr u32 kNoIdx = VarLayout::kNoIdx;
 
     std::vector<Residual> BuildResiduals(const SketchDocument& doc, const VarLayout& vars) const
     {
@@ -353,27 +309,46 @@ private:
             if (!ev.Ok()) {
                 continue; // broken expression -> no residual, geometry stays as drawn
             }
-            f64 target = ev.value.value; // base units (mm / radians)
-            AddDimension(rs, vars, d, target);
+            AddDimension(rs, doc, vars, d, ev.value.value); // base units (mm / radians)
         }
 
         // Constraints.
         for (const SketchConstraintRecord& c : doc.constraints) {
-            AddConstraint(rs, vars, c);
+            AddConstraint(rs, doc, vars, c);
+        }
+
+        // Arc equal-radius invariant, always on: an arc's start and end must stay the same
+        // distance from its centre, so its radius is one quantity however the points move
+        // and its endpoints are ordinary points that can coincide with neighbours. Owner is
+        // the arc, so if it ever conflicts the arc is the feature named.
+        for (const SketchEntity& e : doc.entities) {
+            if (e.kind != EntityKind::Arc) {
+                continue;
+            }
+            u32 ctr = vars.PointBaseById(e.p0);
+            u32 s = vars.PointBaseById(e.p1);
+            u32 en = vars.PointBaseById(e.p2);
+            if (ctr == kNoIdx || s == kNoIdx || en == kNoIdx) {
+                continue;
+            }
+            FeatureId owner = e.id;
+            rs.push_back({ owner, [ctr, s, en](const std::vector<f64>& x) {
+                              f64 rs = std::hypot(x[s] - x[ctr], x[s + 1] - x[ctr + 1]);
+                              f64 re = std::hypot(x[en] - x[ctr], x[en + 1] - x[ctr + 1]);
+                              return rs - re;
+                          } });
         }
 
         // No anchor residuals. The iteration takes MINIMUM-NORM steps (Δx = Jᵀy), which
         // live in the row space of the constraint Jacobian and so never move the null
-        // space — free degrees of freedom stay exactly as drawn, and a lone length
-        // dimension stretches a line along its own direction rather than rotating it,
-        // all without an anchor term biasing the constraints. See RunLM.
+        // space — free degrees of freedom stay exactly as drawn. See RunLM.
         return rs;
     }
 
-    static void AddDimension(std::vector<Residual>& rs, const VarLayout& vars,
-        const SketchDimensionRecord& d, f64 target)
+    static void AddDimension(std::vector<Residual>& rs, const SketchDocument& doc,
+        const VarLayout& vars, const SketchDimensionRecord& d, f64 target)
     {
-        const VarLayout::Ent* ea = vars.Of(d.targetA);
+        const SketchEntity* ea = doc.Find(d.targetA);
         if (!ea) {
             return;
         }
@@ -381,34 +356,45 @@ private:
 
         switch (d.kind) {
         case DimensionKind::Length: {
-            if (ea->kind != EntityKind::Line) {
+            u32 s = vars.PointBase(doc, d.targetA, PointRef::Start);
+            u32 e = vars.PointBase(doc, d.targetA, PointRef::End);
+            if (ea->kind != EntityKind::Line || s == kNoIdx || e == kNoIdx) {
                 return;
             }
-            u32 b = ea->base;
-            rs.push_back({ owner, [b, target](const std::vector<f64>& x) {
-                              f64 dx = x[b + 2] - x[b];
-                              f64 dy = x[b + 3] - x[b + 1];
+            rs.push_back({ owner, [s, e, target](const std::vector<f64>& x) {
+                              f64 dx = x[e] - x[s];
+                              f64 dy = x[e + 1] - x[s + 1];
                               return std::sqrt(dx * dx + dy * dy) - target;
                           } });
             break;
         }
         case DimensionKind::Radius: {
-            if (ea->kind == EntityKind::Line) {
+            // Radius is now the distance from the centre point (p0) to the rim/start point
+            // (p1) — a circle's rim or an arc's start. The arc invariant carries the end.
+            if (ea->kind != EntityKind::Circle && ea->kind != EntityKind::Arc) {
                 return;
             }
-            u32 b = ea->base;
-            rs.push_back({ owner, [b, target](const std::vector<f64>& x) { return x[b + 2] - target; } });
+            u32 ctr = vars.PointBaseById(ea->p0);
+            u32 rim = vars.PointBaseById(ea->p1);
+            if (ctr == kNoIdx || rim == kNoIdx) {
+                return;
+            }
+            rs.push_back({ owner, [ctr, rim, target](const std::vector<f64>& x) {
+                              f64 dx = x[rim] - x[ctr];
+                              f64 dy = x[rim + 1] - x[ctr + 1];
+                              return std::sqrt(dx * dx + dy * dy) - target;
+                          } });
             break;
         }
         case DimensionKind::Angle: {
-            if (ea->kind != EntityKind::Line) {
+            u32 s = vars.PointBase(doc, d.targetA, PointRef::Start);
+            u32 e = vars.PointBase(doc, d.targetA, PointRef::End);
+            if (ea->kind != EntityKind::Line || s == kNoIdx || e == kNoIdx) {
                 return;
             }
-            u32 b = ea->base;
-            rs.push_back({ owner, [b, target](const std::vector<f64>& x) {
-                              f64 ang = std::atan2(x[b + 3] - x[b + 1], x[b + 2] - x[b]);
+            rs.push_back({ owner, [s, e, target](const std::vector<f64>& x) {
+                              f64 ang = std::atan2(x[e + 1] - x[s + 1], x[e] - x[s]);
                               f64 diff = ang - target;
-                              // wrap to (-pi, pi] so the residual stays continuous.
                               while (diff > 3.14159265358979323846) {
                                   diff -= 2.0 * 3.14159265358979323846;
                               }
@@ -420,16 +406,15 @@ private:
             break;
         }
         case DimensionKind::Distance: {
-            const VarLayout::Ent* eb = vars.Of(d.targetB);
-            if (!eb) {
+            // Between the two entities' anchor points (line start / circle centre).
+            u32 a = vars.PointBase(doc, d.targetA, PointRef::Start);
+            u32 b = vars.PointBase(doc, d.targetB, PointRef::Start);
+            if (a == kNoIdx || b == kNoIdx) {
                 return;
             }
-            // Between the entities' anchor points (line start / circle centre).
-            u32 ba = ea->base;
-            u32 bb = eb->base;
-            rs.push_back({ owner, [ba, bb, target](const std::vector<f64>& x) {
-                              f64 dx = x[bb] - x[ba];
-                              f64 dy = x[bb + 1] - x[ba + 1];
+            rs.push_back({ owner, [a, b, target](const std::vector<f64>& x) {
+                              f64 dx = x[b] - x[a];
+                              f64 dy = x[b + 1] - x[a + 1];
                               return std::sqrt(dx * dx + dy * dy) - target;
                           } });
             break;
@@ -437,140 +422,147 @@ private:
         }
     }
 
-    static void AddConstraint(std::vector<Residual>& rs, const VarLayout& vars,
-        const SketchConstraintRecord& c)
+    // Resolve an id that names "a point" for a Coincident/Ground constraint. In the
+    // point-based model the id IS a point (the precise auto-coincident and drag-produced
+    // case). For back-compat with a manual tool that picked a whole curve, an id that is a
+    // curve instead resolves to that curve's start point. kNoIdx if neither.
+    static u32 ResolveEndpoint(const SketchDocument& doc, const VarLayout& vars, FeatureId id)
+    {
+        u32 base = vars.PointBaseById(id);
+        if (base != kNoIdx) {
+            return base; // it's a point
+        }
+        return vars.PointBase(doc, id, PointRef::Start); // it's a curve → its start point
+    }
+
+    static void AddConstraint(std::vector<Residual>& rs, const SketchDocument& doc,
+        const VarLayout& vars, const SketchConstraintRecord& c)
     {
         FeatureId owner = c.id;
-        const VarLayout::Ent* ea = vars.Of(c.a);
+        const SketchEntity* ea = doc.Find(c.a);
 
         switch (c.kind) {
         case ConstraintKind::Coincident: {
-            const VarLayout::Ent* eb = vars.Of(c.b);
-            if (!ea || !eb) {
+            // a/b resolve as a point id if they are one (the precise auto-coincident case),
+            // otherwise as the referenced curve's start point (a manual tool that picked a
+            // line and means its start).
+            u32 a = ResolveEndpoint(doc, vars, c.a);
+            u32 b = ResolveEndpoint(doc, vars, c.b);
+            if (a == kNoIdx || b == kNoIdx) {
                 return;
             }
-            FeatureId a = c.a;
-            FeatureId b = c.b;
-            PointRef pa = c.aPoint;
-            PointRef pb = c.bPoint;
-            rs.push_back({ owner, [&vars, a, b, pa, pb](const std::vector<f64>& x) {
-                              return PointX(x, vars, a, pa) - PointX(x, vars, b, pb);
-                          } });
-            rs.push_back({ owner, [&vars, a, b, pa, pb](const std::vector<f64>& x) {
-                              return PointY(x, vars, a, pa) - PointY(x, vars, b, pb);
-                          } });
+            rs.push_back({ owner, [a, b](const std::vector<f64>& x) { return x[a] - x[b]; } });
+            rs.push_back({ owner, [a, b](const std::vector<f64>& x) { return x[a + 1] - x[b + 1]; } });
             break;
         }
-        case ConstraintKind::Horizontal: {
-            if (!ea || ea->kind != EntityKind::Line) {
-                return;
-            }
-            u32 b = ea->base;
-            rs.push_back({ owner, [b](const std::vector<f64>& x) { return x[b + 3] - x[b + 1]; } });
-            break;
-        }
+        case ConstraintKind::Horizontal:
         case ConstraintKind::Vertical: {
-            if (!ea || ea->kind != EntityKind::Line) {
+            u32 s = vars.PointBase(doc, c.a, PointRef::Start);
+            u32 e = vars.PointBase(doc, c.a, PointRef::End);
+            if (!ea || ea->kind != EntityKind::Line || s == kNoIdx || e == kNoIdx) {
                 return;
             }
-            u32 b = ea->base;
-            rs.push_back({ owner, [b](const std::vector<f64>& x) { return x[b + 2] - x[b]; } });
+            bool vertical = c.kind == ConstraintKind::Vertical;
+            rs.push_back({ owner, [s, e, vertical](const std::vector<f64>& x) {
+                              return vertical ? (x[e] - x[s]) : (x[e + 1] - x[s + 1]);
+                          } });
             break;
         }
         case ConstraintKind::Parallel:
         case ConstraintKind::Perpendicular: {
-            const VarLayout::Ent* eb = vars.Of(c.b);
-            if (!ea || !eb || ea->kind != EntityKind::Line || eb->kind != EntityKind::Line) {
+            const SketchEntity* eb = doc.Find(c.b);
+            u32 s1 = vars.PointBase(doc, c.a, PointRef::Start), e1 = vars.PointBase(doc, c.a, PointRef::End);
+            u32 s2 = vars.PointBase(doc, c.b, PointRef::Start), e2 = vars.PointBase(doc, c.b, PointRef::End);
+            if (!ea || !eb || ea->kind != EntityKind::Line || eb->kind != EntityKind::Line
+                || s1 == kNoIdx || e1 == kNoIdx || s2 == kNoIdx || e2 == kNoIdx) {
                 return;
             }
-            u32 ba = ea->base;
-            u32 bb = eb->base;
             bool perp = c.kind == ConstraintKind::Perpendicular;
-            rs.push_back({ owner, [ba, bb, perp](const std::vector<f64>& x) {
-                              f64 d1x = x[ba + 2] - x[ba];
-                              f64 d1y = x[ba + 3] - x[ba + 1];
-                              f64 d2x = x[bb + 2] - x[bb];
-                              f64 d2y = x[bb + 3] - x[bb + 1];
-                              // parallel: cross == 0.   perpendicular: dot == 0.
+            rs.push_back({ owner, [s1, e1, s2, e2, perp](const std::vector<f64>& x) {
+                              f64 d1x = x[e1] - x[s1], d1y = x[e1 + 1] - x[s1 + 1];
+                              f64 d2x = x[e2] - x[s2], d2y = x[e2 + 1] - x[s2 + 1];
                               return perp ? (d1x * d2x + d1y * d2y) : (d1x * d2y - d1y * d2x);
                           } });
             break;
         }
         case ConstraintKind::Equal: {
-            const VarLayout::Ent* eb = vars.Of(c.b);
-            if (!ea || !eb || ea->kind != EntityKind::Line || eb->kind != EntityKind::Line) {
+            const SketchEntity* eb = doc.Find(c.b);
+            u32 s1 = vars.PointBase(doc, c.a, PointRef::Start), e1 = vars.PointBase(doc, c.a, PointRef::End);
+            u32 s2 = vars.PointBase(doc, c.b, PointRef::Start), e2 = vars.PointBase(doc, c.b, PointRef::End);
+            if (!ea || !eb || ea->kind != EntityKind::Line || eb->kind != EntityKind::Line
+                || s1 == kNoIdx || e1 == kNoIdx || s2 == kNoIdx || e2 == kNoIdx) {
                 return;
             }
-            u32 ba = ea->base;
-            u32 bb = eb->base;
-            rs.push_back({ owner, [ba, bb](const std::vector<f64>& x) {
-                              f64 l1 = std::hypot(x[ba + 2] - x[ba], x[ba + 3] - x[ba + 1]);
-                              f64 l2 = std::hypot(x[bb + 2] - x[bb], x[bb + 3] - x[bb + 1]);
+            rs.push_back({ owner, [s1, e1, s2, e2](const std::vector<f64>& x) {
+                              f64 l1 = std::hypot(x[e1] - x[s1], x[e1 + 1] - x[s1 + 1]);
+                              f64 l2 = std::hypot(x[e2] - x[s2], x[e2 + 1] - x[s2 + 1]);
                               return l1 - l2;
                           } });
             break;
         }
         case ConstraintKind::Tangent: {
-            const VarLayout::Ent* eb = vars.Of(c.b); // the circle/arc
-            if (!ea || !eb || ea->kind != EntityKind::Line || eb->kind == EntityKind::Line) {
+            const SketchEntity* eb = doc.Find(c.b); // the circle/arc
+            u32 s = vars.PointBase(doc, c.a, PointRef::Start), e = vars.PointBase(doc, c.a, PointRef::End);
+            // Radius is now derived from the circle/arc's own points: centre = p0, rim = p1.
+            u32 ctr = eb ? vars.PointBaseById(eb->p0) : kNoIdx;
+            u32 rim = eb ? vars.PointBaseById(eb->p1) : kNoIdx;
+            if (!ea || !eb || ea->kind != EntityKind::Line || eb->kind == EntityKind::Line
+                || s == kNoIdx || e == kNoIdx || ctr == kNoIdx || rim == kNoIdx) {
                 return;
             }
-            u32 bl = ea->base;
-            u32 bc = eb->base;
-            rs.push_back({ owner, [bl, bc](const std::vector<f64>& x) {
-                              // distance(centre, infinite line) - radius, in squared form
-                              // to avoid the |.| kink at the solution.
-                              f64 dx = x[bl + 2] - x[bl];
-                              f64 dy = x[bl + 3] - x[bl + 1];
+            rs.push_back({ owner, [s, e, ctr, rim](const std::vector<f64>& x) {
+                              // distance(centre, infinite line)² − radius², squared to avoid
+                              // the |.| kink at the solution. radius² = ‖centre − rim‖².
+                              f64 dx = x[e] - x[s];
+                              f64 dy = x[e + 1] - x[s + 1];
                               f64 lenSq = dx * dx + dy * dy;
                               if (lenSq < 1e-12) {
                                   return 0.0;
                               }
-                              f64 cross = dx * (x[bc + 1] - x[bl + 1]) - dy * (x[bc] - x[bl]);
-                              f64 distSq = (cross * cross) / lenSq;
-                              f64 r = x[bc + 2];
-                              return distSq - r * r;
+                              f64 cross = dx * (x[ctr + 1] - x[s + 1]) - dy * (x[ctr] - x[s]);
+                              f64 rx = x[rim] - x[ctr];
+                              f64 ry = x[rim + 1] - x[ctr + 1];
+                              f64 radiusSq = rx * rx + ry * ry;
+                              return (cross * cross) / lenSq - radiusSq;
                           } });
             break;
         }
         case ConstraintKind::Ground: {
-            if (!ea) {
+            // a resolves as a point id if it is one, else as the referenced curve's start
+            // point (a manual Ground tool that picked a whole line).
+            u32 base = ResolveEndpoint(doc, vars, c.a);
+            if (base == kNoIdx) {
                 return;
             }
             // Pin the point to its as-drawn location (captured now, from vars.drawn).
-            f64 gx = PointX(vars.drawn, vars, c.a, c.aPoint);
-            f64 gy = PointY(vars.drawn, vars, c.a, c.aPoint);
-            FeatureId a = c.a;
-            PointRef pa = c.aPoint;
-            rs.push_back({ owner, [&vars, a, pa, gx](const std::vector<f64>& x) {
-                              return PointX(x, vars, a, pa) - gx;
-                          } });
-            rs.push_back({ owner, [&vars, a, pa, gy](const std::vector<f64>& x) {
-                              return PointY(x, vars, a, pa) - gy;
-                          } });
+            f64 gx = vars.drawn[base];
+            f64 gy = vars.drawn[base + 1];
+            rs.push_back({ owner, [base, gx](const std::vector<f64>& x) { return x[base] - gx; } });
+            rs.push_back({ owner, [base, gy](const std::vector<f64>& x) { return x[base + 1] - gy; } });
             break;
         }
         case ConstraintKind::Symmetry: {
-            const VarLayout::Ent* eb = vars.Of(c.b);
-            const VarLayout::Ent* eax = vars.Of(c.axis);
-            if (!ea || !eb || !eax || ea->kind != EntityKind::Line
-                || eb->kind != EntityKind::Line || eax->kind != EntityKind::Line) {
+            const SketchEntity* eb = doc.Find(c.b);
+            const SketchEntity* eax = doc.Find(c.axis);
+            u32 aS = vars.PointBase(doc, c.a, PointRef::Start), aE = vars.PointBase(doc, c.a, PointRef::End);
+            u32 bS = vars.PointBase(doc, c.b, PointRef::Start), bE = vars.PointBase(doc, c.b, PointRef::End);
+            u32 xS = vars.PointBase(doc, c.axis, PointRef::Start), xE = vars.PointBase(doc, c.axis, PointRef::End);
+            if (!ea || !eb || !eax || ea->kind != EntityKind::Line || eb->kind != EntityKind::Line
+                || eax->kind != EntityKind::Line || aS == kNoIdx || aE == kNoIdx || bS == kNoIdx
+                || bE == kNoIdx || xS == kNoIdx || xE == kNoIdx) {
                 return;
             }
-            u32 ba = ea->base;
-            u32 bb = eb->base;
-            u32 bx = eax->base;
-            // b must be the reflection of a across the axis line: two points, two comps.
+            // b's start/end must be the reflection of a's start/end across the axis.
+            u32 aPts[2] = { aS, aE };
+            u32 bPts[2] = { bS, bE };
             for (u32 pt = 0; pt < 2; ++pt) {
+                u32 ap = aPts[pt];
+                u32 bp = bPts[pt];
                 for (u32 comp = 0; comp < 2; ++comp) {
-                    rs.push_back({ owner, [ba, bb, bx, pt, comp](const std::vector<f64>& x) {
-                                      f64 px = x[ba + pt * 2];
-                                      f64 py = x[ba + pt * 2 + 1];
+                    rs.push_back({ owner, [ap, bp, xS, xE, comp](const std::vector<f64>& x) {
                                       f64 rx = 0, ry = 0;
-                                      ReflectAcrossAxis(x, bx, px, py, rx, ry);
-                                      f64 bpx = x[bb + pt * 2];
-                                      f64 bpy = x[bb + pt * 2 + 1];
-                                      return comp == 0 ? (rx - bpx) : (ry - bpy);
+                                      ReflectAcrossAxis(x, xS, xE, x[ap], x[ap + 1], rx, ry);
+                                      return comp == 0 ? (rx - x[bp]) : (ry - x[bp + 1]);
                                   } });
                 }
             }
@@ -579,11 +571,11 @@ private:
         }
     }
 
-    // Reflect (px,py) across the infinite line through the axis entity at base `bx`.
-    static void ReflectAcrossAxis(const std::vector<f64>& x, u32 bx, f64 px, f64 py, f64& rx, f64& ry)
+    // Reflect (px,py) across the infinite line through the axis points at bases axA, axB.
+    static void ReflectAcrossAxis(const std::vector<f64>& x, u32 axA, u32 axB, f64 px, f64 py, f64& rx, f64& ry)
     {
-        f64 ax = x[bx], ay = x[bx + 1];
-        f64 dx = x[bx + 2] - ax, dy = x[bx + 3] - ay;
+        f64 ax = x[axA], ay = x[axA + 1];
+        f64 dx = x[axB] - ax, dy = x[axB + 1] - ay;
         f64 lenSq = dx * dx + dy * dy;
         if (lenSq < 1e-12) {
             rx = px;
