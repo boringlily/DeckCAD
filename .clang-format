@@ -1,2 +1,6 @@
 BasedOnStyle: WebKit
 SortIncludes: false
+BreakBeforeBraces: Allman
+PointerAlignment: Left
+ReferenceAlignment: Left
+SpaceBeforeParens: Never
