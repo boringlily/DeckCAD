@@ -4,8 +4,10 @@
 #include <cstdio>
 #include <filesystem>
 
-namespace Platform::Assets {
-namespace AssetsInternal {
+namespace Platform::Assets
+{
+namespace AssetsInternal
+{
 
     std::string ComputeRoot()
     {
@@ -17,13 +19,16 @@ namespace AssetsInternal {
         // (assets beside the binary) and the dev layout (binary in
         // build/bin/<Config>, assets at the repo root)
         std::filesystem::path directory = start;
-        for (int depth = 0; depth < 6; ++depth) {
+        for(int depth = 0; depth < 6; ++depth)
+        {
             std::filesystem::path candidate = directory / "assets";
             std::error_code ec;
-            if (std::filesystem::is_directory(candidate, ec)) {
+            if(std::filesystem::is_directory(candidate, ec))
+            {
                 return candidate.string();
             }
-            if (!directory.has_parent_path() || directory.parent_path() == directory) {
+            if(!directory.has_parent_path() || directory.parent_path() == directory)
+            {
                 break;
             }
             directory = directory.parent_path();
@@ -51,7 +56,8 @@ std::string Resolve(const std::string& relative_path_ref)
 bool ReadTextFile(const std::string& absolute_path_ref, std::string& out_contents_ref, std::string& out_error_ref)
 {
     std::FILE* file_ptr = std::fopen(absolute_path_ref.c_str(), "rb");
-    if (!file_ptr) {
+    if(!file_ptr)
+    {
         out_error_ref = "Could not open '" + absolute_path_ref + "'";
         return false;
     }
@@ -59,7 +65,8 @@ bool ReadTextFile(const std::string& absolute_path_ref, std::string& out_content
     std::fseek(file_ptr, 0, SEEK_END);
     long size = std::ftell(file_ptr);
     std::fseek(file_ptr, 0, SEEK_SET);
-    if (size < 0) {
+    if(size < 0)
+    {
         std::fclose(file_ptr);
         out_error_ref = "Could not determine the size of '" + absolute_path_ref + "'";
         return false;
@@ -69,7 +76,8 @@ bool ReadTextFile(const std::string& absolute_path_ref, std::string& out_content
     size_t read = size > 0 ? std::fread(out_contents_ref.data(), 1, static_cast<size_t>(size), file_ptr) : 0;
     std::fclose(file_ptr);
 
-    if (read != static_cast<size_t>(size)) {
+    if(read != static_cast<size_t>(size))
+    {
         out_error_ref = "Short read on '" + absolute_path_ref + "'";
         return false;
     }
@@ -79,7 +87,8 @@ bool ReadTextFile(const std::string& absolute_path_ref, std::string& out_content
 bool ReadBinaryFile(const std::string& absolute_path_ref, std::vector<unsigned char>& out_bytes_ref, std::string& out_error_ref)
 {
     std::FILE* file_ptr = std::fopen(absolute_path_ref.c_str(), "rb");
-    if (!file_ptr) {
+    if(!file_ptr)
+    {
         out_error_ref = "Could not open '" + absolute_path_ref + "'";
         return false;
     }
@@ -87,7 +96,8 @@ bool ReadBinaryFile(const std::string& absolute_path_ref, std::vector<unsigned c
     std::fseek(file_ptr, 0, SEEK_END);
     long size = std::ftell(file_ptr);
     std::fseek(file_ptr, 0, SEEK_SET);
-    if (size < 0) {
+    if(size < 0)
+    {
         std::fclose(file_ptr);
         out_error_ref = "Could not determine the size of '" + absolute_path_ref + "'";
         return false;
@@ -97,7 +107,8 @@ bool ReadBinaryFile(const std::string& absolute_path_ref, std::vector<unsigned c
     size_t read = size > 0 ? std::fread(out_bytes_ref.data(), 1, static_cast<size_t>(size), file_ptr) : 0;
     std::fclose(file_ptr);
 
-    if (read != static_cast<size_t>(size)) {
+    if(read != static_cast<size_t>(size))
+    {
         out_error_ref = "Short read on '" + absolute_path_ref + "'";
         return false;
     }

@@ -5,7 +5,8 @@
 
 #include <cstdint>
 
-namespace Platform {
+namespace Platform
+{
 
 Window::~Window()
 {
@@ -14,7 +15,8 @@ Window::~Window()
 
 bool Window::createWindow(const std::string& title_ref, u32 width, u32 height)
 {
-    if (!SDL_Init(SDL_INIT_VIDEO)) {
+    if(!SDL_Init(SDL_INIT_VIDEO))
+    {
         last_error_ = std::string("SDL_Init failed: ") + SDL_GetError();
         return false;
     }
@@ -25,7 +27,8 @@ bool Window::createWindow(const std::string& title_ref, u32 width, u32 height)
     SDL_WindowFlags flags = SDL_WINDOW_RESIZABLE | SDL_WINDOW_HIGH_PIXEL_DENSITY;
 
     window_ptr_ = SDL_CreateWindow(title_ref.c_str(), static_cast<int>(width), static_cast<int>(height), flags);
-    if (!window_ptr_) {
+    if(!window_ptr_)
+    {
         last_error_ = std::string("SDL_CreateWindow failed: ") + SDL_GetError();
         return false;
     }
@@ -37,11 +40,13 @@ bool Window::createWindow(const std::string& title_ref, u32 width, u32 height)
 
 void Window::destroyWindow()
 {
-    if (window_ptr_) {
+    if(window_ptr_)
+    {
         SDL_DestroyWindow(window_ptr_);
         window_ptr_ = nullptr;
     }
-    if (sdl_initialized_) {
+    if(sdl_initialized_)
+    {
         SDL_Quit();
         sdl_initialized_ = false;
     }
@@ -58,15 +63,18 @@ void Window::refreshPixelSize()
 void Window::pumpEvents()
 {
     SDL_Event event;
-    while (SDL_PollEvent(&event)) {
+    while(SDL_PollEvent(&event))
+    {
         ImGui_ImplSDL3_ProcessEvent(&event);
 
-        switch (event.type) {
+        switch(event.type)
+        {
         case SDL_EVENT_QUIT:
             should_close_ = true;
             break;
         case SDL_EVENT_WINDOW_CLOSE_REQUESTED:
-            if (event.window.windowID == SDL_GetWindowID(window_ptr_)) {
+            if(event.window.windowID == SDL_GetWindowID(window_ptr_))
+            {
                 should_close_ = true;
             }
             break;
@@ -82,7 +90,8 @@ void Window::pumpEvents()
 
 bool Window::isMinimized() const
 {
-    if (!window_ptr_) {
+    if(!window_ptr_)
+    {
         return true;
     }
     return (SDL_GetWindowFlags(window_ptr_) & SDL_WINDOW_MINIMIZED) != 0;
@@ -90,7 +99,8 @@ bool Window::isMinimized() const
 
 f32 Window::getDisplayScale() const
 {
-    if (!window_ptr_) {
+    if(!window_ptr_)
+    {
         return 1.0f;
     }
     f32 scale = SDL_GetWindowPixelDensity(window_ptr_);
@@ -110,7 +120,8 @@ const char* Window::getNativeSystem() const
     // the driver SDL actually selected
     {
         const char* driver_ptr = SDL_GetCurrentVideoDriver();
-        if (driver_ptr && SDL_strcmp(driver_ptr, "wayland") == 0) {
+        if(driver_ptr && SDL_strcmp(driver_ptr, "wayland") == 0)
+        {
             return "wayland";
         }
         return "x11";
@@ -122,7 +133,8 @@ const char* Window::getNativeSystem() const
 
 void* Window::getNativeWindow() const
 {
-    if (!window_ptr_) {
+    if(!window_ptr_)
+    {
         return nullptr;
     }
     SDL_PropertiesID props = SDL_GetWindowProperties(window_ptr_);
@@ -131,7 +143,8 @@ void* Window::getNativeWindow() const
 #elif defined(SDL_PLATFORM_WIN32)
     return SDL_GetPointerProperty(props, SDL_PROP_WINDOW_WIN32_HWND_POINTER, nullptr);
 #elif defined(SDL_PLATFORM_LINUX)
-    if (SDL_strcmp(getNativeSystem(), "wayland") == 0) {
+    if(SDL_strcmp(getNativeSystem(), "wayland") == 0)
+    {
         return nullptr; // Wayland identifies the window by its wl_surface instead.
     }
     // X11 window ids are integers, but the surface helper takes them as a pointer-width value.
@@ -146,11 +159,13 @@ void* Window::getNativeWindow() const
 void* Window::getNativeDisplay() const
 {
 #if defined(SDL_PLATFORM_LINUX)
-    if (!window_ptr_) {
+    if(!window_ptr_)
+    {
         return nullptr;
     }
     SDL_PropertiesID props = SDL_GetWindowProperties(window_ptr_);
-    if (SDL_strcmp(getNativeSystem(), "wayland") == 0) {
+    if(SDL_strcmp(getNativeSystem(), "wayland") == 0)
+    {
         return SDL_GetPointerProperty(props, SDL_PROP_WINDOW_WAYLAND_DISPLAY_POINTER, nullptr);
     }
     return SDL_GetPointerProperty(props, SDL_PROP_WINDOW_X11_DISPLAY_POINTER, nullptr);
@@ -162,11 +177,13 @@ void* Window::getNativeDisplay() const
 void* Window::getNativeSurface() const
 {
 #if defined(SDL_PLATFORM_LINUX)
-    if (!window_ptr_) {
+    if(!window_ptr_)
+    {
         return nullptr;
     }
     SDL_PropertiesID props = SDL_GetWindowProperties(window_ptr_);
-    if (SDL_strcmp(getNativeSystem(), "wayland") == 0) {
+    if(SDL_strcmp(getNativeSystem(), "wayland") == 0)
+    {
         return SDL_GetPointerProperty(props, SDL_PROP_WINDOW_WAYLAND_SURFACE_POINTER, nullptr);
     }
     return nullptr;
