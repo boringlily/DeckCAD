@@ -3,12 +3,15 @@
 #include <cstdio>
 #include <backends/imgui_impl_wgpu.h>
 
-namespace Gpu {
-namespace GpuContextInternal {
+namespace Gpu
+{
+namespace GpuContextInternal
+{
 
     const char* ErrorTypeName(wgpu::ErrorType type)
     {
-        switch (type) {
+        switch(type)
+        {
         case wgpu::ErrorType::Validation:
             return "Validation";
         case wgpu::ErrorType::OutOfMemory:
@@ -38,23 +41,27 @@ bool Context::initializeResources(const ContextDescriptor& descriptor_ref)
 
     wgpu::InstanceDescriptor instance_descriptor {};
     instance_ = wgpu::CreateInstance(&instance_descriptor);
-    if (!instance_) {
+    if(!instance_)
+    {
         last_error_ = "wgpu::CreateInstance returned null";
         return false;
     }
 
     // surface must exist first: the adapter is picked to match it
-    if (!createSurface(descriptor_ref)) {
+    if(!createSurface(descriptor_ref))
+    {
         return false;
     }
-    if (!requestAdapterAndDevice()) {
+    if(!requestAdapterAndDevice())
+    {
         return false;
     }
 
     queue_ = device_.GetQueue();
 
     wgpu::SurfaceCapabilities caps {};
-    if (surface_.GetCapabilities(adapter_, &caps) == wgpu::Status::Success && caps.formatCount > 0) {
+    if(surface_.GetCapabilities(adapter_, &caps) == wgpu::Status::Success && caps.formatCount > 0)
+    {
         surface_format_ = caps.formats[0];
     }
 
@@ -74,7 +81,8 @@ bool Context::createSurface(const ContextDescriptor& descriptor_ref)
     surface_information.RawSurface = descriptor_ref.native_surface_ptr;
 
     WGPUSurface raw = ImGui_ImplWGPU_CreateWGPUSurfaceHelper(&surface_information);
-    if (!raw) {
+    if(!raw)
+    {
         last_error_ = "Failed to create a WebGPU surface for this window";
         return false;
     }
@@ -92,34 +100,43 @@ bool Context::requestAdapterAndDevice()
     // AllowProcessEvents needs no extra instance features; pump until the callback lands
     instance_.RequestAdapter(
         &adapter_options, wgpu::CallbackMode::AllowProcessEvents,
-        [&](wgpu::RequestAdapterStatus status, wgpu::Adapter adapter, wgpu::StringView message) {
-            if (status == wgpu::RequestAdapterStatus::Success) {
+        [&](wgpu::RequestAdapterStatus status, wgpu::Adapter adapter, wgpu::StringView message)
+        {
+            if(status == wgpu::RequestAdapterStatus::Success)
+            {
                 adapter_ = std::move(adapter);
-            } else {
+            }
+            else
+            {
                 last_error_ = "RequestAdapter failed: " + std::string(std::string_view(message));
             }
             adapter_done = true;
         });
 
-    while (!adapter_done) {
+    while(!adapter_done)
+    {
         instance_.ProcessEvents();
     }
-    if (!adapter_) {
+    if(!adapter_)
+    {
         return false;
     }
 
     wgpu::DeviceDescriptor device_descriptor {};
     device_descriptor.label = "DeckCAD Device";
     device_descriptor.SetUncapturedErrorCallback(
-        [](const wgpu::Device&, wgpu::ErrorType type, wgpu::StringView message) {
+        [](const wgpu::Device&, wgpu::ErrorType type, wgpu::StringView message)
+        {
             std::fprintf(stderr, "[WebGPU %s] %.*s\n", ErrorTypeName(type),
                 static_cast<int>(std::string_view(message).size()), std::string_view(message).data());
         });
     device_descriptor.SetDeviceLostCallback(
         wgpu::CallbackMode::AllowProcessEvents,
-        [](const wgpu::Device&, wgpu::DeviceLostReason reason, wgpu::StringView message) {
+        [](const wgpu::Device&, wgpu::DeviceLostReason reason, wgpu::StringView message)
+        {
             // Destroyed is the normal shutdown path, not an error
-            if (reason == wgpu::DeviceLostReason::Destroyed) {
+            if(reason == wgpu::DeviceLostReason::Destroyed)
+            {
                 return;
             }
             std::fprintf(stderr, "[WebGPU device lost] %.*s\n",
@@ -129,16 +146,21 @@ bool Context::requestAdapterAndDevice()
     bool device_done = false;
     adapter_.RequestDevice(
         &device_descriptor, wgpu::CallbackMode::AllowProcessEvents,
-        [&](wgpu::RequestDeviceStatus status, wgpu::Device device, wgpu::StringView message) {
-            if (status == wgpu::RequestDeviceStatus::Success) {
+        [&](wgpu::RequestDeviceStatus status, wgpu::Device device, wgpu::StringView message)
+        {
+            if(status == wgpu::RequestDeviceStatus::Success)
+            {
                 device_ = std::move(device);
-            } else {
+            }
+            else
+            {
                 last_error_ = "RequestDevice failed: " + std::string(std::string_view(message));
             }
             device_done = true;
         });
 
-    while (!device_done) {
+    while(!device_done)
+    {
         instance_.ProcessEvents();
     }
     return static_cast<bool>(device_);
@@ -146,7 +168,8 @@ bool Context::requestAdapterAndDevice()
 
 void Context::configureSurface()
 {
-    if (width_ == 0 || height_ == 0) {
+    if(width_ == 0 || height_ == 0)
+    {
         surface_configured_ = false;
         return;
     }
@@ -166,7 +189,8 @@ void Context::configureSurface()
 
 void Context::resizeTarget(u32 width, u32 height)
 {
-    if (width == width_ && height == height_) {
+    if(width == width_ && height == height_)
+    {
         return;
     }
     width_ = width;
@@ -176,20 +200,23 @@ void Context::resizeTarget(u32 width, u32 height)
 
 bool Context::beginFrame()
 {
-    if (!surface_configured_) {
+    if(!surface_configured_)
+    {
         return false;
     }
 
     wgpu::SurfaceTexture surface_texture {};
     surface_.GetCurrentTexture(&surface_texture);
 
-    if (ImGui_ImplWGPU_IsSurfaceStatusError(static_cast<WGPUSurfaceGetCurrentTextureStatus>(surface_texture.status))) {
+    if(ImGui_ImplWGPU_IsSurfaceStatusError(static_cast<WGPUSurfaceGetCurrentTextureStatus>(surface_texture.status)))
+    {
         // surface likely went stale from a resize: reconfigure and skip this
         // frame, the next one picks up the new size
         configureSurface();
         return false;
     }
-    if (!surface_texture.texture) {
+    if(!surface_texture.texture)
+    {
         return false;
     }
 
@@ -225,7 +252,8 @@ void Context::endFrame()
 
 void Context::tickDevice()
 {
-    if (instance_) {
+    if(instance_)
+    {
         instance_.ProcessEvents();
     }
 }
@@ -248,7 +276,8 @@ void Context::shutdownResources()
     backbuffer_view_ = nullptr;
     backbuffer_ = nullptr;
 
-    if (surface_ && surface_configured_) {
+    if(surface_ && surface_configured_)
+    {
         surface_.Unconfigure();
         surface_configured_ = false;
     }
