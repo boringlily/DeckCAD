@@ -46,3 +46,4 @@ include(GoogleTest)
 gtest_discover_tests(deckcad_tests)
 
 set_target_properties(deckcad_tests PROPERTIES FOLDER "DeckCAD")
+# TODO: icon cache
