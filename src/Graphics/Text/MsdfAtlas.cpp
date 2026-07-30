@@ -6,11 +6,14 @@
 #include <algorithm>
 #include <cmath>
 
-namespace Text {
-namespace MsdfAtlasInternal {
+namespace Text
+{
+namespace MsdfAtlasInternal
+{
 
     /// One glyph staged before packing.
-    struct Baked {
+    struct Baked
+    {
         u32 codepoint { 0 };
         msdfgen::Bitmap<float, 3> bitmap;
         f32 advance { 0.0f };
@@ -35,7 +38,8 @@ namespace MsdfAtlasInternal {
     u32 NextPowerOfTwo(u32 value)
     {
         u32 result = 1;
-        while (result < value) {
+        while(result < value)
+        {
             result <<= 1;
         }
         return result;
@@ -52,28 +56,32 @@ namespace MsdfAtlasInternal {
 
         std::vector<size_t> order;
         order.reserve(glyphs_ref.size());
-        for (size_t i = 0; i < glyphs_ref.size(); ++i) {
-            if (glyphs_ref[i].has_geometry) {
+        for(size_t i = 0; i < glyphs_ref.size(); ++i)
+        {
+            if(glyphs_ref[i].has_geometry)
+            {
                 order.push_back(i);
             }
         }
-        std::sort(order.begin(), order.end(), [&](size_t a, size_t b) {
-            return glyphs_ref[a].height > glyphs_ref[b].height;
-        });
+        std::sort(order.begin(), order.end(), [&](size_t a, size_t b)
+            { return glyphs_ref[a].height > glyphs_ref[b].height; });
 
         u32 pen_x = padding;
         u32 pen_y = padding;
         u32 shelf_height = 0;
 
-        for (size_t index : order) {
+        for(size_t index : order)
+        {
             const Baked& glyph_ref = glyphs_ref[index];
-            if (pen_x + glyph_ref.width + padding > atlas_size) {
+            if(pen_x + glyph_ref.width + padding > atlas_size)
+            {
                 // Start a new shelf.
                 pen_x = padding;
                 pen_y += shelf_height + padding;
                 shelf_height = 0;
             }
-            if (pen_y + glyph_ref.height + padding > atlas_size) {
+            if(pen_y + glyph_ref.height + padding > atlas_size)
+            {
                 return false; // caller retries with a larger atlas
             }
 
@@ -96,26 +104,30 @@ bool MsdfAtlas::buildAtlas(const std::string& font_path_ref, const AtlasConfigur
     height_ = 0;
 
     msdfgen::FreetypeHandle* freetype_ptr = msdfgen::initializeFreetype();
-    if (!freetype_ptr) {
+    if(!freetype_ptr)
+    {
         out_error_ref = "Failed to initialize FreeType";
         return false;
     }
 
     msdfgen::FontHandle* font_ptr = msdfgen::loadFont(freetype_ptr, font_path_ref.c_str());
-    if (!font_ptr) {
+    if(!font_ptr)
+    {
         msdfgen::deinitializeFreetype(freetype_ptr);
         out_error_ref = "Failed to load font '" + font_path_ref + "'";
         return false;
     }
 
     msdfgen::FontMetrics font_metrics {};
-    if (msdfgen::getFontMetrics(font_metrics, font_ptr, msdfgen::FONT_SCALING_EM_NORMALIZED)) {
+    if(msdfgen::getFontMetrics(font_metrics, font_ptr, msdfgen::FONT_SCALING_EM_NORMALIZED))
+    {
         metrics_.line_height = static_cast<f32>(font_metrics.lineHeight);
         metrics_.ascender = static_cast<f32>(font_metrics.ascenderY);
         metrics_.descender = static_cast<f32>(font_metrics.descenderY);
     }
     // Some fonts report no line height; fall back to a sane typographic default.
-    if (metrics_.line_height <= 0.0f) {
+    if(metrics_.line_height <= 0.0f)
+    {
         metrics_.line_height = 1.2f;
     }
     metrics_.pixel_range = configuration_ref.pixel_range;
@@ -129,10 +141,12 @@ bool MsdfAtlas::buildAtlas(const std::string& font_path_ref, const AtlasConfigur
     std::vector<Baked> baked;
     baked.reserve(configuration_ref.last_codepoint - configuration_ref.first_codepoint + 1);
 
-    for (u32 codepoint = configuration_ref.first_codepoint; codepoint <= configuration_ref.last_codepoint; ++codepoint) {
+    for(u32 codepoint = configuration_ref.first_codepoint; codepoint <= configuration_ref.last_codepoint; ++codepoint)
+    {
         msdfgen::Shape shape;
         double advance = 0.0;
-        if (!msdfgen::loadGlyph(shape, font_ptr, codepoint, msdfgen::FONT_SCALING_EM_NORMALIZED, &advance)) {
+        if(!msdfgen::loadGlyph(shape, font_ptr, codepoint, msdfgen::FONT_SCALING_EM_NORMALIZED, &advance))
+        {
             continue; // codepoint absent from the font
         }
 
@@ -141,7 +155,8 @@ bool MsdfAtlas::buildAtlas(const std::string& font_path_ref, const AtlasConfigur
         entry_ref.advance = static_cast<f32>(advance);
 
         shape.normalize();
-        if (shape.edgeCount() == 0 || !shape.validate()) {
+        if(shape.edgeCount() == 0 || !shape.validate())
+        {
             // Whitespace and other empty glyphs still need their advance recorded.
             baked.push_back(std::move(entry_ref));
             continue;
@@ -159,7 +174,8 @@ bool MsdfAtlas::buildAtlas(const std::string& font_path_ref, const AtlasConfigur
 
         entry_ref.width = static_cast<u32>(std::ceil((entry_ref.right - entry_ref.left) * pixels_per_em));
         entry_ref.height = static_cast<u32>(std::ceil((entry_ref.top - entry_ref.bottom) * pixels_per_em));
-        if (entry_ref.width == 0 || entry_ref.height == 0) {
+        if(entry_ref.width == 0 || entry_ref.height == 0)
+        {
             baked.push_back(std::move(entry_ref));
             continue;
         }
@@ -178,7 +194,8 @@ bool MsdfAtlas::buildAtlas(const std::string& font_path_ref, const AtlasConfigur
         baked.push_back(std::move(entry_ref));
     }
 
-    if (baked.empty()) {
+    if(baked.empty())
+    {
         msdfgen::destroyFont(font_ptr);
         msdfgen::deinitializeFreetype(freetype_ptr);
         out_error_ref = "Font '" + font_path_ref + "' produced no usable glyphs";
@@ -190,8 +207,10 @@ bool MsdfAtlas::buildAtlas(const std::string& font_path_ref, const AtlasConfigur
 
     u64 area = 0;
     u32 max_glyph_edge = 1;
-    for (const Baked& entry_ref : baked) {
-        if (!entry_ref.has_geometry) {
+    for(const Baked& entry_ref : baked)
+    {
+        if(!entry_ref.has_geometry)
+        {
             continue;
         }
         area += static_cast<u64>(entry_ref.width + PADDING) * (entry_ref.height + PADDING);
@@ -204,9 +223,11 @@ bool MsdfAtlas::buildAtlas(const std::string& font_path_ref, const AtlasConfigur
         static_cast<u32>(std::ceil(std::sqrt(static_cast<double>(area) * 1.25)))));
 
     std::vector<std::pair<u32, u32>> positions;
-    while (!ShelfPack(baked, atlas_size, PADDING, positions)) {
+    while(!ShelfPack(baked, atlas_size, PADDING, positions))
+    {
         atlas_size <<= 1;
-        if (atlas_size > configuration_ref.max_atlas_size) {
+        if(atlas_size > configuration_ref.max_atlas_size)
+        {
             msdfgen::destroyFont(font_ptr);
             msdfgen::deinitializeFreetype(freetype_ptr);
             out_error_ref = "Glyphs do not fit within the maximum atlas size";
@@ -219,22 +240,26 @@ bool MsdfAtlas::buildAtlas(const std::string& font_path_ref, const AtlasConfigur
     pixels_.assign(static_cast<size_t>(atlas_size) * atlas_size * 4, 0);
 
     // --- Blit and record metrics -------------------------------------------
-    for (size_t i = 0; i < baked.size(); ++i) {
+    for(size_t i = 0; i < baked.size(); ++i)
+    {
         const Baked& entry_ref = baked[i];
 
         Glyph glyph;
         glyph.advance = entry_ref.advance;
         glyph.has_geometry = entry_ref.has_geometry;
 
-        if (entry_ref.has_geometry) {
+        if(entry_ref.has_geometry)
+        {
             const u32 origin_x = positions[i].first;
             const u32 origin_y = positions[i].second;
 
-            for (u32 y = 0; y < entry_ref.height; ++y) {
+            for(u32 y = 0; y < entry_ref.height; ++y)
+            {
                 // msdfgen bitmaps are bottom-up, atlas is top-down: rows flipped
                 // here, UVs below need no further flipping
                 const u32 source_y = entry_ref.height - 1 - y;
-                for (u32 x = 0; x < entry_ref.width; ++x) {
+                for(u32 x = 0; x < entry_ref.width; ++x)
+                {
                     const float* texel_ptr = entry_ref.bitmap(static_cast<int>(x), static_cast<int>(source_y));
                     const size_t dest = (static_cast<size_t>(origin_y + y) * atlas_size + (origin_x + x)) * 4;
                     pixels_[dest + 0] = FloatToByte(texel_ptr[0]);
@@ -260,11 +285,14 @@ bool MsdfAtlas::buildAtlas(const std::string& font_path_ref, const AtlasConfigur
     }
 
     // --- Kerning ------------------------------------------------------------
-    for (const Baked& left : baked) {
-        for (const Baked& right : baked) {
+    for(const Baked& left : baked)
+    {
+        for(const Baked& right : baked)
+        {
             double kerning = 0.0;
-            if (msdfgen::getKerning(kerning, font_ptr, left.codepoint, right.codepoint, msdfgen::FONT_SCALING_EM_NORMALIZED)
-                && kerning != 0.0) {
+            if(msdfgen::getKerning(kerning, font_ptr, left.codepoint, right.codepoint, msdfgen::FONT_SCALING_EM_NORMALIZED)
+                && kerning != 0.0)
+            {
                 kerning_[KerningKey(left.codepoint, right.codepoint)] = static_cast<f32>(kerning);
             }
         }
@@ -291,12 +319,15 @@ f32 MsdfAtlas::measureWidth(const std::string& text_ref) const
 {
     f32 width = 0.0f;
     u32 previous = 0;
-    for (unsigned char character : text_ref) {
+    for(unsigned char character : text_ref)
+    {
         const Glyph* glyph_ptr = findGlyph(character);
-        if (!glyph_ptr) {
+        if(!glyph_ptr)
+        {
             continue;
         }
-        if (previous != 0) {
+        if(previous != 0)
+        {
             width += getKerning(previous, character);
         }
         width += glyph_ptr->advance;
