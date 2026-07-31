@@ -7,10 +7,12 @@
 struct SDL_Window;
 struct ImFont;
 
-namespace Ui {
+namespace Ui
+{
 
 /// Owns the Dear ImGui context and its SDL3 + WebGPU backends.
-class Context {
+class Context
+{
 public:
     ~Context();
 

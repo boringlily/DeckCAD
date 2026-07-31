@@ -7,12 +7,14 @@
 
 #include <filesystem>
 
-namespace Ui {
-namespace UiContextInternal {
+namespace Ui
+{
+namespace UiContextInternal
+{
 
     ImVec4 ToImVec4(Color color)
     {
-        DeckMath::Vector4 v = color.toVector4();
+        DcadMath::Vector4 v = color.toVector4();
         return ImVec4 { v.x, v.y, v.z, v.w };
     }
 
@@ -29,7 +31,8 @@ bool Context::initializeResources(SDL_Window* window_ptr, const Gpu::Context& gp
     display_scale_ = display_scale > 0.0f ? display_scale : 1.0f;
 
     IMGUI_CHECKVERSION();
-    if (!ImGui::CreateContext()) {
+    if(!ImGui::CreateContext())
+    {
         out_error_ref = "ImGui::CreateContext failed";
         return false;
     }
@@ -40,7 +43,8 @@ bool Context::initializeResources(SDL_Window* window_ptr, const Gpu::Context& gp
     io_ref.ConfigFlags |= ImGuiConfigFlags_DockingEnable; // CAD app wants a persistent docked layout by default
     io_ref.IniFilename = nullptr; // layout is owned by the app, not a stray ini file
 
-    if (!ImGui_ImplSDL3_InitForOther(window_ptr)) {
+    if(!ImGui_ImplSDL3_InitForOther(window_ptr))
+    {
         out_error_ref = "ImGui_ImplSDL3_InitForOther failed";
         return false;
     }
@@ -52,7 +56,8 @@ bool Context::initializeResources(SDL_Window* window_ptr, const Gpu::Context& gp
     initialization_information.RenderTargetFormat = static_cast<WGPUTextureFormat>(gpu_ref.getSurfaceFormat());
     initialization_information.DepthStencilFormat = WGPUTextureFormat_Undefined;
 
-    if (!ImGui_ImplWGPU_Init(&initialization_information)) {
+    if(!ImGui_ImplWGPU_Init(&initialization_information))
+    {
         out_error_ref = "ImGui_ImplWGPU_Init failed";
         return false;
     }
@@ -69,13 +74,16 @@ bool Context::initializeResources(SDL_Window* window_ptr, const Gpu::Context& gp
     const std::string title_path = Platform::Assets::Resolve("fonts/Nunito/static/Nunito-SemiBold.ttf");
 
     std::error_code ec;
-    if (std::filesystem::exists(regular_path, ec)) {
+    if(std::filesystem::exists(regular_path, ec))
+    {
         font_regular_ptr_ = io_ref.Fonts->AddFontFromFileTTF(regular_path.c_str(), base_size);
     }
-    if (std::filesystem::exists(title_path, ec)) {
+    if(std::filesystem::exists(title_path, ec))
+    {
         font_title_ptr_ = io_ref.Fonts->AddFontFromFileTTF(title_path.c_str(), 20.0f);
     }
-    if (!font_regular_ptr_) {
+    if(!font_regular_ptr_)
+    {
         // missing font isn't fatal — falls back to ImGui's built-in font
         font_regular_ptr_ = io_ref.Fonts->AddFontDefault();
     }
@@ -87,7 +95,8 @@ bool Context::initializeResources(SDL_Window* window_ptr, const Gpu::Context& gp
 
 void Context::applyTheme()
 {
-    if (!initialized_) {
+    if(!initialized_)
+    {
         return;
     }
 
@@ -181,15 +190,18 @@ void Context::renderFrame(const wgpu::RenderPassEncoder& pass_ref)
 
 void Context::shutdownResources()
 {
-    if (wgpu_backend_ready_) {
+    if(wgpu_backend_ready_)
+    {
         ImGui_ImplWGPU_Shutdown();
         wgpu_backend_ready_ = false;
     }
-    if (sdl_backend_ready_) {
+    if(sdl_backend_ready_)
+    {
         ImGui_ImplSDL3_Shutdown();
         sdl_backend_ready_ = false;
     }
-    if (initialized_) {
+    if(initialized_)
+    {
         ImGui::DestroyContext();
         initialized_ = false;
     }

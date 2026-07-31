@@ -4,7 +4,8 @@
 #include <array>
 #include <string>
 
-namespace Ui {
+namespace Ui
+{
 
 // X-macro keeps the enum and the filename table in sync. Names are PascalCase,
 // not the usual CAPITAL_SNAKE, because Icons.cpp stringifies them directly into
@@ -22,7 +23,8 @@ namespace Ui {
     DO(Unknown)
 
 #define DECKCAD_ICON_ENUM(NAME) NAME,
-enum class IconId : u8 {
+enum class IconId : u8
+{
     DECKCAD_ICON_LIST(DECKCAD_ICON_ENUM)
         Count
 };
@@ -35,7 +37,8 @@ inline constexpr size_t ICON_COUNT = static_cast<size_t>(IconId::Count);
  * @note Vector sources are rasterized at the display's real pixel density, so icons
  * stay crisp on HiDPI screens instead of being an upscaled bitmap.
  */
-class IconSet {
+class IconSet
+{
 public:
     /**
      * @brief Rasterizes the SVG icon set into the GPU atlas texture.

@@ -5,11 +5,12 @@
 #include <cstdint>
 #include <imgui.h>
 
-namespace Ui {
+namespace Ui
+{
 
 inline ImVec4 ToImVec4(const Color& color_ref)
 {
-    DeckMath::Vector4 v = color_ref.toVector4();
+    DcadMath::Vector4 v = color_ref.toVector4();
     return ImVec4 { v.x, v.y, v.z, v.w };
 }
 
