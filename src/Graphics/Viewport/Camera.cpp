@@ -1,9 +1,10 @@
 #include "Camera.h"
 #include <algorithm>
 
-namespace Viewport {
+namespace Viewport
+{
 
-using namespace DeckMath;
+using namespace DcadMath;
 
 void Camera::resetCamera()
 {
@@ -16,13 +17,16 @@ void Camera::setOrientation(Orientation orientation)
 {
     // preserve current zoom distance across the orientation snap
     f32 distance = getDistanceToTarget();
-    if (distance < MIN_DISTANCE) {
+    if(distance < MIN_DISTANCE)
+    {
         distance = 25.0f;
     }
     target_ = { 0.0f, 0.0f, 0.0f };
 
-    switch (orientation) {
-    case Orientation::Isometric: {
+    switch(orientation)
+    {
+    case Orientation::Isometric:
+    {
         Vector3 direction = Normalize(Vector3 { 1.0f, 1.0f, 1.0f });
         position_ = direction * distance;
         up_ = { 0.0f, 1.0f, 0.0f };
@@ -45,7 +49,8 @@ void Camera::setOrientation(Orientation orientation)
 
 void Camera::orbitAroundTarget(f32 delta_x, f32 delta_y)
 {
-    if (delta_x == 0.0f && delta_y == 0.0f) {
+    if(delta_x == 0.0f && delta_y == 0.0f)
+    {
         return;
     }
 
@@ -63,7 +68,8 @@ void Camera::orbitAroundTarget(f32 delta_x, f32 delta_y)
 
     // near the poles, forward and up are nearly parallel and the cross
     // product collapses; skip the pitch rather than snapping to a random axis
-    if (LengthSquared(right) > 1e-8f) {
+    if(LengthSquared(right) > 1e-8f)
+    {
         right = Normalize(right);
         Vector3 rotated = RotateAxisAngle(offset, right, pitch);
         Vector3 new_up = Normalize(RotateAxisAngle(up_, right, pitch));
@@ -76,7 +82,8 @@ void Camera::orbitAroundTarget(f32 delta_x, f32 delta_y)
 
 void Camera::panAcrossView(f32 delta_x, f32 delta_y)
 {
-    if (delta_x == 0.0f && delta_y == 0.0f) {
+    if(delta_x == 0.0f && delta_y == 0.0f)
+    {
         return;
     }
 
@@ -94,13 +101,15 @@ void Camera::panAcrossView(f32 delta_x, f32 delta_y)
 
 void Camera::zoomTowardTarget(f32 amount)
 {
-    if (amount == 0.0f) {
+    if(amount == 0.0f)
+    {
         return;
     }
 
     Vector3 offset = position_ - target_;
     f32 distance = Length(offset);
-    if (distance < 1e-6f) {
+    if(distance < 1e-6f)
+    {
         return;
     }
 
@@ -118,10 +127,12 @@ Matrix4 Camera::getViewMatrix() const
 
 Matrix4 Camera::getProjectionMatrix(f32 aspect) const
 {
-    if (aspect <= 0.0f) {
+    if(aspect <= 0.0f)
+    {
         aspect = 1.0f;
     }
-    if (projection_ == Projection::Perspective) {
+    if(projection_ == Projection::Perspective)
+    {
         return MatrixPerspective(fov_y_ * DEGREES_TO_RADIANS, aspect, near_, far_);
     }
     // match the perspective view's framing at the current distance
@@ -133,7 +144,8 @@ Matrix4 Camera::getProjectionMatrix(f32 aspect) const
 Ray Camera::screenPointToRay(f32 x, f32 y, f32 viewport_width, f32 viewport_height) const
 {
     Ray ray {};
-    if (viewport_width <= 0.0f || viewport_height <= 0.0f) {
+    if(viewport_width <= 0.0f || viewport_height <= 0.0f)
+    {
         return ray;
     }
 
@@ -148,7 +160,8 @@ Ray Camera::screenPointToRay(f32 x, f32 y, f32 viewport_width, f32 viewport_heig
     Vector4 near_homogeneous = inverse_view_projection * Vector4 { ndc_x, ndc_y, 0.0f, 1.0f };
     Vector4 far_homogeneous = inverse_view_projection * Vector4 { ndc_x, ndc_y, 1.0f, 1.0f };
 
-    if (near_homogeneous.w == 0.0f || far_homogeneous.w == 0.0f) {
+    if(near_homogeneous.w == 0.0f || far_homogeneous.w == 0.0f)
+    {
         return ray;
     }
 

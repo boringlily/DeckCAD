@@ -1,8 +1,9 @@
 #pragma once
-#include "DeckMath.h"
+#include "DcadMath.h"
 #include "Types.h"
 
-namespace Viewport {
+namespace Viewport
+{
 
 /**
  * @brief Orbit camera for the CAD viewport.
@@ -10,16 +11,19 @@ namespace Viewport {
  * directly. This keeps the camera unit-testable and decoupled from any
  * windowing library.
  */
-class Camera {
+class Camera
+{
 public:
-    enum class Orientation {
+    enum class Orientation
+    {
         Isometric,
         PlaneXY,
         PlaneXZ,
         PlaneYZ,
     };
 
-    enum class Projection {
+    enum class Projection
+    {
         Perspective,
         Orthographic,
     };
@@ -42,17 +46,17 @@ public:
      */
     void zoomTowardTarget(f32 amount);
 
-    DeckMath::Matrix4 getViewMatrix() const;
-    DeckMath::Matrix4 getProjectionMatrix(f32 aspect) const;
+    DcadMath::Matrix4 getViewMatrix() const;
+    DcadMath::Matrix4 getProjectionMatrix(f32 aspect) const;
 
     /// Build a world-space ray through a viewport pixel.
     /// @p x, @p y are in pixels with the origin at the viewport's top-left.
-    DeckMath::Ray screenPointToRay(f32 x, f32 y, f32 viewport_width, f32 viewport_height) const;
+    DcadMath::Ray screenPointToRay(f32 x, f32 y, f32 viewport_width, f32 viewport_height) const;
 
-    DeckMath::Vector3 getPosition() const { return position_; }
-    DeckMath::Vector3 getTarget() const { return target_; }
-    DeckMath::Vector3 getUp() const { return up_; }
-    f32 getDistanceToTarget() const { return DeckMath::Distance(position_, target_); }
+    DcadMath::Vector3 getPosition() const { return position_; }
+    DcadMath::Vector3 getTarget() const { return target_; }
+    DcadMath::Vector3 getUp() const { return up_; }
+    f32 getDistanceToTarget() const { return DcadMath::Distance(position_, target_); }
 
     Projection getProjection() const { return projection_; }
     void setProjection(Projection p) { projection_ = p; }
@@ -69,9 +73,9 @@ public:
     static constexpr f32 MAX_DISTANCE = 5000.0f;
 
 private:
-    DeckMath::Vector3 position_ { 15.0f, 15.0f, 15.0f };
-    DeckMath::Vector3 target_ { 0.0f, 0.0f, 0.0f };
-    DeckMath::Vector3 up_ { 0.0f, 1.0f, 0.0f };
+    DcadMath::Vector3 position_ { 15.0f, 15.0f, 15.0f };
+    DcadMath::Vector3 target_ { 0.0f, 0.0f, 0.0f };
+    DcadMath::Vector3 up_ { 0.0f, 1.0f, 0.0f };
 
     Projection projection_ { Projection::Perspective };
     f32 fov_y_ { 45.0f };

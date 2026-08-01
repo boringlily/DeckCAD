@@ -3,11 +3,14 @@
 
 #include <cstring>
 
-namespace Viewport {
-namespace GridRendererInternal {
+namespace Viewport
+{
+namespace GridRendererInternal
+{
 
     // must mirror the Uniforms struct in shaders/grid.wgsl
-    struct GridUniforms {
+    struct GridUniforms
+    {
         f32 view_projection[16];
         f32 inverse_view_projection[16];
         f32 camera_position[4];
@@ -18,7 +21,7 @@ namespace GridRendererInternal {
         f32 color_axis_z[4];
     };
 
-    void CopyVector4(f32* destination_ptr, const DeckMath::Vector4& source_ref)
+    void CopyVector4(f32* destination_ptr, const DcadMath::Vector4& source_ref)
     {
         destination_ptr[0] = source_ref.x;
         destination_ptr[1] = source_ref.y;
@@ -35,11 +38,13 @@ bool GridRenderer::initializeResources(const Gpu::Context& gpu_ref,
     std::string& out_error_ref)
 {
     std::string wgsl;
-    if (!Platform::Assets::ReadTextFile(Platform::Assets::Resolve("shaders/grid.wgsl"), wgsl, out_error_ref)) {
+    if(!Platform::Assets::ReadTextFile(Platform::Assets::Resolve("shaders/grid.wgsl"), wgsl, out_error_ref))
+    {
         return false;
     }
     wgpu::ShaderModule shader = gpu_ref.createShaderModule("grid", wgsl);
-    if (!shader) {
+    if(!shader)
+    {
         out_error_ref = "Failed to compile shaders/grid.wgsl";
         return false;
     }
@@ -119,7 +124,8 @@ bool GridRenderer::initializeResources(const Gpu::Context& gpu_ref,
     pipeline_descriptor.fragment = &fragment;
 
     pipeline_ = gpu_ref.getDevice().CreateRenderPipeline(&pipeline_descriptor);
-    if (!pipeline_) {
+    if(!pipeline_)
+    {
         out_error_ref = "Failed to create the grid render pipeline";
         return false;
     }
@@ -135,16 +141,17 @@ void GridRenderer::shutdownResources()
 
 void GridRenderer::drawGrid(const Gpu::Context& gpu_ref,
     const wgpu::RenderPassEncoder& pass_ref,
-    const DeckMath::Matrix4& view_ref,
-    const DeckMath::Matrix4& projection_ref,
-    DeckMath::Vector3 camera_position)
+    const DcadMath::Matrix4& view_ref,
+    const DcadMath::Matrix4& projection_ref,
+    DcadMath::Vector3 camera_position)
 {
-    if (!pipeline_ || !enabled_) {
+    if(!pipeline_ || !enabled_)
+    {
         return;
     }
 
-    DeckMath::Matrix4 view_projection = projection_ref * view_ref;
-    DeckMath::Matrix4 inverse_view_projection = DeckMath::Inverse(view_projection);
+    DcadMath::Matrix4 view_projection = projection_ref * view_ref;
+    DcadMath::Matrix4 inverse_view_projection = DcadMath::Inverse(view_projection);
 
     GridUniforms uniforms {};
     std::memcpy(uniforms.view_projection, &view_projection.columns[0].x, sizeof(uniforms.view_projection));

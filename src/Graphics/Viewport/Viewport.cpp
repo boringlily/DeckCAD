@@ -1,12 +1,15 @@
 #include "Viewport.h"
 #include <algorithm>
 
-namespace Viewport {
-namespace ViewportInternal {
+namespace Viewport
+{
+namespace ViewportInternal
+{
 
     u32 RoundUpTo(u32 value, u32 granularity)
     {
-        if (value == 0) {
+        if(value == 0)
+        {
             return granularity;
         }
         return ((value + granularity - 1) / granularity) * granularity;
@@ -17,15 +20,18 @@ using namespace ViewportInternal;
 
 bool Viewport::initializeResources(const Gpu::Context& gpu_ref, const Text::MsdfAtlas& atlas_ref, std::string& out_error_ref)
 {
-    if (!grid_.initializeResources(gpu_ref, COLOR_FORMAT, DEPTH_FORMAT, out_error_ref)) {
+    if(!grid_.initializeResources(gpu_ref, COLOR_FORMAT, DEPTH_FORMAT, out_error_ref))
+    {
         return false;
     }
-    if (!solids_.initializeResources(gpu_ref, COLOR_FORMAT, DEPTH_FORMAT, out_error_ref)) {
+    if(!solids_.initializeResources(gpu_ref, COLOR_FORMAT, DEPTH_FORMAT, out_error_ref))
+    {
         return false;
     }
     // text is optional: a missing or unbakeable font must not stop the
     // viewport from rendering, it just disables in-viewport labels
-    if (atlas_ref.isValid() && !text_.initializeResources(gpu_ref, atlas_ref, COLOR_FORMAT, DEPTH_FORMAT, out_error_ref)) {
+    if(atlas_ref.isValid() && !text_.initializeResources(gpu_ref, atlas_ref, COLOR_FORMAT, DEPTH_FORMAT, out_error_ref))
+    {
         return false;
     }
     return true;
@@ -81,7 +87,8 @@ void Viewport::allocateTargets(const Gpu::Context& gpu_ref, u32 width, u32 heigh
 
 void Viewport::resizeTarget(const Gpu::Context& gpu_ref, u32 width, u32 height)
 {
-    if (width == 0 || height == 0) {
+    if(width == 0 || height == 0)
+    {
         return;
     }
 
@@ -91,7 +98,8 @@ void Viewport::resizeTarget(const Gpu::Context& gpu_ref, u32 width, u32 height)
     const u32 required_width = RoundUpTo(width, SIZE_GRANULARITY);
     const u32 required_height = RoundUpTo(height, SIZE_GRANULARITY);
 
-    if (!color_view_) {
+    if(!color_view_)
+    {
         allocateTargets(gpu_ref, required_width, required_height);
         return;
     }
@@ -101,9 +109,12 @@ void Viewport::resizeTarget(const Gpu::Context& gpu_ref, u32 width, u32 height)
     // allocation, to avoid thrashing when nudging a splitter back and forth
     const bool much_too_large = texture_width_ >= required_width * 2 && texture_height_ >= required_height * 2;
 
-    if (much_too_large) {
+    if(much_too_large)
+    {
         allocateTargets(gpu_ref, required_width, required_height);
-    } else if (too_small) {
+    }
+    else if(too_small)
+    {
         // grow only the axis that needs it and keep the other: resizing in
         // one direction won't repeatedly reallocate the whole target
         allocateTargets(gpu_ref,
@@ -126,7 +137,8 @@ void Viewport::beginScene()
 
 void Viewport::renderFrame(const Gpu::Context& gpu_ref, const Camera& camera_ref)
 {
-    if (!isReady()) {
+    if(!isReady())
+    {
         return;
     }
 
@@ -156,8 +168,8 @@ void Viewport::renderFrame(const Gpu::Context& gpu_ref, const Camera& camera_ref
     pass_ref.SetViewport(0.0f, 0.0f, static_cast<f32>(width_), static_cast<f32>(height_), 0.0f, 1.0f);
     pass_ref.SetScissorRect(0, 0, width_, height_);
 
-    const DeckMath::Matrix4 view = camera_ref.getViewMatrix();
-    const DeckMath::Matrix4 projection = camera_ref.getProjectionMatrix(getAspectRatio());
+    const DcadMath::Matrix4 view = camera_ref.getViewMatrix();
+    const DcadMath::Matrix4 projection = camera_ref.getProjectionMatrix(getAspectRatio());
 
     // order matters: the grid writes depth first, keeping translucent planes
     // and labels behind it correctly occluded
