@@ -9,8 +9,10 @@
 // ModelCommand - Appends commands to the CAD kernel's command list.
 // MetaData     - Non-historic actions that change how models are displayed.
 
-namespace Core {
-namespace ToolboxPanelInternal {
+namespace Core
+{
+namespace ToolboxPanelInternal
+{
 
     /// Displays a placeholder screen for a tool that has not been implemented yet.
     void ToolPlaceholder(FrameContext& context_ref)
@@ -22,7 +24,8 @@ namespace ToolboxPanelInternal {
             "and will be enabled once it is ready.");
         ImGui::Dummy(ImVec2(0, 4));
 
-        if (ImGui::Button("Ok, I understand", ImVec2(-FLT_MIN, 0))) {
+        if(ImGui::Button("Ok, I understand", ImVec2(-FLT_MIN, 0)))
+        {
             scene_ref.toolbox.dismissTool();
         }
     }
@@ -41,7 +44,8 @@ namespace ToolboxPanelInternal {
 
         Ui::IconImage(context_ref.icons_ref, icon, icon_size, Ui::gui_theme.text_base);
         ImGui::SameLine();
-        if (ImGui::Selectable(name_ptr, false, ImGuiSelectableFlags_None)) {
+        if(ImGui::Selectable(name_ptr, false, ImGuiSelectableFlags_None))
+        {
             context_ref.app_ref.getCurrentScene().toolbox.activateTool(tool);
             clicked = true;
         }
@@ -54,14 +58,16 @@ namespace ToolboxPanelInternal {
     void BeginToolGroup(const char* name_ptr, bool& out_open_ref)
     {
         out_open_ref = ImGui::CollapsingHeader(name_ptr, ImGuiTreeNodeFlags_DefaultOpen);
-        if (out_open_ref) {
+        if(out_open_ref)
+        {
             ImGui::Indent(ImGui::GetStyle().IndentSpacing * 0.5f);
         }
     }
 
     void EndToolGroup(bool open)
     {
-        if (open) {
+        if(open)
+        {
             ImGui::Unindent(ImGui::GetStyle().IndentSpacing * 0.5f);
         }
     }
@@ -70,14 +76,16 @@ namespace ToolboxPanelInternal {
     {
         bool open = false;
         BeginToolGroup("Create", open);
-        if (open) {
+        if(open)
+        {
             ToolSelectButton(context_ref, "Extrude", Ui::IconId::Unknown, &ToolPlaceholder);
             ToolSelectButton(context_ref, "Revolve", Ui::IconId::Unknown, &ToolPlaceholder);
         }
         EndToolGroup(open);
 
         BeginToolGroup("Modify", open);
-        if (open) {
+        if(open)
+        {
             ToolSelectButton(context_ref, "Fillet", Ui::IconId::Unknown, &ToolPlaceholder);
             ToolSelectButton(context_ref, "Chamfer", Ui::IconId::Unknown, &ToolPlaceholder);
         }
@@ -93,11 +101,13 @@ namespace ToolboxPanelInternal {
         Ui::IconImage(context_ref.icons_ref, in_sketch_context ? Ui::IconId::Check : Ui::IconId::Plus,
             icon_size, Ui::gui_theme.text_base);
         ImGui::SameLine();
-        if (ImGui::Button(in_sketch_context ? "Finish Sketch" : "Create Sketch", ImVec2(-FLT_MIN, 0))) {
+        if(ImGui::Button(in_sketch_context ? "Finish Sketch" : "Create Sketch", ImVec2(-FLT_MIN, 0)))
+        {
             scene_ref.toolbox.context = in_sketch_context ? Toolbox::Solid : Toolbox::Sketch;
         }
 
-        if (!in_sketch_context) {
+        if(!in_sketch_context)
+        {
             return;
         }
 
@@ -105,20 +115,23 @@ namespace ToolboxPanelInternal {
 
         bool open = false;
         BeginToolGroup("Draw", open);
-        if (open) {
+        if(open)
+        {
             ToolSelectButton(context_ref, "Line", Ui::IconId::Unknown, &ToolPlaceholder);
         }
         EndToolGroup(open);
 
         BeginToolGroup("Dimensions", open);
-        if (open) {
+        if(open)
+        {
             ToolSelectButton(context_ref, "Length", Ui::IconId::Unknown, &ToolPlaceholder);
             ToolSelectButton(context_ref, "Angle", Ui::IconId::Unknown, &ToolPlaceholder);
         }
         EndToolGroup(open);
 
         BeginToolGroup("Constraints", open);
-        if (open) {
+        if(open)
+        {
             ToolSelectButton(context_ref, "Coincident", Ui::IconId::Unknown, &ToolPlaceholder);
         }
         EndToolGroup(open);
@@ -128,13 +141,15 @@ namespace ToolboxPanelInternal {
     {
         bool open = false;
         BeginToolGroup("Measure", open);
-        if (open) {
+        if(open)
+        {
             ToolSelectButton(context_ref, "Distance", Ui::IconId::Unknown, &ToolPlaceholder);
         }
         EndToolGroup(open);
     }
 
-    struct Toolset {
+    struct Toolset
+    {
         const char* name_ptr;
         void (*function)(FrameContext&);
     };
@@ -152,27 +167,35 @@ void DrawToolboxPanel(FrameContext& context_ref)
 {
     Scene& scene_ref = context_ref.app_ref.getCurrentScene();
 
-    if (!ImGui::Begin("Toolbox", nullptr, PANEL_WINDOW_FLAGS)) {
+    if(!ImGui::Begin("Toolbox", nullptr, PANEL_WINDOW_FLAGS))
+    {
         ImGui::End();
         return;
     }
 
     // active tool takes over the whole panel until it dismisses itself
-    if (scene_ref.toolbox.hasActiveTool()) {
+    if(scene_ref.toolbox.hasActiveTool())
+    {
         scene_ref.toolbox.active_tool(context_ref);
         ImGui::End();
         return;
     }
 
-    if (ImGui::BeginTabBar("ToolsetTabs", ImGuiTabBarFlags_None)) {
-        for (size_t index = 0; index < TOOLSETS.size(); ++index) {
-            if (ImGui::BeginTabItem(TOOLSETS[index].name_ptr)) {
+    if(ImGui::BeginTabBar("ToolsetTabs", ImGuiTabBarFlags_None))
+    {
+        for(size_t index = 0; index < TOOLSETS.size(); ++index)
+        {
+            if(ImGui::BeginTabItem(TOOLSETS[index].name_ptr))
+            {
                 scene_ref.toolbox.active_toolset = static_cast<u32>(index);
                 ImGui::Dummy(ImVec2(0, 4));
 
-                if (TOOLSETS[index].function) {
+                if(TOOLSETS[index].function)
+                {
                     TOOLSETS[index].function(context_ref);
-                } else {
+                }
+                else
+                {
                     ImGui::TextUnformatted("The toolset function is not assigned.");
                 }
                 ImGui::EndTabItem();
