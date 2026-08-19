@@ -4,10 +4,12 @@
 #include "Types.h"
 #include <string>
 
-namespace Core {
+namespace Core
+{
 
 /// One open document: its camera, its tool state and its display options.
-struct Scene {
+struct Scene
+{
     Scene() = default;
     explicit Scene(std::string scene_name)
         : name { std::move(scene_name) }

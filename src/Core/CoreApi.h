@@ -18,20 +18,21 @@
  * ImGui::SetCurrentContext() points this library's copy at the context the executable
  * already created; see Dear ImGui's own guidance on using it across DLL boundaries.
  */
-extern "C" {
+extern "C"
+{
 
-/**
- * @brief Seeds a freshly loaded AppState with an initial scene.
- * @note Only touches *app_ptr when it has no scenes yet; calling this again
- * after a reload leaves existing state alone.
- */
-DECKCAD_CORE_API void CoreAppInit(Core::AppState* app_ptr, ImGuiContext* imgui_context_ptr);
+    /**
+     * @brief Seeds a freshly loaded AppState with an initial scene.
+     * @note Only touches *app_ptr when it has no scenes yet; calling this again
+     * after a reload leaves existing state alone.
+     */
+    DECKCAD_CORE_API void CoreAppInit(Core::AppState* app_ptr, ImGuiContext* imgui_context_ptr);
 
-/**
- * @brief Builds one frame.
- * @note Stands in for Core::BuildFrame() when Core is loaded as a hot-reloadable
- * shared library.
- */
-DECKCAD_CORE_API void CoreBuildFrame(Core::FrameContext* frame_ptr, ImGuiContext* imgui_context_ptr);
+    /**
+     * @brief Builds one frame.
+     * @note Stands in for Core::BuildFrame() when Core is loaded as a hot-reloadable
+     * shared library.
+     */
+    DECKCAD_CORE_API void CoreBuildFrame(Core::FrameContext* frame_ptr, ImGuiContext* imgui_context_ptr);
 
 } // extern "C"

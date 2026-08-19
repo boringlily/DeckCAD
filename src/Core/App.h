@@ -7,7 +7,8 @@
 
 #include <imgui.h>
 
-namespace Core {
+namespace Core
+{
 
 /// Panels are fixed furniture: they never carry a title bar, and neither the
 /// window nor its dock tab can be dragged somewhere else.
@@ -19,7 +20,8 @@ constexpr ImGuiWindowFlags PANEL_WINDOW_FLAGS = ImGuiWindowFlags_NoTitleBar
  * @note Renderer and GPU objects arrive by reference and are never stored;
  * the logic layer stays free of GPU ownership.
  */
-struct FrameContext {
+struct FrameContext
+{
     AppState& app_ref;
     const Gpu::Context& gpu_ref;
     Ui::IconSet& icons_ref;
