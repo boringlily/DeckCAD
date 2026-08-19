@@ -12,7 +12,8 @@
  * when DeckCAD is configured with DECKCAD_HOT_RELOAD=ON; see Core/CoreApi.h for the
  * two entry points this dispatches to.
  */
-class HotReloadCore {
+class HotReloadCore
+{
 public:
     /**
      * @brief Locates the Core library in @p library_directory_ref and performs the first load.

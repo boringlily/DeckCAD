@@ -15,7 +15,8 @@
 #include <cstdio>
 #include <string>
 
-namespace MainInternal {
+namespace MainInternal
+{
 
 constexpr u32 WINDOW_WIDTH = 1440;
 constexpr u32 WINDOW_HEIGHT = 744;
@@ -35,7 +36,8 @@ using namespace MainInternal;
 int main(int, char**)
 {
     Platform::Window window;
-    if (!window.createWindow(WINDOW_TITLE, WINDOW_WIDTH, WINDOW_HEIGHT)) {
+    if(!window.createWindow(WINDOW_TITLE, WINDOW_WIDTH, WINDOW_HEIGHT))
+    {
         ReportError("window", window.getLastError());
         return 1;
     }
@@ -50,7 +52,8 @@ int main(int, char**)
     gpu_descriptor.vsync = true;
 
     Gpu::Context gpu;
-    if (!gpu.initializeResources(gpu_descriptor)) {
+    if(!gpu.initializeResources(gpu_descriptor))
+    {
         ReportError("webgpu", gpu.getLastError());
         return 1;
     }
@@ -59,13 +62,15 @@ int main(int, char**)
 
     Ui::Context ui;
     std::string error;
-    if (!ui.initializeResources(window.getHandle(), gpu, display_scale, error)) {
+    if(!ui.initializeResources(window.getHandle(), gpu, display_scale, error))
+    {
         ReportError("imgui", error);
         return 1;
     }
 
     Ui::IconSet icons;
-    if (!icons.initializeResources(gpu, display_scale, ICON_LOGICAL_SIZE, error)) {
+    if(!icons.initializeResources(gpu, display_scale, ICON_LOGICAL_SIZE, error))
+    {
         // Icons are cosmetic; the app remains usable without them.
         ReportError("icons", error);
     }
@@ -74,12 +79,14 @@ int main(int, char**)
     Text::MsdfAtlas atlas;
     Text::AtlasConfiguration atlas_configuration {};
     const std::string font_path = Platform::Assets::Resolve("fonts/Nunito/static/Nunito-SemiBold.ttf");
-    if (!atlas.buildAtlas(font_path, atlas_configuration, error)) {
+    if(!atlas.buildAtlas(font_path, atlas_configuration, error))
+    {
         ReportError("text atlas", error);
     }
 
     Viewport::Viewport viewport;
-    if (!viewport.initializeResources(gpu, atlas, error)) {
+    if(!viewport.initializeResources(gpu, atlas, error))
+    {
         ReportError("viewport", error);
         return 1;
     }
@@ -89,7 +96,8 @@ int main(int, char**)
 #ifdef DECKCAD_HOT_RELOAD_ENABLED
     HotReloadCore hot_reload_core;
     const char* base_path_ptr = SDL_GetBasePath();
-    if (!hot_reload_core.openLibrary(base_path_ptr ? base_path_ptr : ".")) {
+    if(!hot_reload_core.openLibrary(base_path_ptr ? base_path_ptr : "."))
+    {
         ReportError("hot reload", "failed to load deckcad_core");
         return 1;
     }
@@ -103,7 +111,8 @@ int main(int, char**)
     u64 previous_counter = SDL_GetPerformanceCounter();
     const f64 counter_frequency = static_cast<f64>(SDL_GetPerformanceFrequency());
 
-    while (!window.shouldClose()) {
+    while(!window.shouldClose())
+    {
         window.pumpEvents();
 
         const u64 current_counter = SDL_GetPerformanceCounter();
@@ -111,7 +120,8 @@ int main(int, char**)
         previous_counter = current_counter;
 
         // Nothing to present while minimized, and the surface may be zero-sized.
-        if (window.isMinimized()) {
+        if(window.isMinimized())
+        {
             SDL_Delay(16);
             continue;
         }
@@ -119,7 +129,8 @@ int main(int, char**)
         gpu.resizeTarget(window.getPixelWidth(), window.getPixelHeight());
         gpu.tickDevice();
 
-        if (!gpu.beginFrame()) {
+        if(!gpu.beginFrame())
+        {
             continue; // surface was reconfigured; try again next frame
         }
 
@@ -146,7 +157,7 @@ int main(int, char**)
         color_attachment.view = gpu.getBackbufferView();
         color_attachment.loadOp = wgpu::LoadOp::Clear;
         color_attachment.storeOp = wgpu::StoreOp::Store;
-        const DeckMath::Vector4 clear = Ui::gui_theme.background_dark.toVector4();
+        const DcadMath::Vector4 clear = Ui::gui_theme.background_dark.toVector4();
         color_attachment.clearValue = { clear.x, clear.y, clear.z, 1.0f };
 
         wgpu::RenderPassDescriptor pass_descriptor {};
