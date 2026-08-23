@@ -27,8 +27,8 @@ Platform     SDL window, event pump, asset resolution
 Common       scalar types, linear algebra                    (header-only)
 ```
 
-- **Common** — `Types.h`, `DeckMath.h`. No dependencies.
-  Named `DeckMath.h` rather than `Math.h` on purpose: macOS filesystems are
+- **Common** — `Types.h`, `DcadMath.h`. No dependencies.
+  Named `DcadMath.h` rather than `Math.h` on purpose: macOS filesystems are
   case-insensitive, so a header called `Math.h` on the include path gets picked
   up by libc++'s `<cmath>` when it asks for `<math.h>`, and the standard library
   stops compiling.
@@ -45,7 +45,7 @@ Common       scalar types, linear algebra                    (header-only)
 ### WebGPU depth range
 
 Clip-space depth is `[0, 1]`, not OpenGL's `[-1, 1]`. Every projection in
-`DeckMath.h` maps near to 0 and far to 1, depth attachments clear to `1.0`, and
+`DcadMath.h` maps near to 0 and far to 1, depth attachments clear to `1.0`, and
 `MathTests.cpp` guards the convention so a regression fails a test rather than
 producing subtly wrong occlusion.
 
