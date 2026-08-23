@@ -30,8 +30,8 @@ This populates `submodules/` with:
 | `msdfgen`    | Multi-channel signed distance field generation |
 | `nanosvg`    | SVG icon rasterization |
 | `googletest` | Unit tests |
-| `glaze`      | Reserved for scene serialization; not yet wired into the build |
-| `tracy`      | Reserved for profiling; not yet wired into the build |
+| `glaze`      | Reserved for scene serialization; Not Implemented|
+| `tracy`      | Reserved for profiling; Not Implemented |
 
 Dawn pulls its own third-party tree at CMake configure time
 (`DAWN_FETCH_DEPENDENCIES=ON`), so `depot_tools` is not needed.
