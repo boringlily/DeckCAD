@@ -1,9 +1,10 @@
-#include "DeckMath.h"
+#include "DcadMath.h"
 #include <gtest/gtest.h>
 
-using namespace DeckMath;
+using namespace DcadMath;
 
-namespace MathTestsInternal {
+namespace MathTestsInternal
+{
 
 constexpr f32 EPSILON = 1e-4f;
 
@@ -30,7 +31,8 @@ TEST(Matrix4, IdentityIsMultiplicativeIdentity)
     Matrix4 transform = MatrixTranslate({ 3.0f, -2.0f, 7.5f }) * MatrixScale({ 2.0f, 2.0f, 2.0f });
 
     Matrix4 result = transform * identity;
-    for (int i = 0; i < 16; ++i) {
+    for(int i = 0; i < 16; ++i)
+    {
         EXPECT_NEAR((&result.columns[0].x)[i], (&transform.columns[0].x)[i], EPSILON);
     }
 }
@@ -55,7 +57,8 @@ TEST(Matrix4, InverseRoundTripsAGeneralTransform)
     Matrix4 round_trip = transform * Inverse(transform);
     Matrix4 identity = Matrix4::identityMatrix();
 
-    for (int i = 0; i < 16; ++i) {
+    for(int i = 0; i < 16; ++i)
+    {
         EXPECT_NEAR((&round_trip.columns[0].x)[i], (&identity.columns[0].x)[i], 1e-3f);
     }
 }
@@ -67,7 +70,8 @@ TEST(Matrix4, SingularMatrixInverseFallsBackToIdentity)
     Matrix4 result = Inverse(singular);
     Matrix4 identity = Matrix4::identityMatrix();
 
-    for (int i = 0; i < 16; ++i) {
+    for(int i = 0; i < 16; ++i)
+    {
         EXPECT_NEAR((&result.columns[0].x)[i], (&identity.columns[0].x)[i], EPSILON);
     }
 }
