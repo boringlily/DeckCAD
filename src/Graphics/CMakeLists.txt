@@ -1,63 +1,34 @@
-cmake_minimum_required(VERSION 3.15)
-
-if(HOT_RELOAD)
-set(LIB_BUILD_OPTION SHARED)
-else()
-set(LIB_BUILD_OPTION STATIC)
-endif()
-
-
-
-set(SRC_FILES
-${GRAPHICS_DIR}/Graphics.cpp
+# GPU context, MSDF text, ImGui integration and the 3D viewport renderers.
+add_library(deckcad_graphics STATIC
+    ${CMAKE_CURRENT_SOURCE_DIR}/Gpu/GpuContext.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/Text/MsdfAtlas.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/Text/TextRenderer.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/Ui/UiContext.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/Ui/Icons.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/Ui/Widgets.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/Viewport/Camera.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/Viewport/GridRenderer.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/Viewport/SolidRenderer.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/Viewport/Viewport.cpp
 )
 
-set(HEADER_FILES
-${COMMON_DIR}
-${GRAPHICS_DIR}
-${CLAY_DIR}
+target_include_directories(deckcad_graphics PUBLIC
+    ${CMAKE_CURRENT_SOURCE_DIR}/Gpu
+    ${CMAKE_CURRENT_SOURCE_DIR}/Text
+    ${CMAKE_CURRENT_SOURCE_DIR}/Ui
+    ${CMAKE_CURRENT_SOURCE_DIR}/Viewport
 )
 
-set(LIBS_TO_LINK
-raylib
+target_link_libraries(deckcad_graphics
+    PUBLIC
+        deckcad_common
+        deckcad_platform   # asset resolution for shaders, fonts and icons
+        imgui
+        webgpu_dawn
+    PRIVATE
+        msdfgen::msdfgen-core
+        msdfgen::msdfgen-ext
+        nanosvg_headers
 )
 
-if(WIN32)
-    list(APPEND SRC_FILES
-        # platform_win32.cpp
-    )
-    list(APPEND LIBS_TO_LINK
-        winmm
-        gdi32
-    )
-elseif(UNIX AND NOT APPLE)
-    list(APPEND SRC_FILES
-        # platform_linux.cpp
-    )
-    list(APPEND LIBS_TO_LINK
-        dl
-    )
-elseif(APPLE)
-  list(APPEND SRC_FILES
-        # platform_apple.cpp
-    )
-    list(APPEND LIBS_TO_LINK
-        "-framework IOKit"
-        "-framework Cocoa"
-        "-framework OPENGL"
-    )
-endif()
-
-add_library(GRAPHICS ${LIB_BUILD_OPTION} ${SRC_FILES} ${HEADER_FILES})
-target_include_directories(GRAPHICS PUBLIC ${HEADER_FILES})
-target_link_libraries(GRAPHICS PUBLIC ${LIBS_TO_LINK})
-
-include(GenerateExportHeader)
-generate_export_header(GRAPHICS
-    EXPORT_FILE_NAME "${CMAKE_CURRENT_SOURCE_DIR}/Graphics.export.h"
-    INCLUDE_GUARD_NAME "GRAPHICS_API_H"
-    EXPORT_MACRO_NAME "GRAPHICS_API"
-    NO_EXPORT_MACRO_NAME "GRAPHICS_NO_API"
-    DEPRECATED_MACRO_NAME "GRAPHICS_API_DEPRECATED"
-    NO_DEPRECATED_MACRO_NAME "GRAPHICS_API_NO_DEPRECATED"
-)
+set_target_properties(deckcad_graphics PROPERTIES FOLDER "DeckCAD")

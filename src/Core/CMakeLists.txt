@@ -1,76 +1,44 @@
-cmake_minimum_required(VERSION 3.15)
-
-
-set(SRC_DIR ${CMAKE_SOURCE_DIR}/src)
-
-set(SRC_FILES
-${SRC_DIR}/Core/Core.cpp
+# Application logic and panels.
+#
+# Holds no GPU handles of its own: every renderer arrives through FrameContext.
+# That constraint is what keeps the hot-reload boundary tractable: Main can
+# swap this library out at runtime without any GPU handle going stale.
+set(DECKCAD_CORE_SOURCES
+    ${CMAKE_CURRENT_SOURCE_DIR}/AppState.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/App.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/CoreApi.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/Panels/HeaderBar.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/Panels/ExplorerPanel.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/Panels/ViewportPanel.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/Panels/ToolboxPanel.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/Panels/StatusBar.cpp
 )
 
-set(INC_DIRS
-${COMMON_DIR}
-${GRAPHICS_DIR}
-${RAYLIB_DIR}/src
-${CLAY_DIR}
-${CORE_DIR}
-${CORE_DIR}
-)
-
-set(LIBS_TO_LINK
-)
-
-if(HOT_RELOAD)
-    set(LIB_BUILD_OPTION SHARED)
-    
-    list(APPEND LIBS_TO_LINK 
-        GRAPHICS
-    )
-
+if(DECKCAD_HOT_RELOAD)
+    add_library(deckcad_core SHARED ${DECKCAD_CORE_SOURCES})
+    target_compile_definitions(deckcad_core PRIVATE DECKCAD_CORE_SHARED)
 else()
-
-    set(LIB_BUILD_OPTION STATIC)
-
+    add_library(deckcad_core STATIC ${DECKCAD_CORE_SOURCES})
 endif()
 
-if(WIN32)
-    list(APPEND SRC_FILES
-        # platform_win32.cpp
-    )
-    list(APPEND LIBS_TO_LINK
-        winmm
-        gdi32
-    )
-elseif(UNIX AND NOT APPLE)
-    list(APPEND SRC_FILES
-        # platform_linux.cpp
-    )
-    list(APPEND LIBS_TO_LINK
-        dl
-    )
-elseif(APPLE)
-  list(APPEND SRC_FILES
-        # platform_apple.cpp
-    )
-    list(APPEND LIBS_TO_LINK
-        "-framework IOKit"
-        "-framework Cocoa"
-        "-framework OPENGL"
-    )
-endif()
+target_include_directories(deckcad_core PUBLIC ${CMAKE_CURRENT_SOURCE_DIR})
 
-add_library(CORE ${LIB_BUILD_OPTION} ${SRC_FILES} ${INC_DIRS})
-target_include_directories(CORE PUBLIC ${INC_DIRS})
-target_link_libraries(CORE ${LIBS_TO_LINK})
-if(HOT_RELOAD)
-    RANDOMIZE_PDB_NAME(CORE)
-endif()
-
-include(GenerateExportHeader)
-generate_export_header(CORE
-    EXPORT_FILE_NAME "${CMAKE_CURRENT_SOURCE_DIR}/Core.export.h"
-    INCLUDE_GUARD_NAME "CORE_API_H"
-    EXPORT_MACRO_NAME "CORE_API"
-    NO_EXPORT_MACRO_NAME "CORE_NO_API"
-    DEPRECATED_MACRO_NAME "CORE_API_DEPRECATED"
-    NO_DEPRECATED_MACRO_NAME "CORE_API_NO_DEPRECATED"
+target_link_libraries(deckcad_core PUBLIC
+    deckcad_common
+    deckcad_graphics
+    imgui_core   # widget drawing only; never the SDL3/Dawn-linked backends
 )
+
+if(DECKCAD_HOT_RELOAD AND APPLE)
+    # As a shared library, deckcad_core must resolve every symbol itself,
+    # including the ones deckcad_graphics only needs because it drives the
+    # Metal-backed ImGui WebGPU backend.
+    target_link_libraries(deckcad_core PRIVATE
+        "-framework Cocoa"
+        "-framework QuartzCore"
+        "-framework Metal"
+        "-framework IOKit"
+    )
+endif()
+
+set_target_properties(deckcad_core PROPERTIES FOLDER "DeckCAD")
