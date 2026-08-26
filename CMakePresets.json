@@ -5,12 +5,12 @@
     {
       "name": "base",
       "hidden": true,
-      "inherits": ["user_clang_paths"],
+      "inherits": ["user_toolchain"],
       "generator": "Ninja",
       "binaryDir": "${sourceDir}/build",
       "cacheVariables": {
-        "CMAKE_C_COMPILER": "$env{USER_CLANG_20_PATH}",
-        "CMAKE_CXX_COMPILER": "$env{USER_CLANG++_20_PATH}",
+        "CMAKE_C_COMPILER": "$env{DECKCAD_CC_PATH}",
+        "CMAKE_CXX_COMPILER": "$env{DECKCAD_CXX_PATH}",
         "CMAKE_EXPORT_COMPILE_COMMANDS": "ON"
       }
     },

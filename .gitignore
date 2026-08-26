@@ -13,6 +13,11 @@ CMakeUserPresets.json
 CMakeUserEnv.json
 build
 build-release
+build-*
 .vscode
 .code-workspace
 .DS_Store
+
+# User-supplied macOS SDK for Docker/Dockerfile's macos-cross stage. Apple's
+# license doesn't allow redistributing this, so it's never committed.
+Docker/macos-sdk/*.sdk.tar.xz
