@@ -52,7 +52,7 @@ endif()
 # Dawn is built as a shared library, so it has to sit next to the executable.
 add_custom_command(TARGET DeckCAD POST_BUILD
     COMMAND ${CMAKE_COMMAND} -E copy_if_different
-        $<TARGET_FILE:webgpu_dawn> $<TARGET_FILE_DIR:DeckCAD>
+        $<TARGET_FILE:dawn::webgpu_dawn> $<TARGET_FILE_DIR:DeckCAD>
     COMMENT "Staging the Dawn runtime library"
 )
 

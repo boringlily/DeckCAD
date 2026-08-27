@@ -46,7 +46,7 @@ target_compile_definitions(imgui PUBLIC IMGUI_IMPL_WEBGPU_BACKEND_DAWN)
 target_link_libraries(imgui PUBLIC
     imgui_core
     SDL3::SDL3
-    webgpu_dawn
+    dawn::webgpu_dawn
 )
 
 set_target_properties(imgui PROPERTIES FOLDER "ThirdParty")

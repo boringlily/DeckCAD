@@ -24,7 +24,7 @@ target_link_libraries(deckcad_graphics
         deckcad_common
         deckcad_platform   # asset resolution for shaders, fonts and icons
         imgui
-        webgpu_dawn
+        dawn::webgpu_dawn
     PRIVATE
         msdfgen::msdfgen-core
         msdfgen::msdfgen-ext
