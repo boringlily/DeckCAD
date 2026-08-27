@@ -3,10 +3,6 @@
 	url = https://github.com/libsdl-org/SDL.git
 	branch = release-3.2.x
 	shallow = true
-[submodule "submodules/dawn"]
-	path = submodules/dawn
-	url = https://github.com/google/dawn.git
-	shallow = true
 [submodule "submodules/imgui"]
 	path = submodules/imgui
 	url = https://github.com/ocornut/imgui.git
