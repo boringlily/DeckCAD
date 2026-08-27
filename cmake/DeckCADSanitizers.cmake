@@ -1,12 +1,14 @@
 # Wires AddressSanitizer and UndefinedBehaviorSanitizer into DeckCAD's OWN
 # targets (deckcad_common/platform/graphics/core/main, tests, and in-tree
 # imgui) via DECKCAD_ENABLE_ASAN / DECKCAD_ENABLE_UBSAN. Deliberately does
-# NOT extend to the externally-built dependencies (SDL, Dawn, FreeType,
-# msdfgen, googletest, see cmake/DeckCADDeps.cmake): those are separate,
-# already-installed builds, and instrumenting them too would mean a second
-# multi-hundred-target Dawn build (its own cache entry, since instrumented
-# and non-instrumented builds can't share one) just to sanitize code this
-# project doesn't own or routinely change. ASan still catches memory bugs at
+# NOT extend to the externally-built dependencies (SDL, FreeType, msdfgen,
+# googletest, see cmake/DeckCADDeps.cmake): those are separate,
+# already-installed builds, and instrumenting them too would mean rebuilding
+# each one again under its own cache entry -- instrumented and non-instrumented
+# builds can't share one -- just to sanitize code this project doesn't own or
+# routinely change. Dawn is further out of reach still: it arrives as a
+# prebuilt binary (cmake/DeckCADDawn.cmake), so there is no build of it here to
+# instrument at all. ASan still catches memory bugs at
 # the boundary with those libraries (it intercepts malloc/free globally,
 # regardless of which translation unit allocated); UBSan issues occurring
 # *inside* their own code specifically won't be caught, only in ours.

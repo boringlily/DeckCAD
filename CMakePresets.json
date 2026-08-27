@@ -17,7 +17,8 @@
       "description": "Unoptimized build with debug symbols and tests enabled",
       "cacheVariables": {
         "CMAKE_BUILD_TYPE": "Debug",
-        "DECKCAD_BUILD_TESTS": "ON"
+        "DECKCAD_BUILD_TESTS": "ON",
+        "DECKCAD_HOT_RELOAD": "ON"
       }
     },
     {
