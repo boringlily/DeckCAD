@@ -27,6 +27,8 @@ set(CMAKE_RUNTIME_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/bin")
 option(DECKCAD_BUILD_TESTS "Build the DeckCAD unit tests" ON)
 option(DECKCAD_HOT_RELOAD "Build Core as a hot-reloadable shared library" OFF)
 option(DECKCAD_USE_COMPILER_CACHE "Route compiles through ccache/sccache if found, cached under DECKCAD_DEPS_DIR" ON)
+option(DECKCAD_ENABLE_ASAN "Build DeckCAD's own targets with AddressSanitizer" OFF)
+option(DECKCAD_ENABLE_UBSAN "Build DeckCAD's own targets with UndefinedBehaviorSanitizer" OFF)
 
 add_compile_definitions(
     $<$<PLATFORM_ID:Linux>:PLATFORM_LINUX=1>
@@ -172,6 +174,13 @@ find_package(msdfgen CONFIG REQUIRED PATHS ${msdfgen_install_dir} NO_DEFAULT_PAT
 # so linking nanosvg's own library would duplicate every symbol.
 add_library(nanosvg_headers INTERFACE)
 target_include_directories(nanosvg_headers INTERFACE ${SUBMODULES_DIR}/nanosvg/src)
+
+# Applies -fsanitize=... to every target added from here on: in-tree imgui
+# and DeckCAD's own modules below, not the externally-built dependencies
+# above (already built, and deliberately not sanitized -- see
+# cmake/DeckCADSanitizers.cmake for why).
+include(${CMAKE_CURRENT_SOURCE_DIR}/cmake/DeckCADSanitizers.cmake)
+deckcad_enable_sanitizers()
 
 # --- Dear ImGui + its SDL3 and WebGPU backends -----------------------------
 add_subdirectory(cmake/imgui)

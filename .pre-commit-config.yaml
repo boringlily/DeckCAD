@@ -3,5 +3,6 @@ repos:
     rev: v0.6.1  # Use the ref you want to point at
     hooks:
       - id: clang-format
-        args: [--style=Webkit, --sort-includes=false] # Other coding style: LLVM, GNU, Chromium, Microsoft, Mozilla, WebKit.
-        files: ^(src|include)/.*\.(cpp|cc|cxx|h|hpp)$
+        # Style comes from the repo's own .clang-format (clang-format's
+        # default --style is already "file"); no args needed here anymore.
+        files: ^(src|tests)/.*\.(cpp|cc|cxx|h|hpp)$

@@ -29,16 +29,34 @@
         "CMAKE_BUILD_TYPE": "Release",
         "DECKCAD_BUILD_TESTS": "OFF"
       }
+    },
+    {
+      "name": "Sanitize",
+      "inherits": ["base"],
+      "binaryDir": "${sourceDir}/build-sanitize",
+      "description": "Debug build with ASan + UBSan on DeckCAD's own targets",
+      "cacheVariables": {
+        "CMAKE_BUILD_TYPE": "Debug",
+        "DECKCAD_BUILD_TESTS": "ON",
+        "DECKCAD_ENABLE_ASAN": "ON",
+        "DECKCAD_ENABLE_UBSAN": "ON"
+      }
     }
   ],
   "buildPresets": [
     { "name": "Debug", "configurePreset": "Debug" },
-    { "name": "Release", "configurePreset": "Release" }
+    { "name": "Release", "configurePreset": "Release" },
+    { "name": "Sanitize", "configurePreset": "Sanitize" }
   ],
   "testPresets": [
     {
       "name": "Debug",
       "configurePreset": "Debug",
+      "output": { "outputOnFailure": true }
+    },
+    {
+      "name": "Sanitize",
+      "configurePreset": "Sanitize",
       "output": { "outputOnFailure": true }
     }
   ]

@@ -21,8 +21,8 @@ Text::AtlasConfiguration SmallConfiguration()
     Text::AtlasConfiguration configuration {};
     // A narrow range keeps the test fast; the packing logic is the same.
     configuration.glyph_pixel_size = 32;
-    configuration.first_codepoint = 32;  // space
-    configuration.last_codepoint = 90;   // 'Z'
+    configuration.first_codepoint = 32; // space
+    configuration.last_codepoint = 90; // 'Z'
     return configuration;
 }
 

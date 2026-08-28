@@ -20,3 +20,8 @@ build-*
 # User-supplied macOS SDK for Docker/Dockerfile's macos-cross stage. Apple's
 # license doesn't allow redistributing this, so it's never committed.
 Docker/macos-sdk/*.sdk.tar.xz
+
+# Written by .github/actions/setup-toolchain to compute a dependency cache
+# key; only meaningful within one CI run.
+.ci-submodule-status
+.ci-deps-cache

@@ -1,0 +1,73 @@
+--- # DeckCAD's C++ style rules that clang-format can't check -- naming,
+    # mainly. See the project's naming-convention notes for the rationale;
+    # a few things that convention documents (pointer/reference-type
+    # suffixes like _ptr/_ref, the "no abbreviations" rule, "minimum two
+    # words" for methods) aren't expressible as a clang-tidy naming check
+    # and stay a manual-review concern.
+Checks: >
+  -*,
+  readability-identifier-naming,
+  bugprone-use-after-move,
+  bugprone-dangling-handle,
+  bugprone-unused-return-value,
+  bugprone-suspicious-string-compare,
+  performance-move-const-arg,
+  performance-unnecessary-copy-initialization,
+  modernize-use-nullptr,
+  modernize-use-override
+
+WarningsAsErrors: ''
+# HeaderFilterRegex alone isn't enough: it matches any *substring* of the
+# absolute path, and vendored headers under submodules/ also happen to sit
+# under a "src/" directory (e.g. submodules/nanosvg/src/nanosvgrast.h), so
+# they'd match "src/.*\.h$" too. ExcludeHeaderFilterRegex is checked first
+# and wins.
+HeaderFilterRegex: '(^|/)src/.*\.h$'
+ExcludeHeaderFilterRegex: '/submodules/'
+FormatStyle: none
+UseColor: true
+
+CheckOptions:
+  - key: readability-identifier-naming.NamespaceCase
+    value: CamelCase
+  - key: readability-identifier-naming.ClassCase
+    value: CamelCase
+  - key: readability-identifier-naming.StructCase
+    value: CamelCase
+  - key: readability-identifier-naming.EnumCase
+    value: CamelCase
+  - key: readability-identifier-naming.EnumConstantCase
+    value: CamelCase
+
+  - key: readability-identifier-naming.FunctionCase
+    value: CamelCase
+  - key: readability-identifier-naming.MethodCase
+    value: camelBack
+
+  - key: readability-identifier-naming.VariableCase
+    value: lower_case
+  - key: readability-identifier-naming.ParameterCase
+    value: lower_case
+  - key: readability-identifier-naming.PublicMemberCase
+    value: lower_case
+
+  - key: readability-identifier-naming.PrivateMemberCase
+    value: lower_case
+  - key: readability-identifier-naming.PrivateMemberSuffix
+    value: _
+  - key: readability-identifier-naming.ProtectedMemberCase
+    value: lower_case
+  - key: readability-identifier-naming.ProtectedMemberSuffix
+    value: _
+
+  # Only compile-time/namespace-scope named constants (constexpr, or a plain
+  # const/static at namespace scope) are CAPITAL_SNAKE, matching how the
+  # codebase actually uses it (e.g. WINDOW_WIDTH, DOCK_SPACE_ID) -- a
+  # function-local `static const` used to lazily cache a computed value
+  # (Assets::Root()'s `root`) reads as an ordinary variable, not a named
+  # constant, so StaticConstantCase/ClassConstantCase are deliberately left
+  # unset rather than forcing those into UPPER_CASE too.
+  - key: readability-identifier-naming.ConstexprVariableCase
+    value: UPPER_CASE
+  - key: readability-identifier-naming.GlobalConstantCase
+    value: UPPER_CASE

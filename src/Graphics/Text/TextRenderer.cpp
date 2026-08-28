@@ -176,10 +176,10 @@ bool TextRenderer::initializeResources(const Gpu::Context& gpu_ref,
 
     // Test against the scene so geometry can occlude labels, but do not write
     // depth: overlapping translucent glyphs would otherwise clip each other.
-    wgpu::DepthStencilState depthStencil {};
-    depthStencil.format = depth_format;
-    depthStencil.depthWriteEnabled = wgpu::OptionalBool::False;
-    depthStencil.depthCompare = wgpu::CompareFunction::LessEqual;
+    wgpu::DepthStencilState depth_stencil {};
+    depth_stencil.format = depth_format;
+    depth_stencil.depthWriteEnabled = wgpu::OptionalBool::False;
+    depth_stencil.depthCompare = wgpu::CompareFunction::LessEqual;
 
     wgpu::RenderPipelineDescriptor pipeline_descriptor {};
     pipeline_descriptor.label = "Text Pipeline";
@@ -190,7 +190,7 @@ bool TextRenderer::initializeResources(const Gpu::Context& gpu_ref,
     pipeline_descriptor.vertex.buffers = &vertex_layout;
     pipeline_descriptor.primitive.topology = wgpu::PrimitiveTopology::TriangleList;
     pipeline_descriptor.primitive.cullMode = wgpu::CullMode::None;
-    pipeline_descriptor.depthStencil = &depthStencil;
+    pipeline_descriptor.depthStencil = &depth_stencil;
     pipeline_descriptor.multisample.count = 1;
     pipeline_descriptor.multisample.mask = ~0u;
     pipeline_descriptor.fragment = &fragment;

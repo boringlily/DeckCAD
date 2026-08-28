@@ -216,8 +216,14 @@ pip install pre-commit
 pre-commit install
 ```
 
-The hook runs clang-format over staged files. `pre-commit run --all-files`
-formats the whole tree.
+The hook runs clang-format over staged files, using the style in `.clang-format`
+(`WebKit`, with include-sorting off since include order here is deliberate,
+not alphabetical). `pre-commit run --all-files` formats the whole tree.
+Format it by hand instead with:
+
+```
+clang-format -i $(find src tests -name '*.cpp' -o -name '*.h')
+```
 
 ## 7) Cross-compiling (experimental)
 
@@ -260,3 +266,75 @@ To use a toolchain file directly (inside or outside the Docker image):
 ```
 cmake -S . -B build-windows -G Ninja -DCMAKE_TOOLCHAIN_FILE=cmake/toolchains/windows-x86_64.cmake
 ```
+
+## 8) Sanity checks
+
+Three independent checks, all runnable locally with a single command each
+and wired into `.github/workflows/ci.yml` so they run the same way in CI:
+
+| Check | Local command | Catches |
+|-------|----------------|---------|
+| Format | `pre-commit run --all-files` (or `clang-format -i ...`, see above) | Style, not caught by review |
+| Naming | `python3 scripts/run_clang_tidy.py` | The naming conventions clang-format can't check (see `.clang-tidy`), plus a small set of bug-prone patterns |
+| Sanitizers | `cmake --preset Sanitize && cmake --build --preset Sanitize && ctest --preset Sanitize` | Memory errors (ASan) and undefined behavior (UBSan) in DeckCAD's own code |
+
+### clang-tidy
+
+`.clang-tidy` enforces the naming half of the project's C++ style rules that
+clang-format has no opinion on -- free functions in `PascalCase`, methods in
+`camelBack`, variables in `lower_snake`, private/protected members with a
+trailing `_`, namespace-scope named constants in `UPPER_CASE` -- plus a small,
+deliberately conservative set of bug-prone/performance checks. It does not
+(can't, really) enforce everything the style calls for: pointer/reference
+suffixes like `_ptr`/`_ref`, the "no abbreviations" rule, and "methods are at
+least two words" stay a manual-review concern.
+
+`scripts/run_clang_tidy.py` runs it over `src/` and `tests/` only (never the
+submodules) against an already-configured build's `compile_commands.json`,
+with `-warnings-as-errors=*` so it actually fails instead of just printing --
+`.clang-tidy` itself leaves `WarningsAsErrors` empty so IDE integrations and
+ad-hoc `clang-tidy` invocations still just show warnings without failing
+anything. Needs `cmake --preset Debug` to have run at least once first.
+
+### Sanitizers
+
+`DECKCAD_ENABLE_ASAN` / `DECKCAD_ENABLE_UBSAN` (both `ON` in the `Sanitize`
+preset, both individually available via `-D` on any preset) add
+`-fsanitize=...` to DeckCAD's own targets and in-tree `imgui` --
+deliberately **not** to the externally-built SDL/Dawn/FreeType/msdfgen/
+googletest (see [External dependencies](#external-dependencies)): those are
+separate, already-installed builds, and instrumenting them too would mean a
+second full Dawn build just to sanitize code this project doesn't own.
+AddressSanitizer still catches memory bugs at the boundary with those
+libraries (it intercepts `malloc`/`free` globally); UndefinedBehaviorSanitizer
+issues *inside* their own code specifically won't be caught, only in ours.
+
+```
+cmake --preset Sanitize
+cmake --build --preset Sanitize
+ctest --preset Sanitize
+```
+
+**Known issue on macOS:** as of writing, AddressSanitizer's own runtime
+initialization deadlocks on at least one recent macOS version, for both
+Apple Clang and Homebrew LLVM 20 -- confirmed by sampling a hung process: it
+never reaches `main()`, stuck in AddressSanitizer's own startup code before
+any of this project's code runs. `MallocNanoZone=0` and
+`DYLD_SHARED_REGION=avoid` (both otherwise-known workarounds for
+ASan-on-macOS issues) don't fix it. UBSan alone (`-DDECKCAD_ENABLE_ASAN=OFF
+-DDECKCAD_ENABLE_UBSAN=ON`) is unaffected and was verified working, tests and
+all. If `ctest --preset Sanitize` hangs on your Mac, try that combination
+locally and lean on Linux CI for full ASan+UBSan coverage in the meantime.
+
+### CI
+
+`.github/workflows/ci.yml` runs three jobs on every push/PR: `build-debug`
+(the `Debug` preset), `sanitize` (the `Sanitize` preset), and `lint`
+(clang-format + clang-tidy). `sanitize` and `lint` both `needs: build-debug`
+-- not for ordering's own sake, but because two jobs building the same
+not-yet-cached dependency commit at the same time would race and corrupt
+each other's install (the same caveat as two local worktrees doing it, see
+[External dependencies](#external-dependencies)); by the time `sanitize`/
+`lint` start, `build-debug` has already warmed the shared dependency cache
+(restored via `actions/cache`, keyed by `git submodule status`), so neither
+rebuilds SDL/Dawn/FreeType/msdfgen/googletest a second time.
