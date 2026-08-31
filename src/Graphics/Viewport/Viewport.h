@@ -10,16 +10,18 @@
 
 namespace Viewport {
 
-/// The 3D viewport: an offscreen colour+depth target, the renderers that draw
-/// into it, and the camera plumbing.
-///
-/// Rendering offscreen (rather than straight to the backbuffer) is what lets
-/// the viewport live inside a dockable ImGui panel and be resized freely.
-///
-/// The target is allocated in rounded blocks and the scene is drawn into a
-/// sub-rect of it. Dragging a splitter changes the requested size every frame,
-/// and ImGui's WebGPU backend permanently caches a bind group per texture view
-/// it sees, so reallocating on each pixel change would leak a texture per frame.
+/**
+ * @brief Bundles an offscreen colour+depth target, the renderers that draw
+ * into it, and the camera plumbing for the 3D viewport.
+ * @note Rendering offscreen, rather than straight to the backbuffer, lets the
+ * viewport live inside a dockable ImGui panel and be resized freely.
+ *
+ * The target is allocated in rounded blocks and the scene is drawn into a
+ * sub-rectangle of it. Dragging a splitter changes the requested size every
+ * frame, and ImGui's WebGPU backend permanently caches a bind group per
+ * texture view it sees; reallocating on each pixel change would leak a
+ * texture per frame.
+ */
 class Viewport {
 public:
     static constexpr wgpu::TextureFormat COLOR_FORMAT = wgpu::TextureFormat::RGBA8Unorm;
@@ -44,7 +46,7 @@ public:
     /// Handle for ImGui::Image. Null until the first successful resizeTarget().
     const wgpu::TextureView& getColorTextureView() const { return color_view_; }
 
-    /// Bottom-right UV of the live sub-rect; the image must be drawn with
+    /// Bottom-right UV of the live sub-rectangle; the image must be drawn with
     /// uv0 = (0,0) and uv1 = this, since the texture is larger than the scene.
     void getContentUvMax(f32& out_u_ref, f32& out_v_ref) const;
 

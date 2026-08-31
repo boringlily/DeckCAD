@@ -14,10 +14,11 @@ namespace Core {
 constexpr ImGuiWindowFlags PANEL_WINDOW_FLAGS = ImGuiWindowFlags_NoTitleBar
     | ImGuiWindowFlags_NoMove | ImGuiWindowFlags_NoCollapse;
 
-/// Everything a panel needs for one frame.
-///
-/// Renderer and GPU objects arrive by reference and are never stored, so the
-/// logic layer stays free of GPU ownership.
+/**
+ * @brief Everything a panel needs for one frame.
+ * @note Renderer and GPU objects arrive by reference and are never stored;
+ * the logic layer stays free of GPU ownership.
+ */
 struct FrameContext {
     AppState& app_ref;
     const Gpu::Context& gpu_ref;

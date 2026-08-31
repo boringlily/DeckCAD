@@ -13,9 +13,9 @@ namespace AssetsInternal {
         const char* base_ptr = SDL_GetBasePath();
         std::filesystem::path start = base_ptr ? std::filesystem::path(base_ptr) : std::filesystem::current_path();
 
-        // Walk upward looking for an "assets" directory. This covers both the
-        // installed layout (assets sit beside the binary) and the common
-        // development layout (binary in build/bin/<Config>, assets at the root).
+        // walk up looking for "assets": covers the installed layout
+        // (assets beside the binary) and the dev layout (binary in
+        // build/bin/<Config>, assets at the repo root)
         std::filesystem::path directory = start;
         for (int depth = 0; depth < 6; ++depth) {
             std::filesystem::path candidate = directory / "assets";
@@ -29,8 +29,8 @@ namespace AssetsInternal {
             directory = directory.parent_path();
         }
 
-        // Nothing found: fall back to the expected location so error messages
-        // name a concrete path rather than an empty string.
+        // not found: fall back to the expected location, errors then name
+        // a concrete path instead of an empty string
         return (start / "assets").string();
     }
 

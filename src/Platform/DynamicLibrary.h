@@ -4,13 +4,14 @@
 
 namespace Platform {
 
-/// Loads a shared library from disk and can reload it in place when the file
-/// on disk changes, so application logic can be swapped without restarting
-/// the process.
-///
-/// The library is loaded from a shadow copy (`<path>.load`) rather than the
-/// original path, so a build can overwrite the original while the shadow
-/// copy is still mapped into this process.
+/**
+ * @brief Loads a shared library from disk and can reload it in place when
+ * the file on disk changes, letting application logic be swapped without
+ * restarting the process.
+ * @note The library is loaded from a shadow copy (`<path>.load`) rather than
+ * the original path: a build can overwrite the original while the shadow
+ * copy stays mapped into this process.
+ */
 class DynamicLibrary {
 public:
     DynamicLibrary() = default;

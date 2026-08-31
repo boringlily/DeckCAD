@@ -16,11 +16,12 @@ struct ContextDescriptor {
     bool vsync { true };
 };
 
-/// Owns the WebGPU instance, device, queue and swap surface.
-///
-/// Deliberately the *only* owner of GPU state in the app. Core logic never
-/// holds a device or a pipeline, which is what keeps the door open to moving
-/// Core back behind a hot-reload boundary later.
+/**
+ * @brief Owns the WebGPU instance, device, queue, and swap surface.
+ * @note This is deliberately the only owner of GPU state in the app. Core
+ * logic never holds a device or a pipeline, which keeps the door open to
+ * moving Core back behind a hot-reload boundary later.
+ */
 class Context {
 public:
     Context() = default;
@@ -35,9 +36,11 @@ public:
     /// Reconfigures the surface. Cheap to call with an unchanged size.
     void resizeTarget(u32 width, u32 height);
 
-    /// Acquires the next backbuffer and opens a command encoder.
-    /// Returns false when the frame should be skipped (e.g. surface lost while
-    /// resizing); the caller must not call endFrame() in that case.
+    /**
+     * @brief Acquires the next backbuffer and opens a command encoder.
+     * @return False when the frame should be skipped, e.g. surface lost
+     * while resizing. The caller must not call endFrame() in that case.
+     */
     bool beginFrame();
 
     /// Submits the frame's commands and presents.
@@ -58,8 +61,10 @@ public:
     u32 getWidth() const { return width_; }
     u32 getHeight() const { return height_; }
 
-    /// Compiles a WGSL source string into a shader module.
-    /// Returns a null module on failure; the message goes to the error callback.
+    /**
+     * @brief Compiles a WGSL source string into a shader module.
+     * @return Null on failure; the message goes to the error callback.
+     */
     wgpu::ShaderModule createShaderModule(const char* label_ptr, const std::string& wgsl_ref) const;
 
     const std::string& getLastError() const { return last_error_; }

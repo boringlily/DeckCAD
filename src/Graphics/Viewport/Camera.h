@@ -4,10 +4,12 @@
 
 namespace Viewport {
 
-/// Orbit camera for the CAD viewport.
-///
-/// Takes already-resolved input deltas rather than polling a device, so the
-/// camera can be unit tested and is not tied to any windowing library.
+/**
+ * @brief Orbit camera for the CAD viewport.
+ * @note Takes already-resolved input deltas rather than polling a device
+ * directly. This keeps the camera unit-testable and decoupled from any
+ * windowing library.
+ */
 class Camera {
 public:
     enum class Orientation {
@@ -33,8 +35,11 @@ public:
     /// Pan the camera and its target across the view plane. Deltas are in pixels.
     void panAcrossView(f32 delta_x, f32 delta_y);
 
-    /// Dolly toward/away from the target. Positive @p amount moves closer.
-    /// Distance is clamped so the camera can neither cross nor escape the target.
+    /**
+     * @brief Dollies toward or away from the target.
+     * @param amount Positive moves the camera closer.
+     * @note Distance is clamped to prevent the camera from crossing or escaping the target.
+     */
     void zoomTowardTarget(f32 amount);
 
     DeckMath::Matrix4 getViewMatrix() const;
@@ -56,7 +61,7 @@ public:
     f32 getNearPlane() const { return near_; }
     f32 getFarPlane() const { return far_; }
 
-    // Tuning constants, kept public so the UI can expose them later.
+    // Tuning constants, kept public for the UI to expose later.
     static constexpr f32 ORBIT_SENSITIVITY = 0.005f;
     static constexpr f32 PAN_SENSITIVITY = 0.0015f;
     static constexpr f32 ZOOM_SENSITIVITY = 0.12f;

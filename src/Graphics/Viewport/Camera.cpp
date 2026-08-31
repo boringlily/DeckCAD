@@ -14,7 +14,7 @@ void Camera::resetCamera()
 
 void Camera::setOrientation(Orientation orientation)
 {
-    // Preserve how far the user was zoomed in when snapping to a new view.
+    // preserve current zoom distance across the orientation snap
     f32 distance = getDistanceToTarget();
     if (distance < MIN_DISTANCE) {
         distance = 25.0f;
@@ -51,19 +51,18 @@ void Camera::orbitAroundTarget(f32 delta_x, f32 delta_y)
 
     Vector3 offset = position_ - target_;
 
-    // Yaw about world up keeps the horizon level no matter how far we orbit.
+    // yaw about world up keeps the horizon level regardless of orbit angle
     f32 yaw = -delta_x * ORBIT_SENSITIVITY;
     Vector3 world_up { 0.0f, 1.0f, 0.0f };
     offset = RotateAxisAngle(offset, world_up, yaw);
     up_ = Normalize(RotateAxisAngle(up_, world_up, yaw));
 
-    // Pitch about the camera's right axis.
     f32 pitch = -delta_y * ORBIT_SENSITIVITY;
     Vector3 forward = Normalize(-offset);
     Vector3 right = Cross(forward, up_);
 
-    // Near the poles `forward` and `up` are nearly parallel and the cross
-    // product collapses; skip the pitch rather than snapping to a random axis.
+    // near the poles, forward and up are nearly parallel and the cross
+    // product collapses; skip the pitch rather than snapping to a random axis
     if (LengthSquared(right) > 1e-8f) {
         right = Normalize(right);
         Vector3 rotated = RotateAxisAngle(offset, right, pitch);
@@ -81,8 +80,7 @@ void Camera::panAcrossView(f32 delta_x, f32 delta_y)
         return;
     }
 
-    // Scale panning by distance so the world appears to track the cursor at
-    // any zoom level.
+    // panning scales with distance: keeps the world tracking the cursor at any zoom level
     f32 scale = PAN_SENSITIVITY * std::max(getDistanceToTarget(), MIN_DISTANCE);
 
     Vector3 forward = Normalize(target_ - position_);
@@ -106,7 +104,7 @@ void Camera::zoomTowardTarget(f32 amount)
         return;
     }
 
-    // Exponential so each notch feels the same at every scale.
+    // exponential curve keeps each notch feeling the same at every scale
     f32 new_distance = distance * std::exp(-amount * ZOOM_SENSITIVITY);
     new_distance = std::clamp(new_distance, MIN_DISTANCE, MAX_DISTANCE);
 
@@ -126,7 +124,7 @@ Matrix4 Camera::getProjectionMatrix(f32 aspect) const
     if (projection_ == Projection::Perspective) {
         return MatrixPerspective(fov_y_ * DEGREES_TO_RADIANS, aspect, near_, far_);
     }
-    // Frame roughly the same content as the perspective view at the current distance.
+    // match the perspective view's framing at the current distance
     f32 half_height = getDistanceToTarget() * std::tan(fov_y_ * DEGREES_TO_RADIANS * 0.5f);
     f32 half_width = half_height * aspect;
     return MatrixOrthographic(-half_width, half_width, -half_height, half_height, near_, far_);
@@ -139,15 +137,14 @@ Ray Camera::screenPointToRay(f32 x, f32 y, f32 viewport_width, f32 viewport_heig
         return ray;
     }
 
-    // Pixel -> normalized device coords. Y flips because pixel space grows
-    // downward while NDC grows upward.
+    // pixel -> NDC; Y flips since pixel space grows downward while NDC grows upward
     f32 ndc_x = (2.0f * x) / viewport_width - 1.0f;
     f32 ndc_y = 1.0f - (2.0f * y) / viewport_height;
 
     f32 aspect = viewport_width / viewport_height;
     Matrix4 inverse_view_projection = Inverse(getProjectionMatrix(aspect) * getViewMatrix());
 
-    // WebGPU depth is [0, 1]: 0 is the near plane, 1 is the far plane.
+    // WebGPU depth range is [0, 1]: 0 is the near plane, 1 is the far plane
     Vector4 near_homogeneous = inverse_view_projection * Vector4 { ndc_x, ndc_y, 0.0f, 1.0f };
     Vector4 far_homogeneous = inverse_view_projection * Vector4 { ndc_x, ndc_y, 1.0f, 1.0f };
 

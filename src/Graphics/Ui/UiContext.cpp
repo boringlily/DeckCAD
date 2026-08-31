@@ -37,9 +37,7 @@ bool Context::initializeResources(SDL_Window* window_ptr, const Gpu::Context& gp
 
     ImGuiIO& io_ref = ImGui::GetIO();
     io_ref.ConfigFlags |= ImGuiConfigFlags_NavEnableKeyboard;
-    io_ref.ConfigFlags |= ImGuiConfigFlags_DockingEnable;
-    // Panels docked into a persistent layout is the working model a CAD app
-    // wants, so docking is on from the start.
+    io_ref.ConfigFlags |= ImGuiConfigFlags_DockingEnable; // CAD app wants a persistent docked layout by default
     io_ref.IniFilename = nullptr; // layout is owned by the app, not a stray ini file
 
     if (!ImGui_ImplSDL3_InitForOther(window_ptr)) {
@@ -78,8 +76,7 @@ bool Context::initializeResources(SDL_Window* window_ptr, const Gpu::Context& gp
         font_title_ptr_ = io_ref.Fonts->AddFontFromFileTTF(title_path.c_str(), 20.0f);
     }
     if (!font_regular_ptr_) {
-        // Missing font files must not be fatal; ImGui's built-in font keeps the
-        // app usable and the UI merely looks plainer.
+        // missing font isn't fatal — falls back to ImGui's built-in font
         font_regular_ptr_ = io_ref.Fonts->AddFontDefault();
     }
     io_ref.FontDefault = font_regular_ptr_;

@@ -6,7 +6,7 @@
 namespace Viewport {
 namespace GridRendererInternal {
 
-    // Must mirror the Uniforms struct in shaders/grid.wgsl.
+    // must mirror the Uniforms struct in shaders/grid.wgsl
     struct GridUniforms {
         f32 view_projection[16];
         f32 inverse_view_projection[16];
@@ -98,8 +98,8 @@ bool GridRenderer::initializeResources(const Gpu::Context& gpu_ref,
     fragment.targetCount = 1;
     fragment.targets = &color_target;
 
-    // The shader writes true per-pixel depth, so the grid interleaves correctly
-    // with scene geometry instead of being a flat overlay.
+    // the shader writes true per-pixel depth: the grid interleaves correctly
+    // with scene geometry instead of being a flat overlay
     wgpu::DepthStencilState depth_stencil {};
     depth_stencil.format = depth_format;
     depth_stencil.depthWriteEnabled = wgpu::OptionalBool::True;

@@ -4,11 +4,13 @@
 
 namespace Platform {
 
-/// Locates files shipped alongside the executable.
-///
-/// The old build resolved assets through a "../assets/" literal, which only
-/// worked when the binary was launched from one specific directory. Paths are
-/// now anchored to the executable itself, so the app runs from anywhere.
+/**
+ * @brief Locates files shipped alongside the executable.
+ * @note The old build resolved assets through a "../assets/" literal, which
+ * only worked when the binary was launched from one specific directory.
+ * Paths are now anchored to the executable itself; the app runs from
+ * anywhere.
+ */
 namespace Assets {
 
     /// Absolute path of the assets directory. Cached after the first call.

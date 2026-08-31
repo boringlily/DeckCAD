@@ -13,7 +13,7 @@ void IconImage(const IconSet& icons_ref, IconId icon, f32 size, const Color& tin
     f32 uv1[2] {};
     icons_ref.getUvRange(icon, uv0, uv1);
 
-    // Image() lost its tint parameter in 1.91.9; ImageWithBg() carries it now.
+    // Image() lost its tint parameter in 1.91.9; ImageWithBg() carries it now
     ImGui::ImageWithBg(Ui::ToImTextureID(icons_ref.getTextureHandle()),
         ImVec2(size, size),
         ImVec2(uv0[0], uv0[1]),
@@ -46,8 +46,7 @@ bool IconButton(const IconSet& icons_ref, IconId icon, const char* id_ptr, f32 s
 
 bool TabButton(const char* label_ptr, bool selected)
 {
-    // Force the "active" colour while selected so the current tab reads as
-    // pressed without needing a second widget type.
+    // forces the "active" colour while selected, instead of a separate pressed-tab widget
     if (selected) {
         ImGui::PushStyleColor(ImGuiCol_Button, ImGui::GetStyleColorVec4(ImGuiCol_ButtonActive));
     }

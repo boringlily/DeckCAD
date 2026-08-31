@@ -1,8 +1,8 @@
 #include "Icons.h"
 #include "Assets.h"
 
-// nanosvg is a single-header library; this translation unit owns the one
-// definition of its implementation for the whole program.
+// nanosvg is a single-header library; this translation unit owns its one
+// implementation definition
 #define NANOSVG_IMPLEMENTATION
 #include <nanosvg.h>
 #define NANOSVGRAST_IMPLEMENTATION
@@ -49,15 +49,14 @@ bool IconSet::initializeResources(const Gpu::Context& gpu_ref, f32 display_scale
 
         NSVGimage* image_ptr = nsvgParseFromFile(path.c_str(), "px", 96.0f);
         if (!image_ptr) {
-            // A missing icon leaves a transparent slot rather than aborting
-            // startup; the UI still works, just without that glyph.
+            // missing icon leaves a transparent slot instead of aborting startup
             std::fprintf(stderr, "[icons] could not parse '%s'\n", path.c_str());
             continue;
         }
 
         std::fill(scratch.begin(), scratch.end(), 0);
 
-        // Fit the SVG's own viewBox into the target square.
+        // scale by the SVG's longer dimension to fit its viewBox in the square
         const f32 source_size = std::max(image_ptr->width, image_ptr->height);
         const f32 fit_scale = source_size > 0.0f ? static_cast<f32>(pixel_size_) / source_size : 1.0f;
 
@@ -66,7 +65,7 @@ bool IconSet::initializeResources(const Gpu::Context& gpu_ref, f32 display_scale
             static_cast<int>(pixel_size_ * 4));
         nsvgDelete(image_ptr);
 
-        // Blit the square into its column of the atlas.
+        // copy the square into its slot in the atlas
         const u32 origin_x = static_cast<u32>(index) * pixel_size_;
         for (u32 y = 0; y < pixel_size_; ++y) {
             const u8* source_ptr = scratch.data() + static_cast<size_t>(y) * pixel_size_ * 4;

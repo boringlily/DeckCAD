@@ -45,7 +45,7 @@ TEST(AppState, ClosingATabBeforeTheActiveOneShiftsTheSelection)
 
     app.closeScene(0); // removes Untitled 1
 
-    // Untitled 3 slid down a slot, so the selection has to follow it.
+    // Untitled 3 shifted down a slot; active_tab follows
     EXPECT_EQ(app.active_tab, 2u);
     EXPECT_EQ(app.getCurrentScene().name, "Untitled 3");
 }
@@ -100,6 +100,6 @@ TEST(AppState, EachSceneKeepsItsOwnCamera)
     const f32 zoomed = app.getCurrentScene().camera.getDistanceToTarget();
 
     app.active_tab = 2;
-    // The second scene must be untouched by the first scene's navigation.
+    // second scene's camera is unaffected by the first scene's zoom
     EXPECT_GT(app.getCurrentScene().camera.getDistanceToTarget(), zoomed);
 }

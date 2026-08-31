@@ -21,14 +21,15 @@ public:
     bool initializeResources(SDL_Window* window_ptr, const Gpu::Context& gpu_ref, f32 display_scale, std::string& out_error_ref);
     void shutdownResources();
 
-    /// Starts a new ImGui frame.
     void beginFrame();
 
-    /// Ends the frame and records ImGui's draw commands into the given pass_ref.
+    /// Ends the frame and records ImGui's draw commands into @p pass_ref.
     void renderFrame(const wgpu::RenderPassEncoder& pass_ref);
 
-    /// Applies the palette in Ui::gui_theme to the ImGui style. Call after
-    /// changing the theme at runtime.
+    /**
+     * @brief Applies the current palette (Ui::gui_theme) to the ImGui style.
+     * @note Call this again after changing gui_theme at runtime to pick up the change.
+     */
     void applyTheme();
 
     ImFont* getRegularFont() const { return font_regular_ptr_; }

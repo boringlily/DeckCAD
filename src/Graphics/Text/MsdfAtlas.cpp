@@ -21,8 +21,7 @@ namespace MsdfAtlasInternal {
 
     u8 FloatToByte(float value)
     {
-        // msdfgen emits distances centred on 0.5; clamp before quantizing so
-        // extreme distances outside the range do not wrap around.
+        // msdfgen centers distances on 0.5; clamp before quantizing to avoid wraparound
         float scaled = value * 255.0f + 0.5f;
         return static_cast<u8>(std::clamp(scaled, 0.0f, 255.0f));
     }
@@ -42,8 +41,11 @@ namespace MsdfAtlasInternal {
         return result;
     }
 
-    /// Shelf packer: rows of glyphs, tallest first. Simple and good enough for a
-    /// static ASCII atlas, where a perfect pack would save a few percent at most.
+    /**
+     * @brief Shelf packer: places glyphs in rows, tallest first.
+     * @note A perfect bin pack would save only a few percent of atlas area
+     * for a static ASCII atlas; the simpler shelf approach is good enough here.
+     */
     bool ShelfPack(std::vector<Baked>& glyphs_ref, u32 atlas_size, u32 padding, std::vector<std::pair<u32, u32>>& out_positions_ref)
     {
         out_positions_ref.assign(glyphs_ref.size(), { 0, 0 });
@@ -119,9 +121,9 @@ bool MsdfAtlas::buildAtlas(const std::string& font_path_ref, const AtlasConfigur
     metrics_.pixel_range = configuration_ref.pixel_range;
 
     const double pixels_per_em = static_cast<double>(configuration_ref.glyph_pixel_size);
-    // Distance range expressed in shape (em) units, which is what the generator wants.
+    // range in shape (em) units, required by the generator
     const double range_em = static_cast<double>(configuration_ref.pixel_range) / pixels_per_em;
-    // Pad the quad by the full range so the field is not clipped at the edges.
+    // quad padded by the full range to avoid clipping the field at the edges
     const double pad_em = range_em;
 
     std::vector<Baked> baked;
@@ -145,8 +147,8 @@ bool MsdfAtlas::buildAtlas(const std::string& font_path_ref, const AtlasConfigur
             continue;
         }
 
-        // Assigns each edge one of three colours so the three texture channels
-        // can encode corners exactly; this is what makes the field "multi-channel".
+        // each edge gets one of three colours; the three texture channels then
+        // encode corners exactly, the "multi-channel" part of MSDF
         msdfgen::edgeColoringSimple(shape, 3.0);
 
         msdfgen::Shape::Bounds bounds = shape.getBounds();
@@ -229,8 +231,8 @@ bool MsdfAtlas::buildAtlas(const std::string& font_path_ref, const AtlasConfigur
             const u32 origin_y = positions[i].second;
 
             for (u32 y = 0; y < entry_ref.height; ++y) {
-                // msdfgen bitmaps are bottom-up; the atlas is top-down, so rows
-                // are flipped here and the UVs below need no further flipping.
+                // msdfgen bitmaps are bottom-up, atlas is top-down: rows flipped
+                // here, UVs below need no further flipping
                 const u32 source_y = entry_ref.height - 1 - y;
                 for (u32 x = 0; x < entry_ref.width; ++x) {
                     const float* texel_ptr = entry_ref.bitmap(static_cast<int>(x), static_cast<int>(source_y));

@@ -6,10 +6,11 @@
 
 namespace Viewport {
 
-/// Draws the analytic infinite ground grid.
-///
-/// Holds no geometry: a single full-screen triangle plus one uniform buffer,
-/// with all the work done per-pixel in shaders/grid.wgsl.
+/**
+ * @brief Draws the analytic infinite ground grid.
+ * @note Holds no geometry: a single full-screen triangle plus one uniform
+ * buffer, with all the work done per pixel in shaders/grid.wgsl.
+ */
 class GridRenderer {
 public:
     struct Style {

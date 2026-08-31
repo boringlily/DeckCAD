@@ -18,8 +18,11 @@ inline ImU32 ToImU32(const Color& color_ref)
     return IM_COL32(color_ref.r, color_ref.g, color_ref.b, color_ref.a);
 }
 
-/// ImTextureID is a 64-bit integer, so a texture view pointer has to go through
-/// an integer cast rather than reinterpret_cast.
+/**
+ * @brief Converts a texture view pointer to the integer ID ImGui expects.
+ * @note ImTextureID is a 64-bit integer; casting a pointer to it needs an intptr_t
+ * cast, not reinterpret_cast.
+ */
 inline ImTextureID ToImTextureID(void* handle_ptr)
 {
     return static_cast<ImTextureID>(reinterpret_cast<intptr_t>(handle_ptr));

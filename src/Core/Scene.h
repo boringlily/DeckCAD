@@ -18,7 +18,6 @@ struct Scene {
     Viewport::Camera camera {};
     Toolbox toolbox {};
 
-    // Viewport display toggles.
     bool show_grid { true };
     bool show_origin_planes { true };
     bool show_axis_labels { true };
