@@ -2,7 +2,8 @@
 #include <string>
 #include <vector>
 
-namespace Platform {
+namespace Platform
+{
 
 /**
  * @brief Locates files shipped alongside the executable.
@@ -11,7 +12,8 @@ namespace Platform {
  * Paths are now anchored to the executable itself; the app runs from
  * anywhere.
  */
-namespace Assets {
+namespace Assets
+{
 
     /// Absolute path of the assets directory. Cached after the first call.
     const std::string& Root();

@@ -3,14 +3,16 @@
 #include "Types.h"
 #include <vector>
 
-namespace Core {
+namespace Core
+{
 
 /**
  * @brief All persistent application state.
  * @note Holds no GPU handles or pointers into the renderer, letting it survive
  * a hot-reload of the logic layer.
  */
-struct AppState {
+struct AppState
+{
     /// Which top-level tab is showing. 0 is the home page; N selects scenes[N-1].
     u32 active_tab { 0 };
     std::vector<Scene> scenes;

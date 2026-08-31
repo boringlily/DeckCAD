@@ -3,8 +3,10 @@
 
 #include <imgui.h>
 
-namespace Core {
-namespace ViewportPanelInternal {
+namespace Core
+{
+namespace ViewportPanelInternal
+{
 
     /// Queues the scene decorations the viewport draws every frame.
     void QueueSceneContent(FrameContext& context_ref, Scene& scene_ref)
@@ -12,7 +14,8 @@ namespace ViewportPanelInternal {
         context_ref.viewport_ref.beginScene();
         context_ref.viewport_ref.getGrid().setEnabled(scene_ref.show_grid);
 
-        if (scene_ref.show_origin_planes) {
+        if(scene_ref.show_origin_planes)
+        {
             constexpr f32 PLANE_HALF_SIZE = 5.0f;
             // color matches each plane's axis pair, alpha kept low to read as construction geometry, not a solid
             context_ref.viewport_ref.getSolids().addOriginPlane(Viewport::OriginPlane::XZ, PLANE_HALF_SIZE,
@@ -23,7 +26,8 @@ namespace ViewportPanelInternal {
                 { 0.85f, 0.40f, 0.40f, 0.10f });
         }
 
-        if (scene_ref.show_axis_labels) {
+        if(scene_ref.show_axis_labels)
+        {
             constexpr f32 AXIS_LENGTH = 5.5f;
             constexpr f32 LABEL_PIXEL_SIZE = 15.0f;
             context_ref.viewport_ref.getLabels().addLabel("X", { AXIS_LENGTH, 0.0f, 0.0f }, LABEL_PIXEL_SIZE,
@@ -45,19 +49,24 @@ namespace ViewportPanelInternal {
     {
         const ImGuiIO& io_ref = ImGui::GetIO();
 
-        if (active) {
+        if(active)
+        {
             const bool orbit = ImGui::IsMouseDown(ImGuiMouseButton_Left) && ImGui::IsMouseDown(ImGuiMouseButton_Right);
             const bool pan = ImGui::IsMouseDown(ImGuiMouseButton_Middle);
 
-            if (orbit) {
+            if(orbit)
+            {
                 scene_ref.camera.orbitAroundTarget(io_ref.MouseDelta.x, io_ref.MouseDelta.y);
-            } else if (pan) {
+            }
+            else if(pan)
+            {
                 scene_ref.camera.panAcrossView(io_ref.MouseDelta.x, io_ref.MouseDelta.y);
             }
         }
 
         // wheel gated on hover, keeps scrolling a docked panel from moving the camera
-        if (hovered && io_ref.MouseWheel != 0.0f) {
+        if(hovered && io_ref.MouseWheel != 0.0f)
+        {
             scene_ref.camera.zoomTowardTarget(io_ref.MouseWheel);
         }
     }
@@ -87,13 +96,15 @@ void DrawViewportPanel(FrameContext& context_ref)
         PANEL_WINDOW_FLAGS | ImGuiWindowFlags_NoScrollbar | ImGuiWindowFlags_NoScrollWithMouse);
     ImGui::PopStyleVar();
 
-    if (!open) {
+    if(!open)
+    {
         ImGui::End();
         return;
     }
 
     const ImVec2 available = ImGui::GetContentRegionAvail();
-    if (available.x < 1.0f || available.y < 1.0f) {
+    if(available.x < 1.0f || available.y < 1.0f)
+    {
         ImGui::End();
         return;
     }
@@ -109,14 +120,17 @@ void DrawViewportPanel(FrameContext& context_ref)
 
     const ImVec2 image_top_left = ImGui::GetCursorScreenPos();
 
-    if (context_ref.viewport_ref.isReady()) {
+    if(context_ref.viewport_ref.isReady())
+    {
         f32 uv_max_u = 1.0f;
         f32 uv_max_v = 1.0f;
         context_ref.viewport_ref.getContentUvMax(uv_max_u, uv_max_v);
 
         ImGui::Image(Ui::ToImTextureID(context_ref.viewport_ref.getColorTextureView().Get()),
             available, ImVec2(0.0f, 0.0f), ImVec2(uv_max_u, uv_max_v));
-    } else {
+    }
+    else
+    {
         ImGui::Dummy(available);
     }
 

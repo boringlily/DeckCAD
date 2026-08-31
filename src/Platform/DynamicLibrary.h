@@ -2,7 +2,8 @@
 #include "Types.h"
 #include <string>
 
-namespace Platform {
+namespace Platform
+{
 
 /**
  * @brief Loads a shared library from disk and can reload it in place when
@@ -12,7 +13,8 @@ namespace Platform {
  * the original path: a build can overwrite the original while the shadow
  * copy stays mapped into this process.
  */
-class DynamicLibrary {
+class DynamicLibrary
+{
 public:
     DynamicLibrary() = default;
     ~DynamicLibrary();

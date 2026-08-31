@@ -4,7 +4,8 @@
 
 struct SDL_Window;
 
-namespace Platform {
+namespace Platform
+{
 
 /**
  * @brief Owns the SDL3 window and the event pump.
@@ -12,7 +13,8 @@ namespace Platform {
  * consumes the small surface below; swapping the windowing layer stays a
  * local change.
  */
-class Window {
+class Window
+{
 public:
     Window() = default;
     ~Window();

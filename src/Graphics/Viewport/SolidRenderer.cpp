@@ -5,10 +5,13 @@
 #include <cstddef>
 #include <cstring>
 
-namespace Viewport {
-namespace SolidRendererInternal {
+namespace Viewport
+{
+namespace SolidRendererInternal
+{
 
-    struct SolidUniforms {
+    struct SolidUniforms
+    {
         f32 view_projection[16];
     };
 
@@ -21,11 +24,13 @@ bool SolidRenderer::initializeResources(const Gpu::Context& gpu_ref,
     std::string& out_error_ref)
 {
     std::string wgsl;
-    if (!Platform::Assets::ReadTextFile(Platform::Assets::Resolve("shaders/solid.wgsl"), wgsl, out_error_ref)) {
+    if(!Platform::Assets::ReadTextFile(Platform::Assets::Resolve("shaders/solid.wgsl"), wgsl, out_error_ref))
+    {
         return false;
     }
     wgpu::ShaderModule shader = gpu_ref.createShaderModule("solid", wgsl);
-    if (!shader) {
+    if(!shader)
+    {
         out_error_ref = "Failed to compile shaders/solid.wgsl";
         return false;
     }
@@ -121,7 +126,8 @@ bool SolidRenderer::initializeResources(const Gpu::Context& gpu_ref,
     pipeline_descriptor.fragment = &fragment;
 
     pipeline_ = gpu_ref.getDevice().CreateRenderPipeline(&pipeline_descriptor);
-    if (!pipeline_) {
+    if(!pipeline_)
+    {
         out_error_ref = "Failed to create the solid render pipeline";
         return false;
     }
@@ -143,9 +149,10 @@ void SolidRenderer::beginBatch()
     vertices_.clear();
 }
 
-void SolidRenderer::addTriangle(DeckMath::Vector3 a, DeckMath::Vector3 b, DeckMath::Vector3 c, DeckMath::Vector4 color)
+void SolidRenderer::addTriangle(DcadMath::Vector3 a, DcadMath::Vector3 b, DcadMath::Vector3 c, DcadMath::Vector4 color)
 {
-    auto push = [&](DeckMath::Vector3 position) {
+    auto push = [&](DcadMath::Vector3 position)
+    {
         Vertex vertex {};
         vertex.position[0] = position.x;
         vertex.position[1] = position.y;
@@ -161,16 +168,17 @@ void SolidRenderer::addTriangle(DeckMath::Vector3 a, DeckMath::Vector3 b, DeckMa
     push(c);
 }
 
-void SolidRenderer::addQuad(DeckMath::Vector3 a, DeckMath::Vector3 b, DeckMath::Vector3 c, DeckMath::Vector3 d, DeckMath::Vector4 color)
+void SolidRenderer::addQuad(DcadMath::Vector3 a, DcadMath::Vector3 b, DcadMath::Vector3 c, DcadMath::Vector3 d, DcadMath::Vector4 color)
 {
     addTriangle(a, b, c, color);
     addTriangle(a, c, d, color);
 }
 
-void SolidRenderer::addOriginPlane(OriginPlane plane, f32 half_size, DeckMath::Vector4 color)
+void SolidRenderer::addOriginPlane(OriginPlane plane, f32 half_size, DcadMath::Vector4 color)
 {
     const f32 s = half_size;
-    switch (plane) {
+    switch(plane)
+    {
     case OriginPlane::XY:
         addQuad({ -s, -s, 0 }, { s, -s, 0 }, { s, s, 0 }, { -s, s, 0 }, color);
         break;
@@ -185,12 +193,14 @@ void SolidRenderer::addOriginPlane(OriginPlane plane, f32 half_size, DeckMath::V
 
 void SolidRenderer::ensureVertexCapacity(const Gpu::Context& gpu_ref, size_t vertex_count)
 {
-    if (vertex_count <= vertex_capacity_ && vertex_buffer_) {
+    if(vertex_count <= vertex_capacity_ && vertex_buffer_)
+    {
         return;
     }
 
     size_t capacity = std::max<size_t>(vertex_capacity_ * 2, 512);
-    while (capacity < vertex_count) {
+    while(capacity < vertex_count)
+    {
         capacity *= 2;
     }
 
@@ -204,16 +214,17 @@ void SolidRenderer::ensureVertexCapacity(const Gpu::Context& gpu_ref, size_t ver
 
 void SolidRenderer::flushBatch(const Gpu::Context& gpu_ref,
     const wgpu::RenderPassEncoder& pass_ref,
-    const DeckMath::Matrix4& view_ref,
-    const DeckMath::Matrix4& projection_ref)
+    const DcadMath::Matrix4& view_ref,
+    const DcadMath::Matrix4& projection_ref)
 {
-    if (!pipeline_ || vertices_.empty()) {
+    if(!pipeline_ || vertices_.empty())
+    {
         return;
     }
 
     ensureVertexCapacity(gpu_ref, vertices_.size());
 
-    DeckMath::Matrix4 view_projection = projection_ref * view_ref;
+    DcadMath::Matrix4 view_projection = projection_ref * view_ref;
     SolidUniforms uniforms {};
     std::memcpy(uniforms.view_projection, &view_projection.columns[0].x, sizeof(uniforms.view_projection));
 

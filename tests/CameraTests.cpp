@@ -2,9 +2,10 @@
 #include <gtest/gtest.h>
 
 using Viewport::Camera;
-using namespace DeckMath;
+using namespace DcadMath;
 
-namespace CameraTestsInternal {
+namespace CameraTestsInternal
+{
 constexpr f32 EPSILON = 1e-3f;
 }
 using namespace CameraTestsInternal;
@@ -86,12 +87,14 @@ TEST(Camera, ZoomIsClampedAtBothEnds)
 {
     Camera camera;
 
-    for (int i = 0; i < 500; ++i) {
+    for(int i = 0; i < 500; ++i)
+    {
         camera.zoomTowardTarget(1.0f);
     }
     EXPECT_GE(camera.getDistanceToTarget(), Camera::MIN_DISTANCE - EPSILON);
 
-    for (int i = 0; i < 1000; ++i) {
+    for(int i = 0; i < 1000; ++i)
+    {
         camera.zoomTowardTarget(-1.0f);
     }
     EXPECT_LE(camera.getDistanceToTarget(), Camera::MAX_DISTANCE + EPSILON);

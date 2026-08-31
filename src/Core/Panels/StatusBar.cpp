@@ -3,7 +3,8 @@
 
 #include <imgui.h>
 
-namespace Core {
+namespace Core
+{
 
 void DrawStatusBar(FrameContext& context_ref)
 {

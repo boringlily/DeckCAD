@@ -3,7 +3,8 @@
 void CoreAppInit(Core::AppState* app_ptr, ImGuiContext* imgui_context_ptr)
 {
     ImGui::SetCurrentContext(imgui_context_ptr);
-    if (app_ptr->scenes.empty()) {
+    if(app_ptr->scenes.empty())
+    {
         app_ptr->newScene();
     }
 }

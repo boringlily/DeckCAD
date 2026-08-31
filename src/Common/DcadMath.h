@@ -12,21 +12,25 @@
  *   layout WGSL's mat4x4<f32> expects; they upload without transposing.
  */
 
-namespace DeckMath {
+namespace DcadMath
+{
 
 inline constexpr f32 PI = 3.14159265358979323846f;
 inline constexpr f32 DEGREES_TO_RADIANS = PI / 180.0f;
 inline constexpr f32 RADIANS_TO_DEGREES = 180.0f / PI;
 
-struct Vector2 {
+struct Vector2
+{
     f32 x { 0 }, y { 0 };
 };
 
-struct Vector3 {
+struct Vector3
+{
     f32 x { 0 }, y { 0 }, z { 0 };
 };
 
-struct Vector4 {
+struct Vector4
+{
     f32 x { 0 }, y { 0 }, z { 0 }, w { 0 };
 };
 
@@ -87,7 +91,8 @@ inline Vector3 RotateAxisAngle(Vector3 vector, Vector3 axis, f32 radians)
 
 /// Column-major 4x4 matrix; `columns[i]` is the i-th *column* and `columns[3]`
 /// holds the translation of an affine transform.
-struct Matrix4 {
+struct Matrix4
+{
     Vector4 columns[4] {};
 
     static Matrix4 identityMatrix()
@@ -104,7 +109,8 @@ struct Matrix4 {
 inline Matrix4 operator*(const Matrix4& left_ref, const Matrix4& right_ref)
 {
     Matrix4 result;
-    for (int column = 0; column < 4; ++column) {
+    for(int column = 0; column < 4; ++column)
+    {
         const Vector4& right_column_ref = right_ref.columns[column];
         result.columns[column] = {
             left_ref.columns[0].x * right_column_ref.x + left_ref.columns[1].x * right_column_ref.y + left_ref.columns[2].x * right_column_ref.z + left_ref.columns[3].x * right_column_ref.w,
@@ -205,7 +211,8 @@ inline Matrix4 Inverse(const Matrix4& matrix_ref)
 
     f32 determinant = minor_0 * cofactor_5 - minor_1 * cofactor_4 + minor_2 * cofactor_3
         + minor_3 * cofactor_2 - minor_4 * cofactor_1 + minor_5 * cofactor_0;
-    if (std::fabs(determinant) < 1e-20f) {
+    if(std::fabs(determinant) < 1e-20f)
+    {
         return Matrix4::identityMatrix();
     }
     f32 inverse_determinant = 1.0f / determinant;
@@ -236,7 +243,8 @@ inline Matrix4 Inverse(const Matrix4& matrix_ref)
 
 // --- Ray --------------------------------------------------------------------
 
-struct Ray {
+struct Ray
+{
     Vector3 origin {};
     Vector3 direction {};
 };
@@ -246,15 +254,17 @@ struct Ray {
 inline bool RayPlaneIntersect(const Ray& ray_ref, Vector3 plane_point, Vector3 plane_normal, Vector3& out_hit_ref)
 {
     f32 denominator = Dot(plane_normal, ray_ref.direction);
-    if (std::fabs(denominator) < 1e-6f) {
+    if(std::fabs(denominator) < 1e-6f)
+    {
         return false;
     }
     f32 distance_along_ray = Dot(plane_point - ray_ref.origin, plane_normal) / denominator;
-    if (distance_along_ray < 0.0f) {
+    if(distance_along_ray < 0.0f)
+    {
         return false;
     }
     out_hit_ref = ray_ref.origin + ray_ref.direction * distance_along_ray;
     return true;
 }
 
-} // namespace DeckMath
+} // namespace DcadMath

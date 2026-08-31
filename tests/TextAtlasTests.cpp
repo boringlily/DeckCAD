@@ -7,7 +7,8 @@
 // ships with the repo; a break in the pipeline fails a test instead of
 // silently rendering nothing in the viewport.
 
-namespace TextAtlasTestsInternal {
+namespace TextAtlasTestsInternal
+{
 
 const std::string& FontPath()
 {
@@ -26,7 +27,8 @@ Text::AtlasConfiguration SmallConfiguration()
     return configuration;
 }
 
-class TextAtlas : public ::testing::Test {
+class TextAtlas : public ::testing::Test
+{
 protected:
     static void SetUpTestSuite()
     {
@@ -93,9 +95,11 @@ TEST_F(TextAtlas, GlyphUvsStayInsideTheAtlas)
 {
     ASSERT_TRUE(atlas_built) << build_error;
 
-    for (u32 codepoint = 33; codepoint <= 90; ++codepoint) {
+    for(u32 codepoint = 33; codepoint <= 90; ++codepoint)
+    {
         const Text::Glyph* glyph_ptr = shared_atlas.findGlyph(codepoint);
-        if (!glyph_ptr || !glyph_ptr->has_geometry) {
+        if(!glyph_ptr || !glyph_ptr->has_geometry)
+        {
             continue;
         }
         SCOPED_TRACE("codepoint " + std::to_string(codepoint));
@@ -115,7 +119,8 @@ TEST_F(TextAtlas, RasterizesActualDistanceData)
     // all-zero atlas means msdfgen ran but wrote nothing; shape/UV checks above wouldn't catch that
     const std::vector<u8>& pixels_ref = shared_atlas.getPixels();
     const bool any_non_zero = std::any_of(pixels_ref.begin(), pixels_ref.end(),
-        [](u8 value) { return value != 0 && value != 255; });
+        [](u8 value)
+        { return value != 0 && value != 255; });
     EXPECT_TRUE(any_non_zero) << "atlas contains no intermediate distance values";
 }
 

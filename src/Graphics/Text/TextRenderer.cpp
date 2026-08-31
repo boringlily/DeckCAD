@@ -5,10 +5,13 @@
 #include <cstddef>
 #include <cstring>
 
-namespace Text {
-namespace TextRendererInternal {
+namespace Text
+{
+namespace TextRendererInternal
+{
 
-    struct TextUniforms {
+    struct TextUniforms
+    {
         f32 view_projection[16];
         f32 viewport_size[4]; // xy = pixels, z = pixel range
     };
@@ -22,18 +25,21 @@ bool TextRenderer::initializeResources(const Gpu::Context& gpu_ref,
     wgpu::TextureFormat depth_format,
     std::string& out_error_ref)
 {
-    if (!atlas_ref.isValid()) {
+    if(!atlas_ref.isValid())
+    {
         out_error_ref = "Text atlas is empty";
         return false;
     }
     atlas_ptr_ = &atlas_ref;
 
     std::string wgsl;
-    if (!Platform::Assets::ReadTextFile(Platform::Assets::Resolve("shaders/msdf_text.wgsl"), wgsl, out_error_ref)) {
+    if(!Platform::Assets::ReadTextFile(Platform::Assets::Resolve("shaders/msdf_text.wgsl"), wgsl, out_error_ref))
+    {
         return false;
     }
     wgpu::ShaderModule shader = gpu_ref.createShaderModule("msdf_text", wgsl);
-    if (!shader) {
+    if(!shader)
+    {
         out_error_ref = "Failed to compile shaders/msdf_text.wgsl";
         return false;
     }
@@ -51,7 +57,8 @@ bool TextRenderer::initializeResources(const Gpu::Context& gpu_ref,
     texture_descriptor.usage = wgpu::TextureUsage::TextureBinding | wgpu::TextureUsage::CopyDst;
 
     atlas_texture_ = gpu_ref.getDevice().CreateTexture(&texture_descriptor);
-    if (!atlas_texture_) {
+    if(!atlas_texture_)
+    {
         out_error_ref = "Failed to create the MSDF atlas texture";
         return false;
     }
@@ -196,7 +203,8 @@ bool TextRenderer::initializeResources(const Gpu::Context& gpu_ref,
     pipeline_descriptor.fragment = &fragment;
 
     pipeline_ = gpu_ref.getDevice().CreateRenderPipeline(&pipeline_descriptor);
-    if (!pipeline_) {
+    if(!pipeline_)
+    {
         out_error_ref = "Failed to create the text render pipeline";
         return false;
     }
@@ -223,13 +231,14 @@ void TextRenderer::beginBatch()
 }
 
 void TextRenderer::addLabel(const std::string& text_ref,
-    DeckMath::Vector3 world_position,
+    DcadMath::Vector3 world_position,
     f32 pixel_size,
-    DeckMath::Vector4 color,
+    DcadMath::Vector4 color,
     AlignHorizontal align_horizontal,
     AlignVertical align_vertical)
 {
-    if (!atlas_ptr_ || text_ref.empty()) {
+    if(!atlas_ptr_ || text_ref.empty())
+    {
         return;
     }
 
@@ -237,7 +246,8 @@ void TextRenderer::addLabel(const std::string& text_ref,
 
     // Horizontal pivot, in pixels.
     f32 origin_x = 0.0f;
-    if (align_horizontal != AlignHorizontal::Left) {
+    if(align_horizontal != AlignHorizontal::Left)
+    {
         f32 width = atlas_ptr_->measureWidth(text_ref) * pixel_size;
         origin_x = (align_horizontal == AlignHorizontal::Center) ? -width * 0.5f : -width;
     }
@@ -245,7 +255,8 @@ void TextRenderer::addLabel(const std::string& text_ref,
     // Vertical pivot, in pixels. Screen Y grows downward, font Y grows
     // upward: a shift "up" on screen is a negative offset.
     f32 origin_y = 0.0f;
-    switch (align_vertical) {
+    switch(align_vertical)
+    {
     case AlignVertical::Baseline:
         origin_y = 0.0f;
         break;
@@ -266,17 +277,21 @@ void TextRenderer::addLabel(const std::string& text_ref,
     f32 pen_x = origin_x;
     u32 previous = 0;
 
-    for (unsigned char character : text_ref) {
+    for(unsigned char character : text_ref)
+    {
         const Glyph* glyph_ptr = atlas_ptr_->findGlyph(character);
-        if (!glyph_ptr) {
+        if(!glyph_ptr)
+        {
             continue;
         }
-        if (previous != 0) {
+        if(previous != 0)
+        {
             pen_x += atlas_ptr_->getKerning(previous, character) * pixel_size;
         }
         previous = character;
 
-        if (glyph_ptr->has_geometry) {
+        if(glyph_ptr->has_geometry)
+        {
             // Font space is Y-up; negate to land in Y-down screen offsets.
             const f32 left = pen_x + glyph_ptr->plane_left * pixel_size;
             const f32 right = pen_x + glyph_ptr->plane_right * pixel_size;
@@ -288,7 +303,8 @@ void TextRenderer::addLabel(const std::string& text_ref,
             const f32 uv_top = glyph_ptr->uv_top;
             const f32 uv_bottom = glyph_ptr->uv_bottom;
 
-            auto push = [&](f32 x, f32 y, f32 u, f32 v) {
+            auto push = [&](f32 x, f32 y, f32 u, f32 v)
+            {
                 Vertex vertex {};
                 std::memcpy(vertex.anchor, anchor, sizeof(anchor));
                 vertex.offset[0] = x;
@@ -314,14 +330,16 @@ void TextRenderer::addLabel(const std::string& text_ref,
 
 void TextRenderer::ensureVertexCapacity(const Gpu::Context& gpu_ref, size_t vertex_count)
 {
-    if (vertex_count <= vertex_capacity_ && vertex_buffer_) {
+    if(vertex_count <= vertex_capacity_ && vertex_buffer_)
+    {
         return;
     }
 
     // grows geometrically: a viewport that gains labels frame by frame does
     // not reallocate every frame
     size_t capacity = std::max<size_t>(vertex_capacity_ * 2, 1024);
-    while (capacity < vertex_count) {
+    while(capacity < vertex_count)
+    {
         capacity *= 2;
     }
 
@@ -335,11 +353,12 @@ void TextRenderer::ensureVertexCapacity(const Gpu::Context& gpu_ref, size_t vert
 
 void TextRenderer::flushBatch(const Gpu::Context& gpu_ref,
     const wgpu::RenderPassEncoder& pass_ref,
-    const DeckMath::Matrix4& view_projection_ref,
+    const DcadMath::Matrix4& view_projection_ref,
     f32 viewport_width,
     f32 viewport_height)
 {
-    if (!pipeline_ || vertices_.empty()) {
+    if(!pipeline_ || vertices_.empty())
+    {
         return;
     }
 

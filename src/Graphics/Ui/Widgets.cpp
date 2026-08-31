@@ -1,10 +1,12 @@
 #include "Widgets.h"
 
-namespace Ui {
+namespace Ui
+{
 
 void IconImage(const IconSet& icons_ref, IconId icon, f32 size, const Color& tint_ref)
 {
-    if (!icons_ref.isValid()) {
+    if(!icons_ref.isValid())
+    {
         ImGui::Dummy(ImVec2(size, size));
         return;
     }
@@ -24,7 +26,8 @@ void IconImage(const IconSet& icons_ref, IconId icon, f32 size, const Color& tin
 
 bool IconButton(const IconSet& icons_ref, IconId icon, const char* id_ptr, f32 size, const Color& tint_ref)
 {
-    if (!icons_ref.isValid()) {
+    if(!icons_ref.isValid())
+    {
         return ImGui::Button(id_ptr, ImVec2(size, size));
     }
 
@@ -47,11 +50,13 @@ bool IconButton(const IconSet& icons_ref, IconId icon, const char* id_ptr, f32 s
 bool TabButton(const char* label_ptr, bool selected)
 {
     // forces the "active" colour while selected, instead of a separate pressed-tab widget
-    if (selected) {
+    if(selected)
+    {
         ImGui::PushStyleColor(ImGuiCol_Button, ImGui::GetStyleColorVec4(ImGuiCol_ButtonActive));
     }
     const bool clicked = ImGui::Button(label_ptr);
-    if (selected) {
+    if(selected)
+    {
         ImGui::PopStyleColor();
     }
     return clicked;
@@ -60,7 +65,8 @@ bool TabButton(const char* label_ptr, bool selected)
 void CenterNextItem(f32 item_width)
 {
     const f32 available = ImGui::GetContentRegionAvail().x;
-    if (available > item_width) {
+    if(available > item_width)
+    {
         ImGui::SetCursorPosX(ImGui::GetCursorPosX() + (available - item_width) * 0.5f);
     }
 }

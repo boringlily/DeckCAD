@@ -1,19 +1,23 @@
 #pragma once
 #include "Types.h"
 
-namespace Core {
+namespace Core
+{
 
 struct FrameContext;
 
 /// Tool selection state for one scene.
-struct Toolbox {
+struct Toolbox
+{
     /// Bit flags for which modelling contexts a tool belongs to.
-    enum ContextFlags : u8 {
+    enum ContextFlags : u8
+    {
         Solid = 0b01,
         Sketch = 0b10,
     };
 
-    enum class ToolStatus : u8 {
+    enum class ToolStatus : u8
+    {
         Idle,
         Active,
     };

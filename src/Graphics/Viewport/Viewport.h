@@ -8,7 +8,8 @@
 #include "Types.h"
 #include <string>
 
-namespace Viewport {
+namespace Viewport
+{
 
 /**
  * @brief Bundles an offscreen colour+depth target, the renderers that draw
@@ -22,7 +23,8 @@ namespace Viewport {
  * texture view it sees; reallocating on each pixel change would leak a
  * texture per frame.
  */
-class Viewport {
+class Viewport
+{
 public:
     static constexpr wgpu::TextureFormat COLOR_FORMAT = wgpu::TextureFormat::RGBA8Unorm;
     static constexpr wgpu::TextureFormat DEPTH_FORMAT = wgpu::TextureFormat::Depth24Plus;
@@ -58,7 +60,7 @@ public:
     Text::TextRenderer& getLabels() { return text_; }
     GridRenderer& getGrid() { return grid_; }
 
-    DeckMath::Vector4& getBackgroundColor() { return background_; }
+    DcadMath::Vector4& getBackgroundColor() { return background_; }
 
     bool isReady() const { return static_cast<bool>(color_view_) && width_ > 0 && height_ > 0; }
 
@@ -82,7 +84,7 @@ private:
     u32 texture_width_ { 0 };
     u32 texture_height_ { 0 };
 
-    DeckMath::Vector4 background_ { 0.16f, 0.17f, 0.20f, 1.0f };
+    DcadMath::Vector4 background_ { 0.16f, 0.17f, 0.20f, 1.0f };
 };
 
 } // namespace Viewport

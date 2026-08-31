@@ -14,8 +14,10 @@
 #include <cstring>
 #include <vector>
 
-namespace Ui {
-namespace IconsInternal {
+namespace Ui
+{
+namespace IconsInternal
+{
 
 #define DECKCAD_ICON_NAME(NAME) #NAME,
     constexpr std::array<const char*, ICON_COUNT> ICON_NAMES { DECKCAD_ICON_LIST(DECKCAD_ICON_NAME) };
@@ -36,19 +38,22 @@ bool IconSet::initializeResources(const Gpu::Context& gpu_ref, f32 display_scale
     std::vector<u8> atlas(static_cast<size_t>(atlas_width_) * atlas_height_ * 4, 0);
 
     NSVGrasterizer* rasterizer_ptr = nsvgCreateRasterizer();
-    if (!rasterizer_ptr) {
+    if(!rasterizer_ptr)
+    {
         out_error_ref = "Failed to create the nanosvg rasterizer";
         return false;
     }
 
     std::vector<u8> scratch(static_cast<size_t>(pixel_size_) * pixel_size_ * 4);
 
-    for (size_t index = 0; index < ICON_COUNT; ++index) {
+    for(size_t index = 0; index < ICON_COUNT; ++index)
+    {
         const std::string path = Platform::Assets::Resolve(
             std::string("Icon/svg/") + ICON_NAMES[index] + ".svg");
 
         NSVGimage* image_ptr = nsvgParseFromFile(path.c_str(), "px", 96.0f);
-        if (!image_ptr) {
+        if(!image_ptr)
+        {
             // missing icon leaves a transparent slot instead of aborting startup
             std::fprintf(stderr, "[icons] could not parse '%s'\n", path.c_str());
             continue;
@@ -67,7 +72,8 @@ bool IconSet::initializeResources(const Gpu::Context& gpu_ref, f32 display_scale
 
         // copy the square into its slot in the atlas
         const u32 origin_x = static_cast<u32>(index) * pixel_size_;
-        for (u32 y = 0; y < pixel_size_; ++y) {
+        for(u32 y = 0; y < pixel_size_; ++y)
+        {
             const u8* source_ptr = scratch.data() + static_cast<size_t>(y) * pixel_size_ * 4;
             u8* destination_ptr = atlas.data() + (static_cast<size_t>(y) * atlas_width_ + origin_x) * 4;
             std::memcpy(destination_ptr, source_ptr, static_cast<size_t>(pixel_size_) * 4);
@@ -86,7 +92,8 @@ bool IconSet::initializeResources(const Gpu::Context& gpu_ref, f32 display_scale
     texture_descriptor.usage = wgpu::TextureUsage::TextureBinding | wgpu::TextureUsage::CopyDst;
 
     texture_ = gpu_ref.getDevice().CreateTexture(&texture_descriptor);
-    if (!texture_) {
+    if(!texture_)
+    {
         out_error_ref = "Failed to create the icon atlas texture";
         return false;
     }

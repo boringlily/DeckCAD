@@ -3,10 +3,12 @@
 #include <dawn/webgpu_cpp.h>
 #include <string>
 
-namespace Gpu {
+namespace Gpu
+{
 
 /// Everything needed to attach WebGPU to an already-created OS window.
-struct ContextDescriptor {
+struct ContextDescriptor
+{
     const char* native_system_ptr { nullptr }; // "cocoa" | "win32" | "wayland" | "x11"
     void* native_window_ptr { nullptr };
     void* native_display_ptr { nullptr };
@@ -22,7 +24,8 @@ struct ContextDescriptor {
  * logic never holds a device or a pipeline, which keeps the door open to
  * moving Core back behind a hot-reload boundary later.
  */
-class Context {
+class Context
+{
 public:
     Context() = default;
     ~Context();

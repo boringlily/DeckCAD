@@ -4,8 +4,10 @@
 #include <imgui.h>
 #include <imgui_internal.h>
 
-namespace Core {
-namespace AppInternal {
+namespace Core
+{
+namespace AppInternal
+{
 
     constexpr const char* DOCK_SPACE_ID = "DeckCADDockSpace";
     constexpr const char* VIEWPORT_PANEL = "Viewport";
@@ -24,7 +26,8 @@ namespace AppInternal {
     /// Strips the tab bar and window menu from a leaf node.
     void StripNodeDecorations(ImGuiID node_id)
     {
-        if (ImGuiDockNode* node_ptr = ImGui::DockBuilderGetNode(node_id)) {
+        if(ImGuiDockNode* node_ptr = ImGui::DockBuilderGetNode(node_id))
+        {
             node_ptr->LocalFlags |= DOCK_NODE_FLAGS;
         }
     }
@@ -76,7 +79,8 @@ void BuildFrame(FrameContext& context_ref)
 
     DrawHeaderBar(context_ref);
 
-    if (context_ref.app_ref.hasOpenScene()) {
+    if(context_ref.app_ref.hasOpenScene())
+    {
         // Reserve room for the status bar before handing the rest to the dockspace.
         const f32 status_bar_height = ImGui::GetFrameHeightWithSpacing();
         const ImVec2 dock_size(ImGui::GetContentRegionAvail().x,
@@ -85,7 +89,8 @@ void BuildFrame(FrameContext& context_ref)
         ImGuiID dockspace_id = ImGui::GetID(DOCK_SPACE_ID);
         const bool first_use = ImGui::DockBuilderGetNode(dockspace_id) == nullptr;
         ImGui::DockSpace(dockspace_id, dock_size, DOCK_SPACE_FLAGS);
-        if (first_use) {
+        if(first_use)
+        {
             BuildDefaultLayout(dockspace_id);
         }
 
@@ -93,16 +98,20 @@ void BuildFrame(FrameContext& context_ref)
         DrawViewportPanel(context_ref);
         DrawToolboxPanel(context_ref);
         DrawStatusBar(context_ref);
-    } else {
+    }
+    else
+    {
         DrawHomePage(context_ref);
     }
 
     ImGui::End();
 
-    if (context_ref.app_ref.show_metrics_window) {
+    if(context_ref.app_ref.show_metrics_window)
+    {
         ImGui::ShowMetricsWindow(&context_ref.app_ref.show_metrics_window);
     }
-    if (context_ref.app_ref.show_style_editor) {
+    if(context_ref.app_ref.show_style_editor)
+    {
         ImGui::Begin("Style Editor", &context_ref.app_ref.show_style_editor);
         ImGui::ShowStyleEditor();
         ImGui::End();

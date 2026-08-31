@@ -4,10 +4,12 @@
 #include <unordered_map>
 #include <vector>
 
-namespace Text {
+namespace Text
+{
 
 /// Placement and metrics for one glyph in the atlas.
-struct Glyph {
+struct Glyph
+{
     /// Horizontal advance, in em units (1.0 == one em).
     f32 advance { 0.0f };
 
@@ -28,14 +30,16 @@ struct Glyph {
     bool has_geometry { false };
 };
 
-struct AtlasMetrics {
+struct AtlasMetrics
+{
     f32 line_height { 0.0f }; // em units
     f32 ascender { 0.0f }; // em units
     f32 descender { 0.0f }; // em units, negative
     f32 pixel_range { 4.0f }; // distance field range, in atlas pixels
 };
 
-struct AtlasConfiguration {
+struct AtlasConfiguration
+{
     /// Em size in pixels used when rasterizing. Larger captures finer detail at
     /// the cost of atlas area; MSDF stays sharp well beyond this when magnified.
     u32 glyph_pixel_size { 48 };
@@ -58,7 +62,8 @@ struct AtlasConfiguration {
  * bitmap, and a shelf packer arranges them into a single RGBA8 texture ready
  * for upload.
  */
-class MsdfAtlas {
+class MsdfAtlas
+{
 public:
     bool buildAtlas(const std::string& font_path_ref, const AtlasConfiguration& configuration_ref, std::string& out_error_ref);
 

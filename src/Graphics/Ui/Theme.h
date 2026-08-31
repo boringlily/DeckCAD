@@ -1,15 +1,17 @@
 #pragma once
-#include "DeckMath.h"
+#include "DcadMath.h"
 #include "Types.h"
 
-namespace Ui {
+namespace Ui
+{
 
 /**
  * @brief Colour token for the UI.
  * @note Authored as 0-255 sRGB bytes to keep the palette readable; converted to
  * 0-1 floats where ImGui needs them.
  */
-struct Color {
+struct Color
+{
     u8 r { 255 }, g { 255 }, b { 255 }, a { 255 };
 
     constexpr Color() = default;
@@ -29,7 +31,7 @@ struct Color {
     {
     }
 
-    constexpr DeckMath::Vector4 toVector4() const
+    constexpr DcadMath::Vector4 toVector4() const
     {
         return { r / 255.0f, g / 255.0f, b / 255.0f, a / 255.0f };
     }
@@ -42,7 +44,8 @@ struct Color {
  * @note Carried over from the original Clay theme; keeps the app's visual identity
  * through the renderer change.
  */
-struct Palette {
+struct Palette
+{
     Color background_dark;
     Color background_base;
     Color background_light;
