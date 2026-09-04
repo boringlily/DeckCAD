@@ -174,6 +174,22 @@ void* Window::getNativeDisplay() const
 #endif
 }
 
+void* Window::getNativeInstance() const
+{
+#if defined(SDL_PLATFORM_WIN32)
+    if(!window_ptr_)
+    {
+        return nullptr;
+    }
+    SDL_PropertiesID props = SDL_GetWindowProperties(window_ptr_);
+    return SDL_GetPointerProperty(props, SDL_PROP_WINDOW_WIN32_INSTANCE_POINTER, nullptr);
+#else
+    // Only Win32 names a module alongside the window handle; every other
+    // surface source this project builds is identified by the window alone.
+    return nullptr;
+#endif
+}
+
 void* Window::getNativeSurface() const
 {
 #if defined(SDL_PLATFORM_LINUX)
