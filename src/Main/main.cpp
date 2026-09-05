@@ -47,6 +47,7 @@ int main(int, char**)
     gpu_descriptor.native_window_ptr = window.getNativeWindow();
     gpu_descriptor.native_display_ptr = window.getNativeDisplay();
     gpu_descriptor.native_surface_ptr = window.getNativeSurface();
+    gpu_descriptor.native_instance_ptr = window.getNativeInstance();
     gpu_descriptor.width = window.getPixelWidth();
     gpu_descriptor.height = window.getPixelHeight();
     gpu_descriptor.vsync = true;

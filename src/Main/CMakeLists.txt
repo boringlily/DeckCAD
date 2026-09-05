@@ -49,12 +49,11 @@ if(APPLE)
     )
 endif()
 
-# Dawn is built as a shared library, so it has to sit next to the executable.
-add_custom_command(TARGET DeckCAD POST_BUILD
-    COMMAND ${CMAKE_COMMAND} -E copy_if_different
-        $<TARGET_FILE:dawn::webgpu_dawn> $<TARGET_FILE_DIR:DeckCAD>
-    COMMENT "Staging the Dawn runtime library"
-)
+# Dawn itself needs no staging -- the prebuilt is a static library, linked into
+# this executable rather than loaded from beside it. Its D3D12 backend does
+# load the DirectX shader compiler at runtime, though, and the prebuilt ships
+# none of it; see cmake/DeckCADDawn.cmake.
+deckcad_stage_dawn_runtime(DeckCAD)
 
 # Assets are resolved relative to the executable at runtime, so stage them.
 add_custom_command(TARGET DeckCAD POST_BUILD
