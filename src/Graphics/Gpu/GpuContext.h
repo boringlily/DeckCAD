@@ -13,6 +13,7 @@ struct ContextDescriptor
     void* native_window_ptr { nullptr };
     void* native_display_ptr { nullptr };
     void* native_surface_ptr { nullptr };
+    void* native_instance_ptr { nullptr }; // HINSTANCE; win32 only
     u32 width { 0 };
     u32 height { 0 };
     bool vsync { true };
