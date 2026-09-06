@@ -6,7 +6,7 @@
 |---------|-----------|-------|
 | CMake   | >= 3.20   | |
 | Clang   | 20.1.8    | Apple Clang also works, but the presets point at Homebrew LLVM |
-| Python  | >= 3.10   | Dawn's dependency fetcher and code generators need it |
+| Python  | >= 3.10   | `scripts/setup_dev_env.py` and `scripts/run_clang_tidy.py` |
 | Ninja   | any       | |
 | Git     | any       | |
 
@@ -24,7 +24,6 @@ This populates `submodules/` with:
 | Submodule    | Role |
 |--------------|------|
 | `sdl`        | Window creation and input (SDL3) |
-| `dawn`       | Native WebGPU implementation (Metal / D3D12 / Vulkan) |
 | `imgui`      | Dear ImGui, `docking` branch, for the panel UI |
 | `freetype`   | Font outline loading |
 | `msdfgen`    | Multi-channel signed distance field generation |
@@ -33,8 +32,9 @@ This populates `submodules/` with:
 | `glaze`      | Reserved for scene serialization; Not Implemented|
 | `tracy`      | Reserved for profiling; Not Implemented |
 
-Dawn pulls its own third-party tree at CMake configure time
-(`DAWN_FETCH_DEPENDENCIES=ON`), so `depot_tools` is not needed.
+Dawn -- the native WebGPU implementation (Metal / D3D12 / Vulkan) -- is
+deliberately *not* a submodule. It is downloaded as a prebuilt binary instead;
+see [Dawn](#dawn) below.
 
 ## 3) Compiler paths
 
@@ -92,12 +92,14 @@ cmake --build --preset Debug
 ```
 
 The first time this runs *on a machine* -- not per clone, per worktree, or
-per wiped `build/` directory -- it builds and installs SDL, Dawn, FreeType,
-msdfgen and googletest into a shared cache directory, which is where the
-10-20 minutes (mostly Dawn) goes. Every subsequent `cmake --preset Debug` on
-that machine, from any worktree, for that same submodule commit, just
-`find_package()`s the already-installed result: no reconfigure, no rebuild.
-See [External dependencies](#external-dependencies) below for how.
+per wiped `build/` directory -- it builds and installs SDL, FreeType, msdfgen
+and googletest into a shared cache directory, and downloads Dawn's prebuilt
+binary into the same place. That is where the first configure's few minutes
+go. Every subsequent `cmake --preset Debug` on that machine, from any
+worktree, for that same submodule commit, just `find_package()`s the
+already-installed result: no reconfigure, no rebuild, no re-download. See
+[External dependencies](#external-dependencies) and [Dawn](#dawn) below for
+how.
 
 Run the app:
 
@@ -112,7 +114,7 @@ ctest --preset Debug
 ```
 
 A release build uses a separate directory so the two never fight over the
-same Dawn artifacts:
+same build artifacts:
 
 ```
 cmake --preset Release && cmake --build --preset Release
@@ -140,7 +142,7 @@ classes twice and crash.
 
 ### External dependencies
 
-SDL, Dawn, FreeType, msdfgen and googletest each build as an independent,
+SDL, FreeType, msdfgen and googletest each build as an independent,
 installed CMake project in a shared cache directory (`DECKCAD_DEPS_DIR`, see
 below) instead of being compiled straight into DeckCAD's own `build/`
 directory the way `imgui` and `nanosvg` still are. `cmake/DeckCADDeps.cmake`'s
@@ -153,15 +155,18 @@ not CMake's `ExternalProject_Add`, which only runs at build time and can't
 finish before `find_package()` needs the result). Either way, the surrounding
 `CMakeLists.txt` then just does an ordinary `find_package(... CONFIG REQUIRED
 PATHS <that install dir> NO_DEFAULT_PATH)` and links the same target names as
-before (`SDL3::SDL3`, `dawn::webgpu_dawn`, `msdfgen::msdfgen-core`, ...).
+before (`SDL3::SDL3`, `msdfgen::msdfgen-core`, ...). Dawn is the one
+dependency that does not work this way -- it is downloaded rather than built,
+though it lands in the same cache directory and is consumed by the same kind
+of `find_package()`; see [Dawn](#dawn).
 
 This is genuinely a different, separate build from DeckCAD's own -- worth
 knowing two consequences of that:
 
 - **A cold start on a new machine is slower in wall-clock time than the old
-  single-Ninja-graph build was**, not faster: SDL, Dawn, FreeType and msdfgen
-  now build one after another (each is its own sequential `execute_process`
-  during configure) instead of all four sharing every CPU core at once the
+  single-Ninja-graph build was**, not faster: SDL, FreeType and msdfgen now
+  build one after another (each is its own sequential `execute_process`
+  during configure) instead of all three sharing every CPU core at once the
   way one unified `add_subdirectory()` graph let them. The payoff is that
   this cost is paid once per (machine, submodule commit) instead of once per
   worktree/build-dir -- which is the actual goal, cold start aside.
@@ -176,7 +181,7 @@ knowing two consequences of that:
 `%LOCALAPPDATA%\DeckCAD\deps` on Windows) and can be overridden with the
 `DECKCAD_DEPS_DIR` environment variable. To force a clean rebuild of one
 dependency, delete its directory under there (e.g.
-`rm -rf $DECKCAD_DEPS_DIR/dawn-debug-<commit>`) and reconfigure.
+`rm -rf $DECKCAD_DEPS_DIR/freetype-debug-<commit>`) and reconfigure.
 
 Two things are keyed into the cache path beyond just name + commit, because
 they change what actually gets built: SDL is cached as `sdl-static-<build-type>-<commit>`
@@ -188,6 +193,45 @@ linkage would silently reuse a wrongly-linked install.
 externalized: neither ships its own CMake project with install support
 (`cmake/imgui/CMakeLists.txt` is ours, not upstream's), and both are fast
 enough to compile that there's no real cold-start cost to share.
+
+### Dawn
+
+Dawn is the only dependency that is not built from source here. It is
+downloaded as a pinned, hash-checked prebuilt binary from Dawn's own nightly
+GitHub releases, unpacked into `DECKCAD_DEPS_DIR` alongside everything else,
+and consumed with the same ordinary `find_package(Dawn CONFIG REQUIRED)`.
+`cmake/DeckCADDawn.cmake` holds the pinned tag, the per-platform artifact
+hashes, and a long comment on the trade-offs; the short version:
+
+- Building Dawn from source cost a 0.9 GB submodule working tree (124k files),
+  another ~570 MB that Dawn's configure-time dependency fetcher pulled in, a
+  1.4 GB build tree, a Python dependency, and 10-20 minutes on every machine
+  that hadn't built that exact commit before. DeckCAD only ever touches the
+  standard WebGPU surface, so a stock build of Dawn is all it needs.
+- The prebuilts are **static** libraries, where the source build asked for a
+  shared one. Nothing needs staging as a result: Dawn links into `DeckCAD`
+  directly, and `deckcad_core` never linked it in the first place.
+- They are, in the Dawn team's own words, a best-effort service and are not
+  signed by Google. That is why the tag is pinned and every artifact is
+  verified against a recorded SHA-256 rather than tracking "latest". Rolling
+  forward means picking a new tag and recording four new hashes.
+- Only Dawn's four published desktop artifacts are supported: Windows (MSVC),
+  macOS arm64, macOS x86_64 and Linux x86_64 (built against glibc 2.28).
+- **Windows takes the Debug artifact for Debug builds**, because MSVC stamps
+  `_ITERATOR_DEBUG_LEVEL` and `RuntimeLibrary` into every object and the
+  linker rejects mismatches -- a Debug DeckCAD genuinely cannot link a Release
+  Dawn. That artifact is large (a 1.47 GB `webgpu_dawn.lib`). macOS and Linux
+  have no such rule, so they use the Release artifact for every configuration,
+  which also keeps CI on a 34 MB download instead of a 794 MB one.
+- **On Windows, `dxil.dll`, `dxcompiler.dll` and `d3dcompiler_47.dll` are
+  copied next to `DeckCAD.exe` from the installed Windows SDK.** Dawn's
+  prebuilt is compiled with its own DXC but ships no DLLs, and its D3D12
+  backend loads them at runtime; without them the app starts, finds an
+  adapter, and then fails device creation with
+  `DynamicLib.Open: dxil.dll Windows Error: 87`.
+
+To force a re-download, delete
+`$DECKCAD_DEPS_DIR/dawn-prebuilt-<tag>-<platform>-<config>` and reconfigure.
 
 ### Compiler cache
 
@@ -252,12 +296,13 @@ docker build -f Docker/Dockerfile --target macos-cross -t deckcad-build-macos .
 
 **Honest scope:** both stages are verified only with a trivial C smoke test
 baked into the Dockerfile (confirms the cross-compiler and sysroot produce a
-binary for that platform). Cross-compiling all of DeckCAD, including Dawn,
-has not been exercised end-to-end -- Dawn's own code generators (Tint) have
-to run as host-native tools even while cross-compiling the final artifacts,
-which is a known sharp edge for CMake projects with codegen steps, and
-llvm-mingw's DirectX 12 headers lag the real Windows SDK, so Dawn's D3D12
-backend is the likeliest thing to need extra work. Treat these as a starting
+binary for that platform). Cross-compiling all of DeckCAD has not been
+exercised end-to-end. The Windows stage in particular **cannot work as it
+stands**: it uses llvm-mingw, and Dawn's prebuilt Windows binary is built by
+MSVC, so the two cannot be linked together at all -- `cmake/DeckCADDawn.cmake`
+fails the configure with an explanation rather than letting it fail obscurely
+at link time. Making that path work again needs either an MSVC-ABI toolchain
+or a source build of Dawn for that target. Treat these as a starting
 point for getting the toolchain plumbing right, not a guarantee that
 `cmake --build` finishes on the first try.
 
@@ -301,10 +346,11 @@ anything. Needs `cmake --preset Debug` to have run at least once first.
 `DECKCAD_ENABLE_ASAN` / `DECKCAD_ENABLE_UBSAN` (both `ON` in the `Sanitize`
 preset, both individually available via `-D` on any preset) add
 `-fsanitize=...` to DeckCAD's own targets and in-tree `imgui` --
-deliberately **not** to the externally-built SDL/Dawn/FreeType/msdfgen/
+deliberately **not** to the externally-built SDL/FreeType/msdfgen/
 googletest (see [External dependencies](#external-dependencies)): those are
 separate, already-installed builds, and instrumenting them too would mean a
-second full Dawn build just to sanitize code this project doesn't own.
+second build of each just to sanitize code this project doesn't own. Dawn
+cannot be instrumented here at all -- it arrives prebuilt.
 AddressSanitizer still catches memory bugs at the boundary with those
 libraries (it intercepts `malloc`/`free` globally); UndefinedBehaviorSanitizer
 issues *inside* their own code specifically won't be caught, only in ours.
@@ -337,4 +383,4 @@ each other's install (the same caveat as two local worktrees doing it, see
 [External dependencies](#external-dependencies)); by the time `sanitize`/
 `lint` start, `build-debug` has already warmed the shared dependency cache
 (restored via `actions/cache`, keyed by `git submodule status`), so neither
-rebuilds SDL/Dawn/FreeType/msdfgen/googletest a second time.
+rebuilds SDL/FreeType/msdfgen/googletest or re-downloads Dawn a second time.
