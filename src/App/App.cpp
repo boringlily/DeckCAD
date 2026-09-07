@@ -33,6 +33,53 @@ void UiCenteredPage(Ui::UiId id, std::string_view title)
     Ui::CloseElement();
 }
 
+// The homescreen: start a new project, or open one of the durable .dcad files already
+// saved beside the exe. This is the one place "open a project" happens now — the
+// toolbox used to reload a single file tied to the current scene's name; opening now
+// creates a fresh scene tab and loads the picked file into it.
+void UiHomePage(AppState& app)
+{
+    const Ui::ColorScheme& colors = Ui::Colors();
+
+    Ui::LayoutConfig c {};
+    c.sizing = UiStyle::Expand();
+    c.padding = UiStyle::PaddingAll(24);
+    c.gap = 16;
+    c.direction = Ui::Direction::TopToBottom;
+    c.justify = Ui::Justify::Center;
+    c.align = Ui::AlignCross::Center;
+    c.background = colors.bgBase;
+    Ui::OpenElement(c, Ui::NameId("HomePage"));
+
+    UiStyle::Title("DeckCAD", Ui::NameId("HomePage::Title"));
+
+    if (UiStyle::Button("New Project", Ui::NameId("HomePage::New"),
+            { .sizing = { Ui::Fixed(240), Ui::Fit() }, .justify = Ui::Justify::Center, .padding = UiStyle::PaddingAll(10) })) {
+        app.CreateNewScene();
+    }
+
+    std::vector<std::string> projects = AppStorage::ListDcadFiles(AppStorage::ExeDir());
+    if (!projects.empty()) {
+        UiStyle::Subtitle("Open Project", Ui::NameId("HomePage::OpenLabel"));
+        Ui::BeginScrollPanel(Ui::NameId("HomePage::Projects"), 240, 320);
+        for (u32 i = 0; i < projects.size(); ++i) {
+            if (Ui::ListItem(projects[i], false, Ui::NameId("HomePage::Project", i))) {
+                app.CreateNewScene();
+                Scene* scene = app.GetActiveScene();
+                if (scene != nullptr) {
+                    scene->filename = projects[i]; // fallback if the file predates SceneMeta.name
+                    std::string dcad = AppStorage::JoinExe(Serialize::DcadFileName(projects[i]));
+                    Serialize::SerError err;
+                    AppStorage::LoadScene(*scene, dcad, err);
+                }
+            }
+        }
+        Ui::EndScrollPanel();
+    }
+
+    Ui::CloseElement();
+}
+
 // Phase 4: the AppHeader — Home button, dynamic scene-tab loop (with the active
 // tab's close chip), and the New-Scene button. Interaction via IsClicked/IsHovered
 // on content-stable NameIds. Mirrors LayoutAppHeader (the Clay version).
@@ -109,10 +156,36 @@ void UiAppHeader(AppState& app)
         app.CreateNewScene();
     }
 
+    // Undo / redo / save, pinned to the header so they stay reachable regardless of
+    // what the (scrollable) toolbox is showing. Only meaningful with a scene open.
+    Ui::Spacer();
+    // GetActiveScene() forces the layer back to Home when it's not already Scene_Layer
+    // (e.g. Settings), so it must only be called once we know a scene really is active.
+    if (app.IsSceneLayerActive()) {
+        Scene& scene = *app.GetActiveScene();
+        Workbench& wb = scene.workbench;
+
+        if (UiStyle::Button("", Ui::NameId("Header::Undo"),
+                { .icon = IconId::Undo, .bg = colors.bgDark })
+            && wb.CanUndo()) {
+            wb.Undo();
+        }
+        if (UiStyle::Button("", Ui::NameId("Header::Redo"),
+                { .icon = IconId::Redo, .bg = colors.bgDark })
+            && wb.CanRedo()) {
+            wb.Redo();
+        }
+        // Writes a durable <exeDir>/<name>.dcad (the auto-save cache under cache/ tracks
+        // history automatically).
+        if (UiStyle::Button("", Ui::NameId("Header::Save"), { .icon = IconId::Save, .bg = colors.bgDark })) {
+            AppStorage::SaveScene(scene, AppStorage::JoinExe(Serialize::DcadFileName(scene.filename)));
+        }
+    }
+
     Ui::CloseElement(); // Header
 }
 
-using AppUi::UiExplorer;
+using AppUi::UiLeftPanel;
 
 // ── Toolbox ───────────────────────────────────────────────────────────────────
 // The right-hand panel. It renders exactly what the current context reports from
@@ -243,44 +316,15 @@ void UiToolbox(Scene& scene)
     box.background = colors.bgBase;
     Ui::OpenElement(box, Ui::NameId("Toolbox"));
 
-    // Undo / redo.
-    Ui::LayoutConfig histRow {};
-    histRow.direction = Ui::Direction::LeftToRight;
-    histRow.sizing = { Ui::Grow(), Ui::Fit() };
-    histRow.gap = 6;
-    Ui::OpenElement(histRow, Ui::NameId("Toolbox::History"));
-    if (UiStyle::Button("Undo", Ui::NameId("Toolbox::Undo"),
-            { .sizing = { Ui::Grow(), Ui::Fit() }, .justify = Ui::Justify::Center, .labelColor = wb.CanUndo() ? colors.textBase : colors.textMuted })) {
-        wb.Undo();
-    }
-    if (UiStyle::Button("Redo", Ui::NameId("Toolbox::Redo"),
-            { .sizing = { Ui::Grow(), Ui::Fit() }, .justify = Ui::Justify::Center, .labelColor = wb.CanRedo() ? colors.textBase : colors.textMuted })) {
-        wb.Redo();
-    }
-    Ui::CloseElement();
-
-    // Explicit save / open. Save writes a durable <exeDir>/<name>.dcad (the auto-save
-    // cache under cache/ tracks history automatically); Open reloads that same file.
-    Ui::LayoutConfig fileRow {};
-    fileRow.direction = Ui::Direction::LeftToRight;
-    fileRow.sizing = { Ui::Grow(), Ui::Fit() };
-    fileRow.gap = 6;
-    Ui::OpenElement(fileRow, Ui::NameId("Toolbox::File"));
-    if (UiStyle::Button("Save", Ui::NameId("Toolbox::Save"),
-            { .sizing = { Ui::Grow(), Ui::Fit() }, .justify = Ui::Justify::Center })) {
-        AppStorage::SaveScene(scene, AppStorage::JoinExe(Serialize::DcadFileName(scene.filename)));
-    }
-    {
-        std::string dcad = AppStorage::JoinExe(Serialize::DcadFileName(scene.filename));
-        bool exists = AppStorage::FileExists(dcad);
-        if (UiStyle::Button("Open", Ui::NameId("Toolbox::Open"),
-                { .sizing = { Ui::Grow(), Ui::Fit() }, .justify = Ui::Justify::Center, .labelColor = exists ? colors.textBase : colors.textMuted })
-            && exists) {
-            Serialize::SerError err;
-            AppStorage::LoadScene(scene, dcad, err);
-        }
-    }
-    Ui::CloseElement();
+    // Undo/redo/save moved to the header (always reachable there) and Open moved to the
+    // homescreen; the toolbox now holds only the tool list, which can grow past the
+    // available height as more tool groups become available. A Grow-height column's
+    // measured size is content-based (Layout.cpp MeasureFit) with no shrink pass, so
+    // letting the group list stack directly here would keep inflating Toolbox — and with
+    // it Workbench — taller than the window, pushing WorkbenchFooter off the bottom of the
+    // screen. Fixed height decouples the panel's own size from its content instead, same
+    // as Explorer's tree/param/geometry panels (Explorer.h).
+    Ui::BeginScrollPanel(Ui::NameId("Toolbox::Scroll"), 480, 0, 8);
 
     // While a gesture is running the toolbox shows ONLY that gesture: its inputs, its
     // value field, Apply/Cancel. Offering the tool list at the same time invites a click
@@ -288,6 +332,7 @@ void UiToolbox(Scene& scene)
     // user is actually looking for at that moment.
     if (wb.ActiveTool().Active()) {
         UiActiveToolView(scene);
+        Ui::EndScrollPanel();
         Ui::CloseElement(); // Toolbox
         return;
     }
@@ -326,6 +371,7 @@ void UiToolbox(Scene& scene)
         UiToolGroup(g, tools, scene);
     }
 
+    Ui::EndScrollPanel();
     Ui::CloseElement(); // Toolbox
 }
 
@@ -796,7 +842,7 @@ void UiCanvas(Scene& scene)
 }
 // Phase 3: the Workbench frame — inner three-sibling grow row + footer. Explorer,
 // Canvas (Phase 6, real), and Toolbox (Phase 5, real) are all ported.
-void UiWorkbench(Scene& scene)
+void UiWorkbench(AppState& app, Scene& scene)
 {
     Ui::LayoutConfig wb {};
     wb.sizing = UiStyle::Expand();
@@ -810,7 +856,7 @@ void UiWorkbench(Scene& scene)
     inner.align = Ui::AlignCross::Stretch;
     Ui::OpenElement(inner, Ui::NameId("WorkbenchInner"));
 
-    UiExplorer(scene);
+    UiLeftPanel(scene, app);
     UiCanvas(scene);
     UiToolbox(scene);
 
@@ -884,7 +930,7 @@ void BuildUiTree(AppState& app)
 
     switch (app.GetActiveLayer()) {
     case AppLayer::Home_Layer:
-        UiCenteredPage(Ui::NameId("HomePage"), "This is going to be the homepage.");
+        UiHomePage(app);
         break;
     case AppLayer::Settings_Layer:
         UiCenteredPage(Ui::NameId("SettingsPage"), "This is going to be the global settings page.");
@@ -892,7 +938,7 @@ void BuildUiTree(AppState& app)
     case AppLayer::Scene_Layer: {
         Scene* scene = app.GetActiveScene();
         if (scene != nullptr) {
-            UiWorkbench(*scene);
+            UiWorkbench(app, *scene);
             AutoSaveTick(*scene);
         }
         break;

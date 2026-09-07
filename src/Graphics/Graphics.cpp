@@ -59,7 +59,8 @@ struct Icon {
 };
 
 #define MAKE_STRINGS(VAR) #VAR,
-const std::array<std::array<u8, 20>, 9> IconNames = {
+#define COUNT_ARGS(VAR) +1
+const std::array<std::array<u8, 20>, 0 Make_Icons(COUNT_ARGS)> IconNames = {
     Make_Icons(MAKE_STRINGS)
 };
 

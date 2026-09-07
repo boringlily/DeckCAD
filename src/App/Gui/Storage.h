@@ -10,6 +10,7 @@
 #include <fstream>
 #include <string>
 #include <system_error>
+#include <vector>
 
 // The app-layer storage wrapper: the only serialization code that touches the filesystem
 // and raylib. Kept thin so the serialization core (DTO/convert/glaze/paths) stays
@@ -32,6 +33,30 @@ inline bool FileExists(const std::string& path)
 {
     std::error_code ec;
     return std::filesystem::exists(path, ec) && !ec;
+}
+
+// The stem (scene name, e.g. "Deck 1") of every durable ".dcad" file directly beside the
+// exe — the auto-save cache lives under cache/ so a non-recursive listing never picks it
+// up. Used by the homescreen's Open list.
+inline std::vector<std::string> ListDcadFiles(const std::string& exeDir)
+{
+    std::vector<std::string> out;
+    std::error_code ec;
+    std::filesystem::directory_iterator it(exeDir, ec);
+    if (ec) {
+        return out;
+    }
+    for (const auto& entry : it) {
+        if (!entry.is_regular_file(ec) || ec) {
+            continue;
+        }
+        std::filesystem::path p = entry.path();
+        if (p.extension() != Serialize::kDcadExt) {
+            continue;
+        }
+        out.push_back(p.stem().string());
+    }
+    return out;
 }
 
 // Read a whole file into `out`. Returns false if it can't be opened (missing / locked).

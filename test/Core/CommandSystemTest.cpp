@@ -1426,3 +1426,84 @@ TEST(Drag, FailsGracefullyWithNoActiveSketch)
     Workbench wb; // at Root, no sketch
     EXPECT_FALSE(wb.MoveLinePoint(1, PointRef::End, { 1, 1 }));
 }
+
+// ── editing an individual feature inside an open sketch ───────────────────────
+
+TEST(EditFeatureInSketch, FindActiveSketchCmdReachesNestedPointsAndCurves)
+{
+    Workbench wb;
+    FeatureId line = OpenSketchWithLine(wb, { 0, 0 }, { 10, 0 });
+
+    const SketchCmd* lc = wb.FindActiveSketchCmd(line);
+    ASSERT_NE(lc, nullptr);
+    ASSERT_TRUE(lc->Is<SketchLine>());
+
+    // A point nested inside the gesture compound is reachable too.
+    FeatureId p0 = lc->As<SketchLine>()->p0;
+    const SketchCmd* pc = wb.FindActiveSketchCmd(p0);
+    ASSERT_NE(pc, nullptr);
+    EXPECT_TRUE(pc->Is<SketchPointCmd>());
+}
+
+TEST(EditFeatureInSketch, SettingAPointInitialMovesTheGeometry)
+{
+    Workbench wb;
+    FeatureId line = OpenSketchWithLine(wb, { 0, 0 }, { 10, 0 });
+    const SketchLine* l = FindLineCmd(wb.Contexts().ActiveSketch()->children, line);
+    ASSERT_NE(l, nullptr);
+
+    ASSERT_TRUE(wb.SetSketchPointInitial(l->p0, { 3, 4 }));
+
+    SketchDocument doc;
+    ASSERT_TRUE(wb.BuildSketchPreview(doc));
+    const SketchEntity* e = doc.Find(line);
+    ASSERT_NE(e, nullptr);
+    EXPECT_NEAR(e->a.x, 3.0, kEps); // start moved to where the property edit put it
+    EXPECT_NEAR(e->a.y, 4.0, kEps);
+    EXPECT_NEAR(e->b.x, 10.0, kEps); // the other end stayed
+}
+
+TEST(EditFeatureInSketch, SettingConstructionFlagsTheCurve)
+{
+    Workbench wb;
+    FeatureId line = OpenSketchWithLine(wb, { 0, 0 }, { 10, 0 });
+
+    ASSERT_TRUE(wb.SetSketchConstruction(line, true));
+    SketchDocument doc;
+    ASSERT_TRUE(wb.BuildSketchPreview(doc));
+    EXPECT_TRUE(doc.Find(line)->construction);
+
+    ASSERT_TRUE(wb.SetSketchConstruction(line, false));
+    ASSERT_TRUE(wb.BuildSketchPreview(doc));
+    EXPECT_FALSE(doc.Find(line)->construction);
+}
+
+TEST(EditFeatureInSketch, EditMutatorsFailWithNoActiveSketch)
+{
+    Workbench wb; // at Root
+    EXPECT_EQ(wb.FindActiveSketchCmd(1), nullptr);
+    EXPECT_FALSE(wb.SetSketchPointInitial(1, { 0, 0 }));
+    EXPECT_FALSE(wb.SetSketchConstruction(1, true));
+}
+
+TEST(EditFeatureInSketch, EditingAFeatureOfAReEnteredSketchPersistsOnFinish)
+{
+    // The headline: re-open a finished sketch, edit one of its features, finish, and the
+    // change is committed (the edited slot replaces the original).
+    Workbench wb;
+    FeatureId line = OpenSketchWithLine(wb, { 0, 0 }, { 10, 0 });
+    FeatureId sketch = wb.Contexts().ActiveSketch()->featureId;
+    wb.StartTool(ToolId::FinishSketch); // commit
+
+    ASSERT_TRUE(wb.EditFeature(sketch)); // re-enter for editing
+    const SketchLine* l = FindLineCmd(wb.Contexts().ActiveSketch()->children, line);
+    ASSERT_NE(l, nullptr);
+    ASSERT_TRUE(wb.SetSketchPointInitial(l->p1, { 10, 5 })); // move the end point
+    wb.StartTool(ToolId::FinishSketch); // confirm -> ReplaceAt the original slot
+
+    EXPECT_EQ(wb.Doc().Size(), 1u); // replaced, not appended
+    const SketchEntity* e = wb.Evaluated().sketches.at(0).Find(line);
+    ASSERT_NE(e, nullptr);
+    EXPECT_NEAR(e->b.x, 10.0, kEps);
+    EXPECT_NEAR(e->b.y, 5.0, kEps);
+}

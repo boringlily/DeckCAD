@@ -449,6 +449,141 @@ TEST_F(ExplorerTest, DeletingAFeatureFromTheTreeRemovesItsRow)
     EXPECT_FALSE(HasNode(rowId));
 }
 
+TEST_F(ExplorerTest, EditingASketchFromTheTreeReEntersIt)
+{
+    FeatureId sketch = AuthorSketch(2);
+    Frame();
+    Ui::UiId rowId = NameId("ExplorerFeature", sketch);
+
+    // The edit chip only exists while the row is hovered (same as the delete chip).
+    DTL::Optional<Rect> row = RectOf(rowId);
+    ASSERT_TRUE(row.has_value());
+    pointer = {};
+    pointer.pos = { row->x + row->w * 0.6f, row->y + row->h * 0.5f };
+    Frame(); // hover resolves
+    Frame(); // the chip is built this frame
+
+    DTL::Optional<Rect> editChip = RectOf(HashChild(rowId, 4));
+    ASSERT_TRUE(editChip.has_value()) << "hover-revealed edit chip never appeared";
+
+    ClickAt({ editChip->x + editChip->w * 0.5f, editChip->y + editChip->h * 0.5f });
+
+    // We are now re-editing that same sketch, with its commands deep-copied in.
+    EXPECT_EQ(scene().workbench.Contexts().CurrentKind(), ContextKind::Sketch);
+    const SketchContext* s = scene().workbench.Contexts().ActiveSketch();
+    ASSERT_NE(s, nullptr);
+    EXPECT_EQ(s->featureId, sketch);
+    EXPECT_EQ(s->children.size(), 2u); // the two authored lines
+}
+
+TEST_F(ExplorerTest, EditChipIsHiddenWhileAnEditIsAlreadyOpen)
+{
+    // A provisional edit context can only be pushed from Root, so once one sketch is being
+    // edited the tree must not offer to edit another (or the same) one.
+    FeatureId sketch = AuthorSketch(1);
+    ASSERT_TRUE(scene().workbench.EditFeature(sketch));
+    Frame();
+
+    Ui::UiId rowId = NameId("ExplorerFeature", sketch);
+    DTL::Optional<Rect> row = RectOf(rowId);
+    ASSERT_TRUE(row.has_value());
+    pointer = {};
+    pointer.pos = { row->x + row->w * 0.6f, row->y + row->h * 0.5f };
+    Frame(); // hover resolves
+    Frame(); // chips built
+
+    // The delete chip still appears on hover, but the edit chip is withheld.
+    EXPECT_TRUE(HasNode(HashChild(rowId, 3))); // delete
+    EXPECT_FALSE(HasNode(HashChild(rowId, 4))); // edit
+}
+
+// ── feature properties panel ──────────────────────────────────────────────────
+
+TEST_F(ExplorerTest, PropertiesPanelIsHiddenWhenNotEditingASketch)
+{
+    AuthorSketch(1); // authored AND finished — back at Root, nothing being edited
+    Frame();
+    EXPECT_FALSE(HasNode(NameId("Explorer::Properties")));
+}
+
+TEST_F(ExplorerTest, PropertiesPanelShowsFieldsMatchingTheSelectedFeature)
+{
+    Workbench& wb = scene().workbench;
+    wb.StartTool(ToolId::CreateSketch);
+    wb.ActiveTool().SetPlane(Geometry::SketchPlane::XY);
+    wb.FinishTool();
+    wb.StartTool(ToolId::Line);
+    wb.ActiveTool().AddPoint({ 0, 0 });
+    wb.ActiveTool().AddPoint({ 10, 0 });
+    wb.FinishTool();
+    FeatureId line = LastCurveId(wb);
+    wb.StartTool(ToolId::Dimension);
+    wb.ActiveTool().AddPick(line);
+    wb.ActiveTool().SetValue("50mm");
+    ASSERT_TRUE(wb.FinishTool());
+
+    FeatureId dim = kNullFeature;
+    for (const SketchCmd& c : wb.Contexts().ActiveSketch()->children) {
+        if (c.Is<SketchDimensionCmd>()) {
+            dim = c.Get().id;
+        }
+    }
+    ASSERT_NE(dim, kNullFeature);
+    const SketchLine* l = wb.FindActiveSketchCmd(line)->As<SketchLine>();
+    ASSERT_NE(l, nullptr);
+
+    // A point → numeric X/Y fields.
+    scene().explorer.selected = l->p0;
+    Frame();
+    EXPECT_TRUE(HasNode(NameId("Properties::X")));
+    EXPECT_TRUE(HasNode(NameId("Properties::Y")));
+
+    // A curve → construction toggle (no coordinate fields).
+    scene().explorer.selected = line;
+    Frame();
+    EXPECT_TRUE(HasNode(NameId("Properties::Construction")));
+    EXPECT_FALSE(HasNode(NameId("Properties::X")));
+
+    // A dimension → expression field.
+    scene().explorer.selected = dim;
+    Frame();
+    EXPECT_TRUE(HasNode(NameId("Properties::Expr")));
+}
+
+TEST_F(ExplorerTest, EditingASelectedPointCoordinateMovesTheGeometry)
+{
+    // End to end through the real panel: select a point, type a new Y, geometry follows.
+    Workbench& wb = scene().workbench;
+    wb.StartTool(ToolId::CreateSketch);
+    wb.ActiveTool().SetPlane(Geometry::SketchPlane::XY);
+    wb.FinishTool();
+    wb.StartTool(ToolId::Line);
+    wb.ActiveTool().AddPoint({ 0, 0 });
+    wb.ActiveTool().AddPoint({ 10, 0 });
+    wb.FinishTool();
+    FeatureId line = LastCurveId(wb);
+    FeatureId p0 = wb.FindActiveSketchCmd(line)->As<SketchLine>()->p0;
+
+    scene().explorer.selected = p0;
+    Frame();
+
+    Ui::UiId yField = NameId("Properties::Y");
+    DTL::Optional<Rect> field = RectOf(yField);
+    ASSERT_TRUE(field.has_value()) << "point Y field not shown";
+
+    ClickAt({ field->x + field->w * 0.9f, field->y + field->h * 0.5f });
+    ASSERT_TRUE(IsFocused(yField));
+    SetCaretPos(scene().explorer.propYLen);
+    Type("5"); // "0" -> "05" == 5
+
+    SketchDocument doc;
+    ASSERT_TRUE(wb.BuildSketchPreview(doc));
+    const SketchEntity* e = doc.Find(line);
+    ASSERT_NE(e, nullptr);
+    EXPECT_NEAR(e->a.y, 5.0, 1e-6); // the point's start moved to y = 5
+    EXPECT_NEAR(e->a.x, 0.0, 1e-6);
+}
+
 // ── tabs ─────────────────────────────────────────────────────────────────────
 
 TEST_F(ExplorerTest, TabsShowOnlyTheirOwnTable)
@@ -480,12 +615,27 @@ TEST_F(ExplorerTest, ClickingATabSwitchesIt)
     Frame();
     ASSERT_EQ(scene().explorer.tab, ExplorerTab::Model);
 
-    Ui::UiId paramTab = NameId("Explorer::Tab", static_cast<u32>(ExplorerTab::Parameters));
-    DTL::Optional<Rect> r = RectOf(paramTab);
+    Ui::UiId geomTab = NameId("Explorer::Tab", static_cast<u32>(ExplorerTab::Geometry));
+    DTL::Optional<Rect> r = RectOf(geomTab);
     ASSERT_TRUE(r.has_value());
     ClickAt({ r->x + r->w * 0.5f, r->y + r->h * 0.5f });
 
-    EXPECT_EQ(scene().explorer.tab, ExplorerTab::Parameters);
+    EXPECT_EQ(scene().explorer.tab, ExplorerTab::Geometry);
+}
+
+TEST_F(ExplorerTest, ParametersIsNotATabInTheBar)
+{
+    // Parameters is reachable only from the sidebar rail, never as a tab.
+    Frame();
+    EXPECT_TRUE(HasNode(NameId("Explorer::Tab", static_cast<u32>(ExplorerTab::Model))));
+    EXPECT_TRUE(HasNode(NameId("Explorer::Tab", static_cast<u32>(ExplorerTab::Geometry))));
+    EXPECT_FALSE(HasNode(NameId("Explorer::Tab", static_cast<u32>(ExplorerTab::Parameters))));
+
+    // The rail still shows the Parameters view (no tab bar on it).
+    ShowTab(ExplorerTab::Parameters);
+    Frame();
+    EXPECT_TRUE(HasNode(NameId("Explorer::Params")));
+    EXPECT_FALSE(HasNode(NameId("Explorer::Tab", static_cast<u32>(ExplorerTab::Model))));
 }
 
 // ── the parameter table ──────────────────────────────────────────────────────

@@ -39,11 +39,14 @@ inline void SetBuf(char* buf, u32& len, u32 cap, std::string_view src)
     len = n;
 }
 
-// The Explorer's tabs. Each is its own table over a different view of the model:
+// The Explorer's views. Each is its own table over a different view of the model:
 //   Model      the command list — what the user authored
 //   Parameters the ParametricExpressions — what drives it
 //   Geometry   the generated entities — what came out
 // Distinct enough that stacking them would just make each one cramped.
+//
+// Parameters is deliberately NOT a tab: it is reached only from the sidebar rail (see
+// kExplorerTabs below), so the tab bar carries just Model and Geometry.
 enum class ExplorerTab : u8 {
     Model,
     Parameters,
@@ -55,20 +58,52 @@ struct ExplorerTabInfo {
     std::string_view name;
 };
 
+// The buttons the Explorer's tab bar shows. Parameters is intentionally absent — it is a
+// rail-only view, not a tab.
 inline constexpr ExplorerTabInfo kExplorerTabs[] = {
     { ExplorerTab::Model, "Model" },
-    { ExplorerTab::Parameters, "Parameters" },
     { ExplorerTab::Geometry, "Geometry" },
+};
+
+// Which panel the left icon rail is showing. Explorer and Parameters both render the
+// same tabbed Explorer panel (just jumped to a specific tab) — ProjectSettings is its
+// own panel entirely.
+enum class SidebarSection : u8 {
+    Explorer,
+    Parameters,
+    ProjectSettings,
 };
 
 struct ExplorerState {
     ExplorerTab tab { ExplorerTab::Model };
+    SidebarSection section { SidebarSection::Explorer };
+
+    // ── project settings panel ───────────────────────────────────────────────
+    // The scene-name edit buffer. Seeded from Scene::filename once (`settingsSeeded`),
+    // then left alone — same reasoning as ParamRow: once it's the user's buffer,
+    // re-filling it every frame would fight whatever they're typing.
+    bool settingsSeeded { false };
+    char settingsName[kParamNameCap] {};
+    u32 settingsNameLen { 0 };
 
     // ── command tree ─────────────────────────────────────────────────────────
     // Collapsed rather than expanded, so a newly created group starts open — which is
     // what you want right after making one.
     std::vector<FeatureId> collapsed;
     FeatureId selected { kNullFeature };
+
+    // ── feature properties (the selected sketch command) ─────────────────────
+    // Edit buffers for the properties panel. Like ParamRow, they are caller-owned buffers
+    // Ui::InputLabel writes into; `propFor` records which feature they were last seeded for,
+    // so a selection change re-seeds them but ongoing typing is never overwritten.
+    static constexpr u32 kPropNumCap = 48;
+    FeatureId propFor { kNullFeature };
+    char propX[kPropNumCap] {};
+    u32 propXLen { 0 };
+    char propY[kPropNumCap] {};
+    u32 propYLen { 0 };
+    char propExpr[kParamExprCap] {};
+    u32 propExprLen { 0 };
 
     bool IsCollapsed(FeatureId id) const
     {

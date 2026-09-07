@@ -23,7 +23,10 @@ enum class FontId : u8 {
     DO(Plus)            \
     DO(Project)         \
     DO(ProjectSettings) \
+    DO(Redo)            \
+    DO(Save)            \
     DO(Settings)        \
+    DO(Undo)            \
     DO(Unknown)
 
 #define MAKE_ENUM(VAR) VAR,

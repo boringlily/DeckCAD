@@ -133,6 +133,59 @@ public:
         return true;
     }
 
+    // ── editing an individual feature inside the active sketch ─────────────────
+    // Find a command by id in the sketch being authored/edited (recursing groups), so a
+    // properties panel can read the selected feature's parameters. Null if no sketch is
+    // active or nothing matches.
+    const SketchCmd* FindActiveSketchCmd(FeatureId id) const
+    {
+        const SketchContext* s = contexts.ActiveSketch();
+        return s ? FindCmd(s->children, id) : nullptr;
+    }
+
+    // Move a point in the active sketch to `to` — edits the SketchPointCmd's `initial`,
+    // exactly as a drag does, but addressed by point id (what a properties panel edits).
+    bool SetSketchPointInitial(FeatureId pointId, Geometry::Point2 to)
+    {
+        SketchContext* s = contexts.ActiveSketch();
+        if (!s) {
+            return false;
+        }
+        SketchPointCmd* p = FindPointMutable(s->children, pointId);
+        if (!p) {
+            return false;
+        }
+        p->initial = to;
+        return true;
+    }
+
+    // Set a curve's construction flag in the active sketch. Construction geometry is drawn
+    // as a reference but is not part of the profile.
+    bool SetSketchConstruction(FeatureId curveId, bool construction)
+    {
+        SketchContext* s = contexts.ActiveSketch();
+        if (!s) {
+            return false;
+        }
+        SketchCmd* c = FindCmdMutable(s->children, curveId);
+        if (!c) {
+            return false;
+        }
+        if (SketchLine* l = c->As<SketchLine>()) {
+            l->construction = construction;
+            return true;
+        }
+        if (SketchCircle* ci = c->As<SketchCircle>()) {
+            ci->construction = construction;
+            return true;
+        }
+        if (SketchArc* a = c->As<SketchArc>()) {
+            a->construction = construction;
+            return true;
+        }
+        return false;
+    }
+
     // Translate a whole line (both endpoints) by `delta` — dragging the line body. Moves
     // both of the line's points.
     bool TranslateLine(FeatureId id, Geometry::Point2 delta)
@@ -272,6 +325,38 @@ private:
             }
             if (CompoundSketchCmd* g = c.As<CompoundSketchCmd>()) {
                 if (SketchPointCmd* nested = FindPointMutable(g->children, id)) {
+                    return nested;
+                }
+            }
+        }
+        return nullptr;
+    }
+
+    // Find any command by id in a tree (recursing into groups) — the compound's own id
+    // matches too. Const for reading a selected feature's parameters, mutable for editing.
+    static const SketchCmd* FindCmd(const std::vector<SketchCmd>& cmds, FeatureId id)
+    {
+        for (const SketchCmd& c : cmds) {
+            if (c.Get().id == id) {
+                return &c;
+            }
+            if (const CompoundSketchCmd* g = c.As<CompoundSketchCmd>()) {
+                if (const SketchCmd* nested = FindCmd(g->children, id)) {
+                    return nested;
+                }
+            }
+        }
+        return nullptr;
+    }
+
+    static SketchCmd* FindCmdMutable(std::vector<SketchCmd>& cmds, FeatureId id)
+    {
+        for (SketchCmd& c : cmds) {
+            if (c.Get().id == id) {
+                return &c;
+            }
+            if (CompoundSketchCmd* g = c.As<CompoundSketchCmd>()) {
+                if (SketchCmd* nested = FindCmdMutable(g->children, id)) {
                     return nested;
                 }
             }
