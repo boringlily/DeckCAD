@@ -237,6 +237,26 @@ deckcad_build_external_dependency(
         -DMSDFGEN_DISABLE_PNG=ON
         "-DCMAKE_PREFIX_PATH=${freetype_install_dir}"
 )
+# msdfgen's *installed* config unconditionally calls find_dependency(Freetype
+# REQUIRED), which resolves through CMake's generic FindFreetype MODULE and so
+# knows nothing about our commit-keyed install. Worse, that module looks for a
+# library named `freetype`, while a Debug FreeType installs as `freetyped` --
+# so pointing it at our prefix would not help either.
+#
+# We have already found FreeType above through its own exported config, and
+# that is what defines the Freetype::Freetype target msdfgen's targets actually
+# link. Recording it as found is what stops find_dependency going looking for a
+# system copy. Without this the search either fails outright (CI: a runner with
+# no libfreetype development package, "Could NOT find Freetype (missing:
+# FREETYPE_LIBRARY FREETYPE_INCLUDE_DIRS)") or, worse, quietly succeeds against
+# an unrelated system FreeType -- on one dev machine here it bound to MSYS2's
+# C:/msys64/mingw64/lib/libfreetype.dll.a, which is how this stayed hidden.
+# Setting Freetype_FOUND would not help: find_dependency() does not skip a
+# search when the package is already found -- it keys off an internal
+# per-call-signature hash, not <pkg>_FOUND -- so it runs the module every time.
+# cmake/FindFreetype.cmake shadows the builtin module and answers with the
+# target our config-mode find above already created.
+list(APPEND CMAKE_MODULE_PATH ${CMAKE_CURRENT_SOURCE_DIR}/cmake)
 find_package(msdfgen CONFIG REQUIRED PATHS ${msdfgen_install_dir} NO_DEFAULT_PATH)
 
 # --- nanosvg: SVG icon rasterization ---------------------------------------
