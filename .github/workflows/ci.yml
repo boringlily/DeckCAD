@@ -1,0 +1,80 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  # Every job below shares this one cache directory/key. Two jobs building
+  # the same not-yet-cached submodule commit at the same time would corrupt
+  # each other's build (see BUILD.md), so `sanitize` and `lint` both `needs:
+  # build-debug` -- by the time they start, build-debug has either already
+  # warmed the cache or failed the whole workflow, never both running a cold
+  # build concurrently.
+  DECKCAD_DEPS_DIR: ${{ github.workspace }}/.ci-deps-cache
+  DECKCAD_TOOLCHAIN: clang-20
+
+jobs:
+  build-debug:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: recursive
+      - uses: ./.github/actions/setup-toolchain
+      - name: Configure
+        run: cmake --preset Debug
+      - name: Build
+        run: cmake --build --preset Debug
+      - name: Test
+        run: ctest --preset Debug
+
+  sanitize:
+    # Needs build-debug so the dependency cache is already warm before this
+    # starts (see the concurrency note above) -- and because Sanitize uses
+    # the same CMAKE_BUILD_TYPE=Debug as build-debug, just with
+    # DECKCAD_ENABLE_ASAN/UBSAN added, this step reuses exactly what
+    # build-debug installed rather than rebuilding SDL/Dawn/FreeType/msdfgen/
+    # googletest a second time.
+    needs: build-debug
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: recursive
+      - uses: ./.github/actions/setup-toolchain
+      - name: Configure
+        run: cmake --preset Sanitize
+      - name: Build
+        run: cmake --build --preset Sanitize
+      - name: Test
+        env:
+          UBSAN_OPTIONS: print_stacktrace=1
+        run: ctest --preset Sanitize
+
+  lint:
+    needs: build-debug
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: recursive
+      - uses: ./.github/actions/setup-toolchain
+        with:
+          extra-clang-tools: "true"
+      - name: Check formatting
+        run: |
+          find src tests -name '*.cpp' -o -name '*.h' \
+            | xargs "clang-format-${DECKCAD_TOOLCHAIN#clang-}" --dry-run --Werror
+      # Only needs a configure (find_package against the already-warmed
+      # cache from build-debug), not a build -- clang-tidy works straight
+      # off compile_commands.json.
+      - name: Configure
+        run: cmake --preset Debug
+      - name: clang-tidy
+        run: python3 scripts/run_clang_tidy.py

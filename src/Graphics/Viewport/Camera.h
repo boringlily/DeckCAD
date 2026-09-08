@@ -1,0 +1,86 @@
+#pragma once
+#include "DcadMath.h"
+#include "Types.h"
+
+namespace Viewport
+{
+
+/**
+ * @brief Orbit camera for the CAD viewport.
+ * @note Takes already-resolved input deltas rather than polling a device
+ * directly. This keeps the camera unit-testable and decoupled from any
+ * windowing library.
+ */
+class Camera
+{
+public:
+    enum class Orientation
+    {
+        Isometric,
+        PlaneXY,
+        PlaneXZ,
+        PlaneYZ,
+    };
+
+    enum class Projection
+    {
+        Perspective,
+        Orthographic,
+    };
+
+    Camera() { resetCamera(); }
+
+    void resetCamera();
+    void setOrientation(Orientation orientation);
+
+    /// Orbit around the target. Deltas are in pixels.
+    void orbitAroundTarget(f32 delta_x, f32 delta_y);
+
+    /// Pan the camera and its target across the view plane. Deltas are in pixels.
+    void panAcrossView(f32 delta_x, f32 delta_y);
+
+    /**
+     * @brief Dollies toward or away from the target.
+     * @param amount Positive moves the camera closer.
+     * @note Distance is clamped to prevent the camera from crossing or escaping the target.
+     */
+    void zoomTowardTarget(f32 amount);
+
+    DcadMath::Matrix4 getViewMatrix() const;
+    DcadMath::Matrix4 getProjectionMatrix(f32 aspect) const;
+
+    /// Build a world-space ray through a viewport pixel.
+    /// @p x, @p y are in pixels with the origin at the viewport's top-left.
+    DcadMath::Ray screenPointToRay(f32 x, f32 y, f32 viewport_width, f32 viewport_height) const;
+
+    DcadMath::Vector3 getPosition() const { return position_; }
+    DcadMath::Vector3 getTarget() const { return target_; }
+    DcadMath::Vector3 getUp() const { return up_; }
+    f32 getDistanceToTarget() const { return DcadMath::Distance(position_, target_); }
+
+    Projection getProjection() const { return projection_; }
+    void setProjection(Projection p) { projection_ = p; }
+
+    f32 getFovYDegrees() const { return fov_y_; }
+    f32 getNearPlane() const { return near_; }
+    f32 getFarPlane() const { return far_; }
+
+    // Tuning constants, kept public for the UI to expose later.
+    static constexpr f32 ORBIT_SENSITIVITY = 0.005f;
+    static constexpr f32 PAN_SENSITIVITY = 0.0015f;
+    static constexpr f32 ZOOM_SENSITIVITY = 0.12f;
+    static constexpr f32 MIN_DISTANCE = 0.05f;
+    static constexpr f32 MAX_DISTANCE = 5000.0f;
+
+private:
+    DcadMath::Vector3 position_ { 15.0f, 15.0f, 15.0f };
+    DcadMath::Vector3 target_ { 0.0f, 0.0f, 0.0f };
+    DcadMath::Vector3 up_ { 0.0f, 1.0f, 0.0f };
+
+    Projection projection_ { Projection::Perspective };
+    f32 fov_y_ { 45.0f };
+    f32 near_ { 0.05f };
+    f32 far_ { 2000.0f };
+};
+
+} // namespace Viewport
