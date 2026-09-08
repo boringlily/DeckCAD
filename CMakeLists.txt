@@ -135,7 +135,19 @@ find_package(Threads REQUIRED)
 # changed -- silently, and with a confusing failure much later
 # ("IMPORTED_LOCATION not set for configuration Debug"). Pin it every
 # configure instead of hoping the cache is current.
-set(Dawn_DIR "${dawn_install_dir}/lib/cmake/Dawn" CACHE PATH
+# Find the package config inside the unpacked prefix rather than assuming where
+# it sits. Dawn's Linux artifact is built in a manylinux container, where CMake
+# installs to lib64/, while the Windows and macOS artifacts use lib/ -- so a
+# hardcoded lib/ path configures happily on Windows and then fails CI on Linux
+# with "Could not find a package configuration file provided by Dawn".
+file(GLOB deckcad_dawn_config_dirs "${dawn_install_dir}/lib*/cmake/Dawn")
+if(NOT deckcad_dawn_config_dirs)
+    message(FATAL_ERROR
+        "No DawnConfig.cmake found under ${dawn_install_dir}. The unpacked prebuilt "
+        "looks incomplete -- delete that directory under DECKCAD_DEPS_DIR and reconfigure.")
+endif()
+list(GET deckcad_dawn_config_dirs 0 deckcad_dawn_config_dir)
+set(Dawn_DIR "${deckcad_dawn_config_dir}" CACHE PATH
     "Directory holding the prebuilt Dawn's DawnConfig.cmake" FORCE)
 find_package(Dawn CONFIG REQUIRED PATHS ${dawn_install_dir} NO_DEFAULT_PATH)
 

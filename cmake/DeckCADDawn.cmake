@@ -208,7 +208,9 @@ function(deckcad_provide_dawn out_install_dir out_config)
     # command line tools in bin/ (~26 MB) are consequently dead weight here,
     # and nothing can reference them because they are not in the export set.
     # Dropping them is worth about a third of the unpacked size.
-    file(GLOB tint_archives "${install_dir}/lib/tint_*")
+    # lib/ on Windows and macOS, lib64/ on the manylinux-built Linux artifact;
+    # and Unix static libraries carry a "lib" prefix the Windows ones don't.
+    file(GLOB tint_archives "${install_dir}/lib*/tint_*" "${install_dir}/lib*/libtint_*")
     if(tint_archives)
         file(REMOVE ${tint_archives})
     endif()
