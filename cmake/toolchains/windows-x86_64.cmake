@@ -2,10 +2,13 @@
 # (https://github.com/mstorsjo/llvm-mingw), as installed by the
 # `windows-cross` stage of Docker/Dockerfile.
 #
-# Best-effort: llvm-mingw's DirectX 12 headers lag the real Windows SDK, so
-# Dawn's D3D12 backend is the part of a full DeckCAD build most likely to
-# need extra work under this toolchain. Verified only with a trivial C smoke
-# test (see the Dockerfile) -- not a full DeckCAD build.
+# This toolchain currently CANNOT build DeckCAD: Dawn arrives as a prebuilt
+# binary and its Windows artifact is built by MSVC, which a MinGW toolchain
+# cannot link against (different C runtime and object conventions).
+# cmake/DeckCADDawn.cmake stops the configure with that explanation rather
+# than letting it fail obscurely at link time. Reviving this path needs either
+# an MSVC-ABI toolchain or a source build of Dawn for this target. What is
+# here was verified only with a trivial C smoke test (see the Dockerfile).
 #
 # Usage: cmake -S . -B build-windows -G Ninja
 #            -DCMAKE_TOOLCHAIN_FILE=cmake/toolchains/windows-x86_64.cmake

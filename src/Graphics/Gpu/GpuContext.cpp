@@ -79,6 +79,7 @@ bool Context::createSurface(const ContextDescriptor& descriptor_ref)
     surface_information.RawWindow = descriptor_ref.native_window_ptr;
     surface_information.RawDisplay = descriptor_ref.native_display_ptr;
     surface_information.RawSurface = descriptor_ref.native_surface_ptr;
+    surface_information.RawInstance = descriptor_ref.native_instance_ptr;
 
     WGPUSurface raw = ImGui_ImplWGPU_CreateWGPUSurfaceHelper(&surface_information);
     if(!raw)

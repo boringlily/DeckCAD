@@ -51,6 +51,9 @@ public:
     void* getNativeWindow() const;
     void* getNativeDisplay() const;
     void* getNativeSurface() const;
+    /// The owning HINSTANCE on Win32, which its surface source requires
+    /// alongside the HWND; null everywhere else.
+    void* getNativeInstance() const;
 
     const std::string& getLastError() const { return last_error_; }
 

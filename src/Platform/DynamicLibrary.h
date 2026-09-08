@@ -9,9 +9,12 @@ namespace Platform
  * @brief Loads a shared library from disk and can reload it in place when
  * the file on disk changes, letting application logic be swapped without
  * restarting the process.
- * @note The library is loaded from a shadow copy (`<path>.load`) rather than
- * the original path: a build can overwrite the original while the shadow
- * copy stays mapped into this process.
+ * @note The library is loaded from a shadow copy rather than the original
+ * path, so a build can overwrite the original while this process keeps the
+ * copy mapped. Each load takes a *fresh* shadow path
+ * (`<path>.<pid>-<n>.load`) and the previous one is released only once the
+ * replacement is mapped -- reusing a single shadow path would mean copying
+ * over a file this process still has mapped, which Windows refuses.
  */
 class DynamicLibrary
 {
@@ -39,9 +42,11 @@ public:
 
 private:
     bool loadShadowCopy();
+    std::string makeShadowPath(u32 index) const;
 
     std::string library_path_;
-    std::string shadow_path_;
+    std::string shadow_path_; ///< The shadow copy currently mapped, if any.
+    u32 shadow_index_ { 0 };
     s64 last_write_time_ { 0 };
     void* handle_ptr_ { nullptr };
     u32 reload_count_ { 0 };
